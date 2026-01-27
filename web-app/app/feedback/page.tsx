@@ -536,26 +536,14 @@ function FeedbackContent() {
                 <Separator />
 
                 {analysisLoading ? (
-                   <div className="space-y-6">
-                      <div className="space-y-2">
-                         <Skeleton className="h-4 w-24" />
-                         <Skeleton className="h-10 w-full" />
-                      </div>
-                      <div className="space-y-2">
-                         <Skeleton className="h-4 w-24" />
-                         <Skeleton className="h-24 w-full" />
-                      </div>
-// ...
-// remove the first StrReplace block which was malformed in previous attempts if it exists
-// ...
-                {analysisLoading ? (
-                   <div className="flex flex-col items-center justify-center py-12 gap-4 text-muted-foreground min-h-[400px]">
-                      <Spinner variant="infinite" size={64} className="text-primary" />
-                      <p className="font-medium animate-pulse">Analyzing transcript based on "{currentTemplate?.name || 'Default'}" form...</p>
-                   </div>
+                  <div className="flex flex-col items-center justify-center py-12 gap-4 text-muted-foreground min-h-[400px]">
+                    <Spinner variant="infinite" size={64} className="text-primary" />
+                    <p className="font-medium animate-pulse">
+                      Analyzing transcript based on "{currentTemplate?.name || 'Default'}" form...
+                    </p>
+                  </div>
                 ) : (
-// ...
-                   <div className="space-y-8">
+                  <div className="space-y-8">
                       {/* Dynamic Form Rendering */}
                       {currentTemplate ? (
                          <div className="space-y-6">
