@@ -48,6 +48,7 @@ interface Candidate {
   email: string
   position: string
   stage: string
+  isUncategorized?: boolean
 }
 
 interface Posting {
@@ -56,6 +57,7 @@ interface Posting {
   team: string
   location: string
   count?: number // Number of candidates
+  isUncategorized?: boolean
 }
 
 interface TemplateField {
@@ -522,7 +524,14 @@ function FeedbackContent() {
                                       )}
                                     />
                                     <div className="flex flex-col">
-                                      <span className="font-medium">{posting.text}</span>
+                                      <span className={`font-medium ${posting.isUncategorized ? 'text-amber-600' : ''}`}>
+                                        {posting.text}
+                                        {posting.isUncategorized && (
+                                          <span className="ml-2 text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">
+                                            Needs Assignment
+                                          </span>
+                                        )}
+                                      </span>
                                       <span className="text-xs text-muted-foreground">
                                         {posting.count && `${posting.count} candidate${posting.count > 1 ? 's' : ''}`}
                                         {posting.team && ` • ${posting.team}`}
@@ -584,7 +593,14 @@ function FeedbackContent() {
                                       )}
                                     />
                                     <div className="flex flex-col">
-                                      <span className="font-medium">{candidate.name}</span>
+                                      <span className="font-medium">
+                                        {candidate.name}
+                                        {candidate.isUncategorized && (
+                                          <span className="ml-2 text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">
+                                            No Job
+                                          </span>
+                                        )}
+                                      </span>
                                       <span className="text-xs text-muted-foreground">
                                         <span className="text-primary/80">{candidate.stage}</span>
                                       </span>

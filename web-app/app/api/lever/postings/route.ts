@@ -27,32 +27,55 @@ export async function GET() {
     
     // Extract unique positions from opportunities
     const positionMap = new Map<string, { id: string; text: string; team: string; location: string; count: number }>()
+    let uncategorizedCount = 0
     
     for (const opp of data.data || []) {
       // Get position info - first check applications, then fallback to opportunity itself
       const app = opp.applications?.[0]
-      const postingId = app?.posting || opp.id
-      const postingText = app?.postingTitle || opp.name || 'General Application'
+      const postingId = app?.posting
+      const postingText = app?.postingTitle
       
-      if (positionMap.has(postingId)) {
-        // Increment count for this position
-        const existing = positionMap.get(postingId)!
-        existing.count++
+      if (postingId && postingText) {
+        // Has a real posting
+        if (positionMap.has(postingId)) {
+          const existing = positionMap.get(postingId)!
+          existing.count++
+        } else {
+          positionMap.set(postingId, {
+            id: postingId,
+            text: postingText,
+            team: '',
+            location: '',
+            count: 1
+          })
+        }
       } else {
-        positionMap.set(postingId, {
-          id: postingId,
-          text: postingText,
-          team: '',
-          location: '',
-          count: 1
-        })
+        // Uncategorized - no posting associated
+        uncategorizedCount++
       }
     }
 
-    const postings = Array.from(positionMap.values())
-      .sort((a, b) => b.count - a.count) // Most candidates first
+    // Build postings array with uncategorized at top if any exist
+    const postings: any[] = []
     
-    console.log('Positions extracted from opportunities:', postings.length)
+    if (uncategorizedCount > 0) {
+      postings.push({
+        id: '__uncategorized__',
+        text: 'Uncategorized',
+        team: '',
+        location: '',
+        count: uncategorizedCount,
+        isUncategorized: true
+      })
+    }
+    
+    // Add regular postings sorted by count
+    const regularPostings = Array.from(positionMap.values())
+      .sort((a, b) => b.count - a.count)
+    
+    postings.push(...regularPostings)
+    
+    console.log('Positions extracted:', postings.length, 'Uncategorized:', uncategorizedCount)
     
     return NextResponse.json({ success: true, postings })
 

@@ -31,19 +31,26 @@ export async function GET(request: NextRequest) {
     // Transform and optionally filter data
     let candidates = (data.data || []).map((opp: any) => {
       const app = opp.applications?.[0]
+      const hasPosting = !!(app?.posting && app?.postingTitle)
+      
       return {
         id: opp.id,
         name: opp.contact?.name || 'Unknown',
         email: opp.contact?.emails?.[0] || '',
-        position: app?.postingTitle || opp.name || 'No position',
-        postingId: app?.posting || opp.id,
+        position: app?.postingTitle || 'Uncategorized',
+        postingId: app?.posting || null,
         stage: opp.stage?.text || 'Unknown Stage',
         createdAt: opp.createdAt,
+        isUncategorized: !hasPosting,
       }
     })
 
     // Filter by posting if specified
-    if (postingId) {
+    if (postingId === '__uncategorized__') {
+      // Show only uncategorized candidates
+      candidates = candidates.filter((c: any) => c.isUncategorized)
+    } else if (postingId) {
+      // Show candidates for specific posting
       candidates = candidates.filter((c: any) => c.postingId === postingId)
     }
 
