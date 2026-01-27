@@ -1,26 +1,15 @@
 {
   "manifest_version": 3,
   "name": "Academy Interview Assistant",
-  "version": "2.0.0",
-  "description": "AI-powered interview feedback automation for Lever ATS",
+  "version": "3.0.0",
+  "description": "Auto-opens feedback form after Google Meet interviews",
   "permissions": [
     "storage",
-    "tabs",
-    "identity"
+    "tabs"
   ],
   "host_permissions": [
-    "https://meet.google.com/*",
-    "https://api.anthropic.com/*",
-    "https://api.lever.co/*",
-    "https://generativelanguage.googleapis.com/*",
-    "https://www.googleapis.com/*"
+    "https://meet.google.com/*"
   ],
-  "oauth2": {
-    "client_id": "YOUR_CLIENT_ID.apps.googleusercontent.com",
-    "scopes": [
-      "https://www.googleapis.com/auth/drive.readonly"
-    ]
-  },
   "background": {
     "service_worker": "background.js"
   },
@@ -32,6 +21,5 @@
   "action": {
     "default_popup": "settings.html",
     "default_icon": "icon.png"
-  },
-  "key": "YOUR_EXTENSION_KEY"
+  }
 }
