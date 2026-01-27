@@ -9,7 +9,7 @@ export async function GET() {
     }
 
     const response = await fetch(
-      'https://api.lever.co/v1/opportunities?limit=100&expand=contact',
+      'https://api.lever.co/v1/opportunities?limit=100&expand=contact&expand=stage',
       {
         headers: {
           'Authorization': `Basic ${Buffer.from(leverKey + ':').toString('base64')}`,
@@ -30,7 +30,7 @@ export async function GET() {
       name: opp.contact?.name || 'Unknown',
       email: opp.contact?.emails?.[0] || '',
       position: opp.posting?.text || opp.name || 'No position',
-      stage: opp.stage,
+      stage: opp.stage?.text || 'Unknown Stage',
       createdAt: opp.createdAt,
     }))
 

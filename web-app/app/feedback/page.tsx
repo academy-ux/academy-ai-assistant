@@ -45,6 +45,7 @@ interface Candidate {
   name: string
   email: string
   position: string
+  stage: string
 }
 
 interface Template {
@@ -70,8 +71,9 @@ function FeedbackContent() {
   const [candidates, setCandidates] = useState<Candidate[]>([])
   const [templates, setTemplates] = useState<Template[]>([])
   const [selectedCandidate, setSelectedCandidate] = useState('')
-  const [open, setOpen] = useState(false)
+  const [candidateOpen, setCandidateOpen] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState('')
+  const [templateOpen, setTemplateOpen] = useState(false)
 
   const [formData, setFormData] = useState({
     rating: '3 - Hire',
@@ -391,13 +393,13 @@ function FeedbackContent() {
                 {/* Match Selection */}
                 <div className="grid grid-cols-2 gap-4">
                    <div className="space-y-2">
-                      <Label>Candidate</Label>
-                      <Popover open={open} onOpenChange={setOpen}>
+                      <Label>Candidate / Opportunity</Label>
+                      <Popover open={candidateOpen} onOpenChange={setCandidateOpen}>
                         <PopoverTrigger asChild>
                           <Button
                             variant="outline"
                             role="combobox"
-                            aria-expanded={open}
+                            aria-expanded={candidateOpen}
                             className="w-full justify-between"
                           >
                             {selectedCandidate
@@ -418,7 +420,7 @@ function FeedbackContent() {
                                     value={`${candidate.name} ${candidate.position}`}
                                     onSelect={() => {
                                       setSelectedCandidate(candidate.id)
-                                      setOpen(false)
+                                      setCandidateOpen(false)
                                     }}
                                   >
                                     <Check
@@ -427,7 +429,12 @@ function FeedbackContent() {
                                         selectedCandidate === candidate.id ? "opacity-100" : "opacity-0"
                                       )}
                                     />
-                                    {candidate.name} - {candidate.position}
+                                    <div className="flex flex-col">
+                                      <span className="font-medium">{candidate.name}</span>
+                                      <span className="text-xs text-muted-foreground">
+                                        {candidate.position} • <span className="text-primary/80">{candidate.stage}</span>
+                                      </span>
+                                    </div>
                                   </CommandItem>
                                 ))}
                               </CommandGroup>
@@ -437,17 +444,50 @@ function FeedbackContent() {
                       </Popover>
                    </div>
                    <div className="space-y-2">
-                      <Label>Template</Label>
-                      <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
-                        <SelectTrigger>
-                           <SelectValue placeholder="Select template..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                           {templates.map(t => (
-                              <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                           ))}
-                        </SelectContent>
-                      </Select>
+                      <Label>Feedback Form (Template)</Label>
+                      <Popover open={templateOpen} onOpenChange={setTemplateOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={templateOpen}
+                            className="w-full justify-between"
+                          >
+                            {selectedTemplate
+                              ? templates.find((t) => t.id === selectedTemplate)?.name
+                              : "Select template..."}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                          <Command>
+                            <CommandInput placeholder="Search template..." />
+                            <CommandList>
+                              <CommandEmpty>No template found.</CommandEmpty>
+                              <CommandGroup>
+                                {templates.map((template) => (
+                                  <CommandItem
+                                    key={template.id}
+                                    value={template.name}
+                                    onSelect={() => {
+                                      setSelectedTemplate(template.id)
+                                      setTemplateOpen(false)
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        selectedTemplate === template.id ? "opacity-100" : "opacity-0"
+                                      )}
+                                    />
+                                    {template.name}
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
                    </div>
                 </div>
 
