@@ -86,6 +86,8 @@ function FeedbackContent() {
   const [selectedCandidate, setSelectedCandidate] = useState('')
   
   const [templates, setTemplates] = useState<Template[]>([])
+  const [templatesLoading, setTemplatesLoading] = useState(true)
+  const [templatesError, setTemplatesError] = useState('')
   const [selectedTemplate, setSelectedTemplate] = useState('')
   const [currentTemplate, setCurrentTemplate] = useState<Template | null>(null)
   
@@ -258,21 +260,36 @@ function FeedbackContent() {
   }
 
   async function loadTemplates() {
+    setTemplatesLoading(true)
+    setTemplatesError('')
     try {
       const res = await fetch('/api/lever/templates')
       const data = await res.json()
-      if (data.success) {
+      console.log('Templates API response:', data)
+      
+      if (data.success && data.templates) {
         setTemplates(data.templates)
+        console.log('Templates loaded:', data.templates.length)
+        
         // Auto-select interview template
         const interviewTemplate = data.templates.find((t: Template) =>
           t.name.toLowerCase().includes('interview')
         )
         if (interviewTemplate) {
           setSelectedTemplate(interviewTemplate.id)
+        } else if (data.templates.length > 0) {
+          // Auto-select first template if no interview template found
+          setSelectedTemplate(data.templates[0].id)
         }
+      } else {
+        setTemplatesError(data.message || 'No templates found')
+        console.error('Templates load failed:', data)
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load templates:', err)
+      setTemplatesError(err.message || 'Failed to load templates')
+    } finally {
+      setTemplatesLoading(false)
     }
   }
 
@@ -609,18 +626,36 @@ function FeedbackContent() {
                       <Select 
                         value={selectedTemplate} 
                         onValueChange={(value) => setSelectedTemplate(value)}
+                        disabled={templatesLoading}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Select form..." />
+                          <SelectValue placeholder={
+                            templatesLoading 
+                              ? "Loading forms..." 
+                              : templatesError 
+                                ? "Error loading forms" 
+                                : templates.length === 0 
+                                  ? "No forms available" 
+                                  : "Select form..."
+                          } />
                         </SelectTrigger>
                         <SelectContent>
-                          {templates.map((template) => (
-                            <SelectItem key={template.id} value={template.id}>
-                              {template.name}
-                            </SelectItem>
-                          ))}
+                          {templates.length === 0 ? (
+                            <div className="p-2 text-sm text-muted-foreground text-center">
+                              {templatesError || "No feedback templates found in Lever"}
+                            </div>
+                          ) : (
+                            templates.map((template) => (
+                              <SelectItem key={template.id} value={template.id}>
+                                {template.name}
+                              </SelectItem>
+                            ))
+                          )}
                         </SelectContent>
                       </Select>
+                      {templatesError && (
+                        <p className="text-xs text-destructive">{templatesError}</p>
+                      )}
                    </div>
                 </div>
 
