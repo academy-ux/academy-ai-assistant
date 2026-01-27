@@ -61,7 +61,7 @@ export default function Home() {
                       <span className="text-primary">98%</span>
                    </div>
                    <div className="flex justify-between">
-                      <span>Lever_Export</span>
+                      <span>Lever_Sync</span>
                       <span className="text-primary">Ready</span>
                    </div>
                 </div>

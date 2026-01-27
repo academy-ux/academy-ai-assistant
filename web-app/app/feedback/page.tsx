@@ -16,6 +16,7 @@ import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { VoiceRecorder } from '@/components/voice-recorder'
 import { cn } from '@/lib/utils'
 
 interface Analysis {
@@ -486,9 +487,9 @@ function FeedbackContent() {
              
              <CardContent className="flex-1 overflow-y-auto p-6 space-y-8">
                 {/* Selection Flow: Posting -> Candidate -> Template */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-rows-1 md:grid-rows-3 gap-4">
                    {/* Step 1: Select Opportunity (Posting/Job) */}
-                   <div className="space-y-2 min-w-0 flex flex-col">
+                   <div className="space-y-2 min-w-0">
                       <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">1. Opportunity (Job)</Label>
                       <Popover open={postingOpen} onOpenChange={setPostingOpen}>
                         <PopoverTrigger asChild>
@@ -686,10 +687,23 @@ function FeedbackContent() {
 
                             {currentTemplate.fields.map((field, idx) => (
                                <div key={idx} className="space-y-3">
-                                  <Label className="text-base">
-                                     {field.text}
-                                     {field.required && <span className="text-primary ml-1">*</span>}
-                                  </Label>
+                                  <div className="flex justify-between items-center">
+                                    <Label className="text-base">
+                                       {field.text}
+                                       {field.required && <span className="text-primary ml-1">*</span>}
+                                    </Label>
+                                    {(field.type !== 'score-system' && !field.text.toLowerCase().includes('rating')) && (
+                                      <VoiceRecorder 
+                                        onTranscriptionComplete={(text) => {
+                                          setDynamicAnswers(prev => {
+                                            const currentVal = prev[field.text] || ''
+                                            const newVal = currentVal ? `${currentVal} ${text}` : text
+                                            return {...prev, [field.text]: newVal}
+                                          })
+                                        }} 
+                                      />
+                                    )}
+                                  </div>
                                   {field.description && (
                                      <p className="text-xs text-muted-foreground mb-2">{field.description}</p>
                                   )}
