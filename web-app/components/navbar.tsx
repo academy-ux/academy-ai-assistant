@@ -28,14 +28,14 @@ export function Navbar() {
                 <span className="text-xs text-muted-foreground hidden md:inline-block">
                   {session.user?.email}
                 </span>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => signOut()}
-                  className="rounded-full border-primary/20 hover:bg-primary/10 hover:text-primary"
-                >
-                  Sign Out
-                </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => signOut()}
+            className="rounded-none border-foreground/20 hover:bg-foreground hover:text-background transition-colors"
+          >
+            Sign Out
+          </Button>
               </div>
             </>
           ) : (

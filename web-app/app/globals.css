@@ -4,70 +4,74 @@
 
 @layer base {
   :root {
-    /* Academy UX Inspired Palette */
-    /* Background: Light Warm Beige/Stone */
-    --background: 40 10% 94%; /* #F2F1EF */
-    --foreground: 20 14% 4%; /* #0C0A09 */
+    /* Academy UX "Sage & Stone" Palette */
+    
+    /* Background: Muted Sage Green/Grey (from the image) */
+    /* Approx #D8DDD6 or #E2E4DE */
+    --background: 100 8% 88%; 
+    --foreground: 150 5% 10%; /* Almost black, slight green tint */
 
-    --card: 40 10% 96%; /* Slightly lighter than bg */
-    --card-foreground: 20 14% 4%;
+    /* Cards: Slightly lighter/transparent to blend */
+    --card: 100 8% 88%; 
+    --card-foreground: 150 5% 10%;
 
-    --popover: 40 10% 96%;
-    --popover-foreground: 20 14% 4%;
+    --popover: 100 8% 88%;
+    --popover-foreground: 150 5% 10%;
 
-    /* Primary: Bright Orange (Academy Brand Color) */
-    --primary: 24 95% 53%; /* #FF6B00 roughly */
+    /* Primary: The Academy Orange */
+    --primary: 24 100% 50%; /* Vibrant Orange */
     --primary-foreground: 60 9.1% 97.8%;
 
-    /* Secondary: Soft Sage/Green or Muted Grey */
-    --secondary: 120 10% 85%;
+    /* Secondary: Darker Sage or Stone */
+    --secondary: 100 5% 80%;
     --secondary-foreground: 24 9.8% 10%;
 
-    --muted: 60 4.8% 95.9%;
-    --muted-foreground: 25 5.3% 44.7%;
+    --muted: 100 5% 80%;
+    --muted-foreground: 150 2% 40%;
 
-    --accent: 24 95% 53%;
+    --accent: 24 100% 50%;
     --accent-foreground: 60 9.1% 97.8%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 60 9.1% 97.8%;
 
-    --border: 20 5.9% 90%;
-    --input: 20 5.9% 90%;
-    --ring: 24 95% 53%;
+    --border: 150 2% 70%; /* Subtle dark border */
+    --input: 150 2% 70%;
+    --ring: 24 100% 50%;
 
-    --radius: 0.5rem;
+    --radius: 0rem; /* Sharper corners like the site */
+    
+    --font-display: var(--font-serif); /* Switch display font to Serif */
   }
 
   .dark {
-    /* Inverting for dark mode, though Academy is mostly light mode */
-    --background: 20 14% 4%;
-    --foreground: 60 9.1% 97.8%;
+    --background: 150 5% 10%;
+    --foreground: 100 8% 88%;
 
-    --card: 20 14% 8%;
-    --card-foreground: 60 9.1% 97.8%;
+    --card: 150 5% 12%;
+    --card-foreground: 100 8% 88%;
 
-    --popover: 20 14% 8%;
-    --popover-foreground: 60 9.1% 97.8%;
+    --popover: 150 5% 12%;
+    --popover-foreground: 100 8% 88%;
 
-    --primary: 24 95% 53%;
+    --primary: 24 100% 50%;
     --primary-foreground: 60 9.1% 97.8%;
 
-    --secondary: 12 6.5% 15.1%;
-    --secondary-foreground: 60 9.1% 97.8%;
+    --secondary: 150 5% 15%;
+    --secondary-foreground: 100 8% 88%;
 
-    --muted: 12 6.5% 15.1%;
-    --muted-foreground: 24 5.4% 63.9%;
+    --muted: 150 5% 15%;
+    --muted-foreground: 100 5% 60%;
 
-    --accent: 12 6.5% 15.1%;
-    --accent-foreground: 60 9.1% 97.8%;
+    --accent: 150 5% 15%;
+    --accent-foreground: 100 8% 88%;
 
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 60 9.1% 97.8%;
+    --destructive-foreground: 100 8% 88%;
 
-    --border: 12 6.5% 15.1%;
-    --input: 12 6.5% 15.1%;
-    --ring: 24 95% 53%;
+    --border: 150 5% 20%;
+    --input: 150 5% 20%;
+    --ring: 24 100% 50%;
   }
 }
 
@@ -82,5 +86,9 @@
 
 /* Custom Utilities for Academy Style */
 .font-display {
-  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-serif), ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+}
+
+.font-grotesk {
+  font-family: var(--font-grotesk), ui-sans-serif, system-ui, sans-serif;
 }

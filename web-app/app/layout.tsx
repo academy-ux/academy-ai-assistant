@@ -1,11 +1,12 @@
 import './globals.css'
 import type { Metadata } from 'next'
-import { Inter, Space_Grotesk } from 'next/font/google'
+import { Inter, Playfair_Display, Space_Grotesk } from 'next/font/google'
 import { Providers } from './providers'
 import { Navbar } from '@/components/navbar'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' })
-const spaceGrotesk = Space_Grotesk({ subsets: ['latin'], variable: '--font-display' })
+const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-serif' })
+const spaceGrotesk = Space_Grotesk({ subsets: ['latin'], variable: '--font-grotesk' })
 
 export const metadata: Metadata = {
   title: 'Academy Interview Assistant',
@@ -19,7 +20,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${spaceGrotesk.variable} font-sans bg-background text-foreground antialiased`}>
+      <body className={`${inter.variable} ${playfair.variable} ${spaceGrotesk.variable} font-sans bg-background text-foreground antialiased`}>
         <Providers>
           <div className="min-h-screen flex flex-col">
             <Navbar />
