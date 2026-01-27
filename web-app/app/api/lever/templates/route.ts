@@ -11,9 +11,10 @@ export async function GET() {
 
     console.log('Fetching feedback templates from Lever...')
 
-    // Lever API uses camelCase: feedbackTemplates (not feedback_templates)
+    // Revert to correct snake_case endpoint: feedback_templates
+    // Removed ?include=fields because it might be restricting the response fields
     const response = await fetch(
-      'https://api.lever.co/v1/feedbackTemplates',
+      'https://api.lever.co/v1/feedback_templates',
       {
         headers: {
           'Authorization': `Basic ${Buffer.from(leverKey + ':').toString('base64')}`,

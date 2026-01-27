@@ -488,7 +488,7 @@ function FeedbackContent() {
                 {/* Selection Flow: Posting -> Candidate -> Template */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                    {/* Step 1: Select Opportunity (Posting/Job) */}
-                   <div className="space-y-2 min-w-0">
+                   <div className="space-y-2 min-w-0 flex flex-col">
                       <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">1. Opportunity (Job)</Label>
                       <Popover open={postingOpen} onOpenChange={setPostingOpen}>
                         <PopoverTrigger asChild>
