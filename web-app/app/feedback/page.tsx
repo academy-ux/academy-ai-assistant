@@ -88,6 +88,7 @@ function FeedbackContent() {
 
   // Lever data
   const [postings, setPostings] = useState<Posting[]>([])
+  const [postingsLoading, setPostingsLoading] = useState(true)
   const [selectedPosting, setSelectedPosting] = useState('')
   const [postingOpen, setPostingOpen] = useState(false)
   
@@ -232,14 +233,18 @@ function FeedbackContent() {
   }
 
   async function loadPostings() {
+    setPostingsLoading(true)
     try {
       const res = await fetch('/api/lever/postings')
       const data = await res.json()
+      console.log('Postings loaded:', data)
       if (data.success) {
         setPostings(data.postings)
       }
     } catch (err) {
       console.error('Failed to load postings:', err)
+    } finally {
+      setPostingsLoading(false)
     }
   }
 
@@ -482,8 +487,11 @@ function FeedbackContent() {
                             role="combobox"
                             aria-expanded={postingOpen}
                             className="w-full justify-between"
+                            disabled={postingsLoading}
                           >
-                            {selectedPosting
+                            {postingsLoading
+                              ? "Loading jobs..."
+                              : selectedPosting
                               ? postings.find((p) => p.id === selectedPosting)?.text
                               : "Select job..."}
                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -493,7 +501,9 @@ function FeedbackContent() {
                           <Command>
                             <CommandInput placeholder="Search jobs..." />
                             <CommandList>
-                              <CommandEmpty>No jobs found.</CommandEmpty>
+                              <CommandEmpty>
+                                {postings.length === 0 ? "No jobs in Lever." : "No match found."}
+                              </CommandEmpty>
                               <CommandGroup>
                                 {postings.map((posting) => (
                                   <CommandItem

@@ -8,8 +8,9 @@ export async function GET() {
       return NextResponse.json({ error: 'Lever API key not configured' }, { status: 500 })
     }
 
+    // Fetch all postings (not just published) - includes internal, closed, etc.
     const response = await fetch(
-      'https://api.lever.co/v1/postings?state=published',
+      'https://api.lever.co/v1/postings',
       {
         headers: {
           'Authorization': `Basic ${Buffer.from(leverKey + ':').toString('base64')}`,
@@ -19,13 +20,16 @@ export async function GET() {
     )
 
     if (!response.ok) {
+      const errorText = await response.text()
+      console.error('Lever API error:', response.status, errorText)
       throw new Error(`Lever API error: ${response.status}`)
     }
 
     const data = await response.json()
+    console.log('Lever postings raw count:', data.data?.length || 0)
 
     // Transform data for frontend
-    const postings = data.data.map((posting: any) => ({
+    const postings = (data.data || []).map((posting: any) => ({
       id: posting.id,
       text: posting.text, // Job title
       team: posting.categories?.team || '',
