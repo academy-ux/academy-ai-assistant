@@ -11,10 +11,10 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const postingId = searchParams.get('postingId')
 
-    // Fetch ALL opportunities (not just active) with applications to get posting info
-    // archived=false gets active candidates in the pipeline
+    // Fetch ALL opportunities with applications to get posting info
+    // Remove archived filter to get candidates at all stages
     const response = await fetch(
-      'https://api.lever.co/v1/opportunities?limit=500&expand=contact&expand=stage&expand=applications&archived=false',
+      'https://api.lever.co/v1/opportunities?limit=500&expand=contact&expand=stage&expand=applications',
       {
         headers: {
           'Authorization': `Basic ${Buffer.from(leverKey + ':').toString('base64')}`,
@@ -29,6 +29,10 @@ export async function GET(request: NextRequest) {
 
     const data = await response.json()
     console.log('Total opportunities fetched:', data.data?.length || 0)
+    
+    // Log unique stages for debugging
+    const stages = new Set((data.data || []).map((opp: any) => opp.stage?.text).filter(Boolean))
+    console.log('Stages found:', Array.from(stages))
 
     // Transform and optionally filter data
     let candidates = (data.data || []).map((opp: any) => {
