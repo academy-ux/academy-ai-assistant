@@ -46,6 +46,8 @@ export default function HistoryPage() {
   // Import State
   const [importOpen, setImportOpen] = useState(false)
   const [folders, setFolders] = useState<{id: string, name: string}[]>([])
+  const [foldersLoading, setFoldersLoading] = useState(false)
+  const [foldersError, setFoldersError] = useState('')
   const [selectedFolder, setSelectedFolder] = useState('')
   const [importing, setImporting] = useState(false)
   const [importResults, setImportResults] = useState<{name: string, status: string}[]>([])
@@ -61,14 +63,22 @@ export default function HistoryPage() {
   }, [importOpen])
 
   async function fetchFolders() {
+    setFoldersLoading(true)
+    setFoldersError('')
     try {
       const res = await fetch('/api/drive/folders')
       const data = await res.json()
-      if (data.folders) {
+      console.log('Folders response:', data)
+      if (data.error) {
+        setFoldersError(data.error)
+      } else if (data.folders) {
         setFolders(data.folders)
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch folders', error)
+      setFoldersError(error.message || 'Failed to load folders')
+    } finally {
+      setFoldersLoading(false)
     }
   }
 
@@ -188,17 +198,32 @@ export default function HistoryPage() {
                 </DialogHeader>
                 
                 {!importing && importResults.length === 0 && (
-                  <div className="py-4">
-                    <Select value={selectedFolder} onValueChange={setSelectedFolder}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a folder..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {folders.map(folder => (
-                          <SelectItem key={folder.id} value={folder.id}>{folder.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div className="py-4 space-y-4">
+                    {foldersLoading ? (
+                      <div className="flex items-center justify-center py-4">
+                        <Spinner variant="infinite" className="text-primary" />
+                        <span className="ml-2 text-sm text-muted-foreground">Loading folders...</span>
+                      </div>
+                    ) : foldersError ? (
+                      <div className="text-sm text-destructive py-4">
+                        Error: {foldersError}
+                      </div>
+                    ) : folders.length === 0 ? (
+                      <div className="text-sm text-muted-foreground py-4">
+                        No folders found in your Google Drive. Make sure you have granted Drive access.
+                      </div>
+                    ) : (
+                      <Select value={selectedFolder} onValueChange={setSelectedFolder}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a folder..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {folders.map(folder => (
+                            <SelectItem key={folder.id} value={folder.id}>{folder.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                   </div>
                 )}
 
