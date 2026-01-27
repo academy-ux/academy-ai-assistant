@@ -40,7 +40,8 @@
 
     --radius: 0rem; /* Sharper corners like the site */
     
-    --font-display: var(--font-serif); /* Switch display font to Serif */
+    /* Use Neue Haas for everything */
+    --font-display: "neue-haas-grotesk-display", sans-serif;
   }
 
   /* Force Neue Haas everywhere */
@@ -94,7 +95,8 @@
 
 /* Custom Utilities for Academy Style */
 .font-display {
-  font-family: var(--font-serif), ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  font-family: "neue-haas-grotesk-display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-weight: 500;
 }
 
 .font-grotesk {
