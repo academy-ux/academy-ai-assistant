@@ -11,10 +11,16 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const postingId = searchParams.get('postingId')
 
-    // Fetch ALL opportunities with applications to get posting info
-    // Remove archived filter to get candidates at all stages
+    let url = 'https://api.lever.co/v1/opportunities?limit=500&expand=contact&expand=stage&expand=applications'
+    
+    // If a specific posting is requested, filter at the API level for better results
+    // This ensures we get all candidates for THIS job, even if they aren't in the 500 newest global leads
+    if (postingId && postingId !== '__uncategorized__') {
+      url += `&posting_id=${postingId}`
+    }
+
     const response = await fetch(
-      'https://api.lever.co/v1/opportunities?limit=500&expand=contact&expand=stage&expand=applications',
+      url,
       {
         headers: {
           'Authorization': `Basic ${Buffer.from(leverKey + ':').toString('base64')}`,

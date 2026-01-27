@@ -22,7 +22,7 @@ export default function Home() {
           </Badge>
           <h1 className="font-display text-7xl md:text-9xl font-medium tracking-tighter leading-[0.85] text-foreground -ml-1">
             Interview <br/>
-            <span className="text-foreground">Intelligence</span> <br/>
+            <span className="text-primary">Intelligence</span> <br/>
             Studio
           </h1>
           <p className="text-xl font-grotesk text-foreground/80 max-w-md leading-relaxed">
