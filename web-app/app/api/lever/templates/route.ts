@@ -24,13 +24,15 @@ export async function GET() {
 
     const data = await response.json()
 
-    // Transform data for frontend
-    const templates = data.data.map((template: any) => ({
-      id: template.id,
-      name: template.text,
-      instructions: template.instructions || '',
-      fields: template.fields || [],
-    }))
+    // Transform data for frontend, filtering out any with undefined name
+    const templates = (data.data || [])
+      .filter((template: any) => template.text) // Only include templates with a name
+      .map((template: any) => ({
+        id: template.id,
+        name: template.text || 'Unnamed Template',
+        instructions: template.instructions || '',
+        fields: template.fields || [],
+      }))
 
     return NextResponse.json({ success: true, templates })
 

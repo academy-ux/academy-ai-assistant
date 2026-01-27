@@ -3,8 +3,6 @@
 import { useSession, signIn } from 'next-auth/react'
 import { useSearchParams } from 'next/navigation'
 import { useEffect, useState, Suspense } from 'react'
-import { Check, ChevronsUpDown } from "lucide-react"
-import { cn } from "@/lib/utils"
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -15,19 +13,6 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
 
 interface Analysis {
   rating: string
@@ -91,17 +76,14 @@ function FeedbackContent() {
   const [postings, setPostings] = useState<Posting[]>([])
   const [postingsLoading, setPostingsLoading] = useState(true)
   const [selectedPosting, setSelectedPosting] = useState('')
-  const [postingOpen, setPostingOpen] = useState(false)
   
   const [candidates, setCandidates] = useState<Candidate[]>([])
   const [candidatesLoading, setCandidatesLoading] = useState(false)
   const [selectedCandidate, setSelectedCandidate] = useState('')
-  const [candidateOpen, setCandidateOpen] = useState(false)
   
   const [templates, setTemplates] = useState<Template[]>([])
   const [selectedTemplate, setSelectedTemplate] = useState('')
   const [currentTemplate, setCurrentTemplate] = useState<Template | null>(null)
-  const [templateOpen, setTemplateOpen] = useState(false)
   
   // Dynamic form state (maps field text to value)
   const [dynamicAnswers, setDynamicAnswers] = useState<Record<string, any>>({})
@@ -481,196 +463,80 @@ function FeedbackContent() {
                    {/* Step 1: Select Opportunity (Posting/Job) */}
                    <div className="space-y-2">
                       <Label>1. Opportunity (Job)</Label>
-                      <Popover open={postingOpen} onOpenChange={setPostingOpen}>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            role="combobox"
-                            aria-expanded={postingOpen}
-                            className="w-full justify-between"
-                            disabled={postingsLoading}
-                          >
-                            {postingsLoading
-                              ? "Loading jobs..."
-                              : selectedPosting
-                              ? postings.find((p) => p.id === selectedPosting)?.text
-                              : "Select job..."}
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                          <Command>
-                            <CommandInput placeholder="Search jobs..." />
-                            <CommandList>
-                              <CommandEmpty>
-                                {postings.length === 0 ? "No jobs in Lever." : "No match found."}
-                              </CommandEmpty>
-                              <CommandGroup>
-                                {postings.map((posting) => (
-                                  <CommandItem
-                                    key={posting.id}
-                                    value={`${posting.text} ${posting.team} ${posting.location}`}
-                                    onSelect={() => {
-                                      setSelectedPosting(posting.id)
-                                      setPostingOpen(false)
-                                    }}
-                                    className="cursor-pointer"
-                                  >
-                                    <div 
-                                      className="flex items-center w-full"
-                                      onClick={() => {
-                                        setSelectedPosting(posting.id)
-                                        setPostingOpen(false)
-                                      }}
-                                    >
-                                      <Check
-                                        className={cn(
-                                          "mr-2 h-4 w-4 flex-shrink-0",
-                                          selectedPosting === posting.id ? "opacity-100" : "opacity-0"
-                                        )}
-                                      />
-                                      <div className="flex flex-col">
-                                        <span className="font-medium">{posting.text}</span>
-                                        <span className="text-xs text-muted-foreground">
-                                          {posting.count && `${posting.count} candidate${posting.count > 1 ? 's' : ''}`}
-                                          {posting.team && ` • ${posting.team}`}
-                                          {posting.location && ` • ${posting.location}`}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </CommandItem>
-                                ))}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
+                      <Select 
+                        value={selectedPosting} 
+                        onValueChange={(value) => setSelectedPosting(value)}
+                        disabled={postingsLoading}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={postingsLoading ? "Loading jobs..." : "Select job..."} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <ScrollArea className="h-[300px]">
+                            {postings.map((posting) => (
+                              <SelectItem key={posting.id} value={posting.id}>
+                                <div className="flex flex-col">
+                                  <span>{posting.text}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {posting.count ? `${posting.count} candidates` : ''}
+                                    {posting.team ? ` • ${posting.team}` : ''}
+                                  </span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </ScrollArea>
+                        </SelectContent>
+                      </Select>
                    </div>
                    
                    {/* Step 2: Select Candidate */}
                    <div className="space-y-2">
                       <Label>2. Candidate</Label>
-                      <Popover open={candidateOpen} onOpenChange={setCandidateOpen}>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            role="combobox"
-                            aria-expanded={candidateOpen}
-                            className="w-full justify-between"
-                            disabled={!selectedPosting || candidatesLoading}
-                          >
-                            {candidatesLoading ? (
-                              "Loading..."
-                            ) : selectedCandidate ? (
-                              candidates.find((c) => c.id === selectedCandidate)?.name
-                            ) : (
-                              selectedPosting ? "Select candidate..." : "Select job first"
-                            )}
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                          <Command>
-                            <CommandInput placeholder="Search candidate..." />
-                            <CommandList>
-                              <CommandEmpty>
-                                {candidates.length === 0 ? "No candidates for this job." : "No match found."}
-                              </CommandEmpty>
-                              <CommandGroup>
-                                {candidates.map((candidate) => (
-                                  <CommandItem
-                                    key={candidate.id}
-                                    value={`${candidate.name} ${candidate.stage}`}
-                                    onSelect={() => {
-                                      setSelectedCandidate(candidate.id)
-                                      setCandidateOpen(false)
-                                    }}
-                                    className="cursor-pointer"
-                                  >
-                                    <div 
-                                      className="flex items-center w-full"
-                                      onClick={() => {
-                                        setSelectedCandidate(candidate.id)
-                                        setCandidateOpen(false)
-                                      }}
-                                    >
-                                      <Check
-                                        className={cn(
-                                          "mr-2 h-4 w-4 flex-shrink-0",
-                                          selectedCandidate === candidate.id ? "opacity-100" : "opacity-0"
-                                        )}
-                                      />
-                                      <div className="flex flex-col">
-                                        <span className="font-medium">{candidate.name}</span>
-                                        <span className="text-xs text-muted-foreground">
-                                          <span className="text-primary/80">{candidate.stage}</span>
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </CommandItem>
-                                ))}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
+                      <Select 
+                        value={selectedCandidate} 
+                        onValueChange={(value) => setSelectedCandidate(value)}
+                        disabled={!selectedPosting || candidatesLoading}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={
+                            candidatesLoading ? "Loading..." : 
+                            !selectedPosting ? "Select job first" : 
+                            "Select candidate..."
+                          } />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <ScrollArea className="h-[300px]">
+                            {candidates.map((candidate) => (
+                              <SelectItem key={candidate.id} value={candidate.id}>
+                                <div className="flex flex-col">
+                                  <span>{candidate.name}</span>
+                                  <span className="text-xs text-muted-foreground">{candidate.stage}</span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </ScrollArea>
+                        </SelectContent>
+                      </Select>
                    </div>
                    
                    {/* Step 3: Select Feedback Form */}
                    <div className="space-y-2">
                       <Label>3. Feedback Form</Label>
-                      <Popover open={templateOpen} onOpenChange={setTemplateOpen}>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            role="combobox"
-                            aria-expanded={templateOpen}
-                            className="w-full justify-between"
-                          >
-                            {selectedTemplate
-                              ? templates.find((t) => t.id === selectedTemplate)?.name
-                              : "Select form..."}
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                          <Command>
-                            <CommandInput placeholder="Search form..." />
-                            <CommandList>
-                              <CommandEmpty>No forms found.</CommandEmpty>
-                              <CommandGroup>
-                                {templates.map((template) => (
-                                  <CommandItem
-                                    key={template.id}
-                                    value={template.name}
-                                    onSelect={() => {
-                                      setSelectedTemplate(template.id)
-                                      setTemplateOpen(false)
-                                    }}
-                                    className="cursor-pointer"
-                                  >
-                                    <div 
-                                      className="flex items-center w-full"
-                                      onClick={() => {
-                                        setSelectedTemplate(template.id)
-                                        setTemplateOpen(false)
-                                      }}
-                                    >
-                                      <Check
-                                        className={cn(
-                                          "mr-2 h-4 w-4 flex-shrink-0",
-                                          selectedTemplate === template.id ? "opacity-100" : "opacity-0"
-                                        )}
-                                      />
-                                      {template.name}
-                                    </div>
-                                  </CommandItem>
-                                ))}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
+                      <Select 
+                        value={selectedTemplate} 
+                        onValueChange={(value) => setSelectedTemplate(value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select form..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {templates.map((template) => (
+                            <SelectItem key={template.id} value={template.id}>
+                              {template.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                    </div>
                 </div>
 
