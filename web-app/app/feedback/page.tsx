@@ -3,6 +3,15 @@
 import { useSession, signIn } from 'next-auth/react'
 import { useSearchParams } from 'next/navigation'
 import { useEffect, useState, Suspense } from 'react'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface Analysis {
   rating: string
@@ -201,6 +210,8 @@ function FeedbackContent() {
     setSubmitting(true)
     setError('')
 
+    const candidate = candidates.find(c => c.id === selectedCandidate)
+
     try {
       const res = await fetch('/api/lever/submit', {
         method: 'POST',
@@ -209,6 +220,12 @@ function FeedbackContent() {
           opportunityId: selectedCandidate,
           templateId: selectedTemplate,
           feedback: formData,
+          // Extra data for Supabase
+          transcript,
+          meetingTitle,
+          meetingCode,
+          candidateName: candidate?.name,
+          position: candidate?.position,
         }),
       })
       const data = await res.json()
@@ -228,321 +245,301 @@ function FeedbackContent() {
   // Auth check
   if (status === 'loading') {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     )
   }
 
   if (!session) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="bg-white rounded-xl shadow-lg p-8 max-w-md text-center">
-          <h1 className="text-xl font-bold mb-4">Sign in Required</h1>
-          <p className="text-gray-600 mb-6">
-            Sign in with Google to access your Meet transcripts
-          </p>
-          <button
-            onClick={() => signIn('google')}
-            className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-6 rounded-lg"
-          >
-            Sign in with Google
-          </button>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <CardTitle>Sign in Required</CardTitle>
+            <CardDescription>
+              Sign in with Google to access your Meet transcripts
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex justify-center">
+            <Button onClick={() => signIn('google')} size="lg">
+              Sign in with Google
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     )
   }
 
   if (submitSuccess) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="bg-white rounded-xl shadow-lg p-8 max-w-md text-center">
-          <div className="text-green-500 text-5xl mb-4">✓</div>
-          <h1 className="text-xl font-bold mb-2">Feedback Submitted!</h1>
-          <p className="text-gray-600 mb-6">
-            Your feedback has been submitted to Lever.
-          </p>
-          <button
-            onClick={() => window.close()}
-            className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-6 rounded-lg"
-          >
-            Close Tab
-          </button>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Card className="w-full max-w-md text-center">
+          <CardHeader>
+            <div className="mx-auto w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-3xl mb-4">
+              ✓
+            </div>
+            <CardTitle>Feedback Submitted!</CardTitle>
+            <CardDescription>
+              Your feedback has been submitted to Lever.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={() => window.close()} variant="outline">
+              Close Tab
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <h1 className="text-xl font-semibold text-gray-900">
-            Academy Interview Assistant
-          </h1>
-          <span className="text-sm text-gray-500">
-            {meetingTitle || meetingCode || 'Interview'} - {new Date().toLocaleDateString()}
-          </span>
+    <div className="min-h-screen bg-background p-6">
+      <div className="max-w-[1600px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        {/* Header Section */}
+        <div className="lg:col-span-12 flex justify-between items-center mb-4">
+          <div>
+             <h1 className="text-3xl font-display font-bold">Feedback Assessment</h1>
+             <p className="text-muted-foreground">{meetingTitle || meetingCode || 'Interview'} • {new Date().toLocaleDateString()}</p>
+          </div>
         </div>
-      </header>
 
-      {/* Main content */}
-      <main className="max-w-7xl mx-auto p-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left: Transcript */}
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-              <h2 className="font-semibold text-gray-900">Interview Transcript</h2>
-              {transcriptFileName && (
-                <span className="text-xs text-gray-500">From Google Drive</span>
-              )}
-            </div>
-            <div className="p-6">
-              {transcriptLoading ? (
-                <div className="text-center py-12">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                  <h3 className="font-medium text-gray-900 mb-2">
-                    {countdown > 0 ? 'Waiting for transcript...' : 'Searching Google Drive...'}
-                  </h3>
-                  {countdown > 0 && (
-                    <p className="text-3xl font-bold text-blue-500 mb-2">{countdown}</p>
-                  )}
-                  <p className="text-sm text-gray-500">
-                    {retryCount > 0 ? `Attempt ${retryCount + 1}/7` : 'Transcripts take 1-2 min to appear'}
-                  </p>
+        {/* Left: Transcript */}
+        <div className="lg:col-span-5 h-[calc(100vh-12rem)] min-h-[600px]">
+          <Card className="h-full flex flex-col">
+            <CardHeader className="pb-3">
+              <div className="flex justify-between items-center">
+                <CardTitle>Transcript</CardTitle>
+                {transcriptFileName && (
+                   <Badge variant="outline" className="font-normal text-muted-foreground">
+                      {transcriptFileName}
+                   </Badge>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="flex-1 p-0 overflow-hidden">
+               {transcriptLoading ? (
+                <div className="h-full flex flex-col items-center justify-center p-6 text-center space-y-4">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  <div>
+                    <h3 className="font-medium mb-1">
+                      {countdown > 0 ? 'Waiting for transcript...' : 'Searching Google Drive...'}
+                    </h3>
+                    {countdown > 0 && (
+                      <span className="text-2xl font-bold text-primary block">{countdown}</span>
+                    )}
+                    <p className="text-sm text-muted-foreground mt-2">
+                      {retryCount > 0 ? `Attempt ${retryCount + 1}/7` : 'Transcripts typically appear 1-2 mins after the meeting'}
+                    </p>
+                  </div>
                 </div>
               ) : transcriptError ? (
-                <div className="text-center py-12">
-                  <div className="text-red-500 text-4xl mb-4">!</div>
-                  <h3 className="font-medium text-gray-900 mb-2">Could not find transcript</h3>
-                  <p className="text-sm text-gray-500 mb-4">{transcriptError}</p>
-                  <button
+                <div className="h-full flex flex-col items-center justify-center p-6 text-center space-y-4">
+                  <div className="text-destructive text-4xl mb-2">!</div>
+                  <h3 className="font-medium">Transcript not found</h3>
+                  <p className="text-sm text-muted-foreground">{transcriptError}</p>
+                  <Button 
                     onClick={() => {
                       setTranscriptError('')
                       setTranscriptLoading(true)
                       setRetryCount(0)
                       setCountdown(5)
                     }}
-                    className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg"
+                    variant="outline"
                   >
                     Try Again
-                  </button>
+                  </Button>
                 </div>
               ) : (
-                <div>
-                  {transcriptFileName && (
-                    <p className="text-sm text-gray-500 mb-3">
-                      <strong>File:</strong> {transcriptFileName}
-                    </p>
-                  )}
-                  <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
-                    <pre className="text-sm text-gray-700 whitespace-pre-wrap font-mono">
-                      {transcript}
-                    </pre>
+                <ScrollArea className="h-full px-6 py-4">
+                  <div className="space-y-4 text-sm font-mono leading-relaxed text-muted-foreground">
+                     {transcript}
                   </div>
-                </div>
+                </ScrollArea>
               )}
-            </div>
-          </div>
+            </CardContent>
+          </Card>
+        </div>
 
-          {/* Right: Feedback Form */}
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="font-semibold text-gray-900">Feedback Form</h2>
-            </div>
-            <div className="p-6 space-y-6">
-              {/* Lever matching */}
-              <div>
-                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
-                  Match to Lever
-                </h3>
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Candidate
-                    </label>
-                    <select
-                      value={selectedCandidate}
-                      onChange={e => setSelectedCandidate(e.target.value)}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="">Select a candidate...</option>
-                      {candidates.map(c => (
-                        <option key={c.id} value={c.id}>
-                          {c.name} - {c.position}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Feedback Template
-                    </label>
-                    <select
-                      value={selectedTemplate}
-                      onChange={e => setSelectedTemplate(e.target.value)}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="">Select a template...</option>
-                      {templates.map(t => (
-                        <option key={t.id} value={t.id}>
-                          {t.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+        {/* Right: Feedback Form */}
+        <div className="lg:col-span-7 h-[calc(100vh-12rem)] min-h-[600px]">
+          <Card className="h-full flex flex-col">
+             <CardHeader className="pb-3 border-b border-border/40">
+                <CardTitle>Evaluation</CardTitle>
+                <CardDescription>AI-assisted feedback form connected to Lever</CardDescription>
+             </CardHeader>
+             
+             <CardContent className="flex-1 overflow-y-auto p-6 space-y-8">
+                {/* Match Selection */}
+                <div className="grid grid-cols-2 gap-4">
+                   <div className="space-y-2">
+                      <Label>Candidate</Label>
+                      <Select value={selectedCandidate} onValueChange={setSelectedCandidate}>
+                        <SelectTrigger>
+                           <SelectValue placeholder="Select candidate..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                           {candidates.map(c => (
+                              <SelectItem key={c.id} value={c.id}>{c.name} - {c.position}</SelectItem>
+                           ))}
+                        </SelectContent>
+                      </Select>
+                   </div>
+                   <div className="space-y-2">
+                      <Label>Template</Label>
+                      <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
+                        <SelectTrigger>
+                           <SelectValue placeholder="Select template..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                           {templates.map(t => (
+                              <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                           ))}
+                        </SelectContent>
+                      </Select>
+                   </div>
                 </div>
-              </div>
 
-              <hr className="border-gray-200" />
-
-              {/* Feedback fields */}
-              <div>
-                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
-                  Feedback
-                </h3>
+                <Separator />
 
                 {analysisLoading ? (
-                  <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
-                    <span className="text-blue-700">Analyzing transcript with AI...</span>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Overall Rating
-                      </label>
-                      <select
-                        value={formData.rating}
-                        onChange={e => setFormData({ ...formData, rating: e.target.value })}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                      >
-                        <option>4 - Strong Hire</option>
-                        <option>3 - Hire</option>
-                        <option>2 - No Hire</option>
-                        <option>1 - Strong No Hire</option>
-                      </select>
-                      {analysis?.alternativeRatings && analysis.alternativeRatings.length > 0 && (
-                        <div className="flex gap-2 mt-2">
-                          {analysis.alternativeRatings.map((alt, i) => (
-                            <button
-                              key={i}
-                              onClick={() => setFormData({ ...formData, rating: alt.rating })}
-                              className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded-full hover:bg-blue-200"
-                              title={alt.reasoning}
-                            >
-                              {alt.rating}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Strengths
-                      </label>
-                      <textarea
-                        value={formData.strengths}
-                        onChange={e => setFormData({ ...formData, strengths: e.target.value })}
-                        rows={3}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Concerns
-                      </label>
-                      <textarea
-                        value={formData.concerns}
-                        onChange={e => setFormData({ ...formData, concerns: e.target.value })}
-                        rows={3}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Technical Skills
-                      </label>
-                      <textarea
-                        value={formData.technicalSkills}
-                        onChange={e => setFormData({ ...formData, technicalSkills: e.target.value })}
-                        rows={2}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Cultural Fit
-                      </label>
-                      <textarea
-                        value={formData.culturalFit}
-                        onChange={e => setFormData({ ...formData, culturalFit: e.target.value })}
-                        rows={2}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Recommendation
-                      </label>
-                      <textarea
-                        value={formData.recommendation}
-                        onChange={e => setFormData({ ...formData, recommendation: e.target.value })}
-                        rows={2}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                      />
-                    </div>
-
-                    {analysis?.keyQuotes && analysis.keyQuotes.length > 0 && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Key Quotes
-                        </label>
-                        <div className="bg-gray-50 border-l-4 border-blue-500 p-3 rounded-r-lg">
-                          {analysis.keyQuotes.map((q, i) => (
-                            <p key={i} className="text-sm text-gray-600 italic mb-2 last:mb-0">
-                              "{q}"
-                            </p>
-                          ))}
-                        </div>
+                   <div className="space-y-6">
+                      <div className="space-y-2">
+                         <Skeleton className="h-4 w-24" />
+                         <Skeleton className="h-10 w-full" />
                       </div>
-                    )}
-                  </div>
+                      <div className="space-y-2">
+                         <Skeleton className="h-4 w-24" />
+                         <Skeleton className="h-24 w-full" />
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                         <div className="animate-spin h-3 w-3 border-b-2 border-primary rounded-full"></div>
+                         Analyzing transcript...
+                      </div>
+                   </div>
+                ) : (
+                   <div className="space-y-6">
+                      {/* Rating */}
+                      <div className="space-y-3">
+                         <Label>Overall Rating</Label>
+                         <Select 
+                            value={formData.rating} 
+                            onValueChange={(val) => setFormData({ ...formData, rating: val })}
+                         >
+                            <SelectTrigger>
+                               <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                               <SelectItem value="4 - Strong Hire">4 - Strong Hire</SelectItem>
+                               <SelectItem value="3 - Hire">3 - Hire</SelectItem>
+                               <SelectItem value="2 - No Hire">2 - No Hire</SelectItem>
+                               <SelectItem value="1 - Strong No Hire">1 - Strong No Hire</SelectItem>
+                            </SelectContent>
+                         </Select>
+                         
+                         {analysis?.alternativeRatings && analysis.alternativeRatings.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                               {analysis.alternativeRatings.map((alt, i) => (
+                                  <Badge 
+                                    key={i} 
+                                    variant="outline" 
+                                    className="cursor-pointer hover:bg-primary/10 hover:text-primary transition-colors"
+                                    onClick={() => setFormData({ ...formData, rating: alt.rating })}
+                                    title={alt.reasoning}
+                                  >
+                                    Consider: {alt.rating}
+                                  </Badge>
+                               ))}
+                            </div>
+                         )}
+                      </div>
+
+                      <div className="grid gap-6">
+                         <div className="space-y-2">
+                            <Label>Strengths</Label>
+                            <Textarea 
+                               value={formData.strengths} 
+                               onChange={e => setFormData({ ...formData, strengths: e.target.value })}
+                               rows={3}
+                            />
+                         </div>
+                         
+                         <div className="space-y-2">
+                            <Label>Concerns</Label>
+                            <Textarea 
+                               value={formData.concerns} 
+                               onChange={e => setFormData({ ...formData, concerns: e.target.value })}
+                               rows={3}
+                            />
+                         </div>
+
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                               <Label>Technical Skills</Label>
+                               <Textarea 
+                                  value={formData.technicalSkills} 
+                                  onChange={e => setFormData({ ...formData, technicalSkills: e.target.value })}
+                                  rows={4}
+                               />
+                            </div>
+                            <div className="space-y-2">
+                               <Label>Cultural Fit</Label>
+                               <Textarea 
+                                  value={formData.culturalFit} 
+                                  onChange={e => setFormData({ ...formData, culturalFit: e.target.value })}
+                                  rows={4}
+                               />
+                            </div>
+                         </div>
+
+                         <div className="space-y-2">
+                            <Label>Recommendation</Label>
+                            <Textarea 
+                               value={formData.recommendation} 
+                               onChange={e => setFormData({ ...formData, recommendation: e.target.value })}
+                               rows={2}
+                            />
+                         </div>
+                      </div>
+
+                      {analysis?.keyQuotes && analysis.keyQuotes.length > 0 && (
+                         <div className="bg-muted/30 p-4 rounded-lg border border-border/50">
+                            <Label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">Key Quotes</Label>
+                            <ul className="space-y-2">
+                               {analysis.keyQuotes.map((q, i) => (
+                                  <li key={i} className="text-sm italic text-muted-foreground pl-3 border-l-2 border-primary/30">
+                                     "{q}"
+                                  </li>
+                               ))}
+                            </ul>
+                         </div>
+                      )}
+
+                      {error && (
+                         <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-md">
+                            {error}
+                         </div>
+                      )}
+                   </div>
                 )}
-              </div>
-
-              {error && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-                  {error}
-                </div>
-              )}
-
-              {/* Submit */}
-              <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                <span className="text-sm text-gray-500">
-                  {selectedCandidate && selectedTemplate
-                    ? 'Ready to submit'
-                    : 'Select candidate and template'}
+             </CardContent>
+             
+             <div className="p-4 border-t border-border/40 bg-muted/10 flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">
+                   {selectedCandidate && selectedTemplate ? 'Ready to submit' : 'Select candidate & template to submit'}
                 </span>
-                <button
-                  onClick={handleSubmit}
-                  disabled={!selectedCandidate || !selectedTemplate || submitting || analysisLoading}
-                  className="bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-2 px-6 rounded-lg transition-colors"
+                <Button 
+                   onClick={handleSubmit} 
+                   disabled={!selectedCandidate || !selectedTemplate || submitting || analysisLoading}
                 >
-                  {submitting ? 'Submitting...' : 'Submit to Lever'}
-                </button>
-              </div>
-            </div>
-          </div>
+                   {submitting ? 'Submitting...' : 'Submit to Lever'}
+                </Button>
+             </div>
+          </Card>
         </div>
-      </main>
+      </div>
     </div>
   )
 }
@@ -550,8 +547,8 @@ function FeedbackContent() {
 export default function FeedbackPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     }>
       <FeedbackContent />

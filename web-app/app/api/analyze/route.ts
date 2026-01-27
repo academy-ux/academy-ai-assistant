@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import Anthropic from '@anthropic-ai/sdk'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-})
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,6 +10,13 @@ export async function POST(request: NextRequest) {
     if (!transcript) {
       return NextResponse.json({ error: 'No transcript provided' }, { status: 400 })
     }
+
+    const model = genAI.getGenerativeModel({ 
+      model: 'gemini-1.5-flash',
+      generationConfig: {
+        responseMimeType: "application/json",
+      }
+    })
 
     const prompt = `You are analyzing an interview transcript for a recruiting team at Academy, a design-led recruiting and staffing business.
 
@@ -36,26 +41,19 @@ Analyze this interview and provide structured feedback in this exact JSON format
   ]
 }
 
-Be objective. Focus on specific examples from the conversation. Respond with ONLY the JSON object.`
+Be objective. Focus on specific examples from the conversation.`
 
-    const message = await anthropic.messages.create({
-      model: 'claude-3-5-haiku-20241022',
-      max_tokens: 2048,
-      messages: [{ role: 'user', content: prompt }],
-    })
-
-    const content = message.content[0]
-    if (content.type !== 'text') {
-      throw new Error('Unexpected response type')
-    }
+    const result = await model.generateContent(prompt)
+    const response = await result.response
+    const text = response.text()
 
     // Parse JSON from response
     let analysis
     try {
-      analysis = JSON.parse(content.text)
+      analysis = JSON.parse(text)
     } catch (e) {
-      // Try to extract JSON from the response
-      const jsonMatch = content.text.match(/\{[\s\S]*\}/)
+      // Try to extract JSON if parsing fails
+      const jsonMatch = text.match(/\{[\s\S]*\}/)
       if (jsonMatch) {
         analysis = JSON.parse(jsonMatch[0])
       } else {

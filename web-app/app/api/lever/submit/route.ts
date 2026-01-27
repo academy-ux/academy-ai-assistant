@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { supabase } from '@/lib/supabase'
+import { generateEmbedding } from '@/lib/embeddings'
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,7 +11,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Lever API not configured' }, { status: 500 })
     }
 
-    const { opportunityId, templateId, feedback } = await request.json()
+    const body = await request.json()
+    const { 
+      opportunityId, 
+      templateId, 
+      feedback,
+      // Extra fields for Supabase
+      transcript,
+      meetingTitle,
+      meetingCode,
+      candidateName,
+      position
+    } = body
 
     if (!opportunityId || !templateId || !feedback) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -35,6 +48,7 @@ Recommendation:
 ${feedback.recommendation}
     `.trim()
 
+    // 1. Submit to Lever
     const response = await fetch(
       `https://api.lever.co/v1/opportunities/${opportunityId}/feedback?perform_as=${leverUserId}`,
       {
@@ -57,6 +71,36 @@ ${feedback.recommendation}
     }
 
     const data = await response.json()
+
+    // 2. Save to Supabase (Fire and forget, or await? Await is safer for now)
+    if (transcript) {
+      try {
+        // Generate embedding
+        const embedding = await generateEmbedding(transcript)
+
+        const { error: dbError } = await supabase
+          .from('interviews')
+          .insert({
+            meeting_code: meetingCode,
+            meeting_title: meetingTitle,
+            meeting_date: new Date().toISOString(),
+            candidate_id: opportunityId,
+            candidate_name: candidateName,
+            position: position,
+            transcript: transcript,
+            rating: feedback.rating,
+            summary: feedback.recommendation, // Use recommendation as summary for now
+            embedding: embedding
+          })
+
+        if (dbError) {
+          console.error('Supabase insertion error:', dbError)
+        }
+      } catch (innerError) {
+        console.error('Error saving to Supabase:', innerError)
+        // Don't fail the whole request if Supabase fails, since Lever succeeded
+      }
+    }
 
     return NextResponse.json({ success: true, data })
 
