@@ -8,9 +8,9 @@ export async function GET() {
       return NextResponse.json({ error: 'Lever API key not configured' }, { status: 500 })
     }
 
-    // Fetch opportunities to extract unique positions
-    const response = await fetch(
-      'https://api.lever.co/v1/opportunities?limit=250&expand=applications',
+    // First, try to fetch actual job postings
+    const postingsResponse = await fetch(
+      'https://api.lever.co/v1/postings',
       {
         headers: {
           'Authorization': `Basic ${Buffer.from(leverKey + ':').toString('base64')}`,
@@ -19,65 +19,86 @@ export async function GET() {
       }
     )
 
-    if (!response.ok) {
-      throw new Error(`Lever API error: ${response.status}`)
-    }
+    const postings: any[] = []
 
-    const data = await response.json()
-    
-    // Extract unique positions from opportunities
-    const positionMap = new Map<string, { id: string; text: string; team: string; location: string; count: number }>()
-    let uncategorizedCount = 0
-    
-    for (const opp of data.data || []) {
-      // Get position info - first check applications, then fallback to opportunity itself
-      const app = opp.applications?.[0]
-      const postingId = app?.posting
-      const postingText = app?.postingTitle
+    if (postingsResponse.ok) {
+      const postingsData = await postingsResponse.json()
+      console.log('Lever postings found:', postingsData.data?.length || 0)
       
-      if (postingId && postingText) {
-        // Has a real posting
-        if (positionMap.has(postingId)) {
-          const existing = positionMap.get(postingId)!
-          existing.count++
-        } else {
-          positionMap.set(postingId, {
-            id: postingId,
-            text: postingText,
-            team: '',
-            location: '',
-            count: 1
-          })
-        }
-      } else {
-        // Uncategorized - no posting associated
-        uncategorizedCount++
+      // Use actual job postings if available
+      for (const posting of postingsData.data || []) {
+        postings.push({
+          id: posting.id,
+          text: posting.text, // This is the job title
+          team: posting.categories?.team || '',
+          location: posting.categories?.location || '',
+          state: posting.state,
+        })
       }
     }
 
-    // Build postings array with uncategorized at top if any exist
-    const postings: any[] = []
-    
-    if (uncategorizedCount > 0) {
-      postings.push({
-        id: '__uncategorized__',
-        text: 'Uncategorized',
-        team: '',
-        location: '',
-        count: uncategorizedCount,
-        isUncategorized: true
+    // If we have postings, return them
+    if (postings.length > 0) {
+      // Get candidate counts per posting
+      const oppsResponse = await fetch(
+        'https://api.lever.co/v1/opportunities?limit=500&expand=applications',
+        {
+          headers: {
+            'Authorization': `Basic ${Buffer.from(leverKey + ':').toString('base64')}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      )
+
+      if (oppsResponse.ok) {
+        const oppsData = await oppsResponse.json()
+        const countMap = new Map<string, number>()
+        let uncategorizedCount = 0
+
+        for (const opp of oppsData.data || []) {
+          const postingId = opp.applications?.[0]?.posting
+          if (postingId) {
+            countMap.set(postingId, (countMap.get(postingId) || 0) + 1)
+          } else {
+            uncategorizedCount++
+          }
+        }
+
+        // Add counts to postings
+        for (const posting of postings) {
+          posting.count = countMap.get(posting.id) || 0
+        }
+
+        // Add uncategorized if any
+        if (uncategorizedCount > 0) {
+          postings.unshift({
+            id: '__uncategorized__',
+            text: 'Uncategorized',
+            team: '',
+            location: '',
+            count: uncategorizedCount,
+            isUncategorized: true
+          })
+        }
+      }
+
+      // Sort by count (most candidates first), but keep uncategorized at top
+      postings.sort((a, b) => {
+        if (a.isUncategorized) return -1
+        if (b.isUncategorized) return 1
+        return (b.count || 0) - (a.count || 0)
       })
+
+      return NextResponse.json({ success: true, postings })
     }
-    
-    // Add regular postings sorted by count
-    const regularPostings = Array.from(positionMap.values())
-      .sort((a, b) => b.count - a.count)
-    
-    postings.push(...regularPostings)
-    
-    console.log('Positions extracted:', postings.length, 'Uncategorized:', uncategorizedCount)
-    
-    return NextResponse.json({ success: true, postings })
+
+    // Fallback: No postings found, return empty with message
+    console.log('No job postings found in Lever')
+    return NextResponse.json({ 
+      success: true, 
+      postings: [],
+      message: 'No job postings found. Create postings in Lever first.'
+    })
 
   } catch (error: any) {
     console.error('Lever postings error:', error)
