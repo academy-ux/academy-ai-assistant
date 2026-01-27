@@ -14,6 +14,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Spinner } from '@/components/ui/spinner'
 import {
   Command,
   CommandEmpty,
@@ -381,7 +382,7 @@ function FeedbackContent() {
             <CardContent className="flex-1 p-0 overflow-hidden">
                {transcriptLoading ? (
                 <div className="h-full flex flex-col items-center justify-center p-6 text-center space-y-4">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  <Spinner variant="infinite" size={48} className="text-primary" />
                   <div>
                     <h3 className="font-medium mb-1">
                       {countdown > 0 ? 'Waiting for transcript...' : 'Searching Google Drive...'}
@@ -544,12 +545,16 @@ function FeedbackContent() {
                          <Skeleton className="h-4 w-24" />
                          <Skeleton className="h-24 w-full" />
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                         <div className="animate-spin h-3 w-3 border-b-2 border-primary rounded-full"></div>
-                         Analyzing transcript based on "{currentTemplate?.name || 'Default'}" form...
-                      </div>
+// ...
+// remove the first StrReplace block which was malformed in previous attempts if it exists
+// ...
+                {analysisLoading ? (
+                   <div className="flex flex-col items-center justify-center py-12 gap-4 text-muted-foreground min-h-[400px]">
+                      <Spinner variant="infinite" size={64} className="text-primary" />
+                      <p className="font-medium animate-pulse">Analyzing transcript based on "{currentTemplate?.name || 'Default'}" form...</p>
                    </div>
                 ) : (
+// ...
                    <div className="space-y-8">
                       {/* Dynamic Form Rendering */}
                       {currentTemplate ? (
