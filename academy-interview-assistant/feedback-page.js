@@ -1,57 +1,51 @@
 /**
  * Academy Interview Assistant - Feedback Page Logic
  *
- * This script handles:
- * 1. Loading transcript from storage
- * 2. Analyzing transcript with Claude AI
- * 3. Loading candidates from Lever API
- * 4. Auto-matching candidates
- * 5. Submitting feedback to Lever
- * 6. Archiving to Gemini
+ * Fetches transcript from Google Drive (via Google Meet's auto-transcription)
+ * then analyzes with Claude and submits to Lever.
  */
 
 // Global state
 let apiKeys = {};
 let transcript = '';
+let transcriptFileName = '';
 let meetingTitle = '';
-let attendees = [];
+let meetingCode = '';
 let meetingTimestamp = null;
 let candidates = [];
-let opportunities = [];
 let feedbackTemplates = [];
 let selectedCandidate = null;
 let selectedOpportunity = null;
 let selectedTemplate = null;
 let analysisResult = null;
 
+// Transcript fetch configuration
+const INITIAL_WAIT = 30; // seconds before first attempt
+const RETRY_INTERVAL = 15; // seconds between retries
+const MAX_RETRIES = 6; // total retries after initial wait
+let countdownValue = INITIAL_WAIT;
+let countdownInterval = null;
+let retryCount = 0;
+
 // DOM elements
-const elements = {
-  headerMeta: null,
-  transcriptMeta: null,
-  transcriptDisplay: null,
-  manualPaste: null,
-  manualTranscript: null,
-  useManualTranscript: null,
-  analysisLoading: null,
-  reanalyzeBtn: null,
-  candidateSelect: null,
-  opportunitySelect: null,
-  templateSelect: null,
-  matchBadge: null,
-  feedbackFields: null,
-  formLoading: null,
-  statusMessage: null,
-  footerStatus: null,
-  submitBtn: null
-};
+const elements = {};
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', init);
 
 async function init() {
   // Cache DOM elements
-  Object.keys(elements).forEach(key => {
-    elements[key] = document.getElementById(key);
+  const elementIds = [
+    'headerMeta', 'waitingState', 'countdown', 'retryBtn',
+    'transcriptContainer', 'transcriptMeta', 'transcriptDisplay',
+    'transcriptSource', 'transcriptStatus',
+    'candidateSelect', 'opportunitySelect', 'templateSelect',
+    'matchBadge', 'feedbackFields', 'formLoading',
+    'statusMessage', 'footerStatus', 'submitBtn'
+  ];
+
+  elementIds.forEach(id => {
+    elements[id] = document.getElementById(id);
   });
 
   try {
@@ -64,101 +58,49 @@ async function init() {
     ]);
 
     if (!apiKeys.anthropicKey || !apiKeys.leverKey) {
-      showStatus('Please configure API keys in the extension settings first!', 'error');
+      showTranscriptStatus('Please configure API keys in the extension settings first!', 'error');
       elements.footerStatus.textContent = 'API keys not configured';
       return;
     }
 
-    // Load transcript from storage
-    const { pendingTranscript } = await chrome.storage.local.get('pendingTranscript');
+    // Load meeting info from storage
+    const { pendingMeeting } = await chrome.storage.local.get('pendingMeeting');
 
-    if (pendingTranscript) {
-      transcript = pendingTranscript.transcript || '';
-      meetingTitle = pendingTranscript.meetingTitle || 'Untitled Meeting';
-      attendees = pendingTranscript.attendees || [];
-      meetingTimestamp = pendingTranscript.timestamp || Date.now();
+    if (pendingMeeting) {
+      meetingCode = pendingMeeting.meetingCode || '';
+      meetingTitle = pendingMeeting.meetingTitle || '';
+      meetingTimestamp = pendingMeeting.timestamp || Date.now();
     }
 
     // Update header
     updateHeader();
 
-    // Display transcript
-    displayTranscript();
-
     // Setup event listeners
     setupEventListeners();
 
-    // Start parallel processes
-    if (transcript) {
-      // Show analysis loading
-      elements.analysisLoading.style.display = 'flex';
+    // Start loading candidates in parallel
+    loadCandidates();
 
-      Promise.all([
-        loadCandidates(),
-        analyzeTranscript()
-      ]).catch(error => {
-        console.error('Error in parallel initialization:', error);
-      });
-    } else {
-      // No transcript - show manual paste option
-      elements.manualPaste.classList.add('visible');
-      elements.transcriptDisplay.textContent = 'No transcript was automatically captured.';
-      elements.transcriptDisplay.classList.add('empty');
-      elements.formLoading.innerHTML = '<span style="color: #5f6368;">Paste a transcript to begin analysis</span>';
+    // Start countdown and fetch transcript
+    startTranscriptFetch();
 
-      // Still load candidates
-      loadCandidates();
-    }
   } catch (error) {
     console.error('Initialization error:', error);
-    showStatus('Error initializing: ' + error.message, 'error');
+    showTranscriptStatus('Error initializing: ' + error.message, 'error');
   }
 }
 
 function updateHeader() {
   const date = meetingTimestamp ? new Date(meetingTimestamp).toLocaleDateString() : 'Today';
-  elements.headerMeta.textContent = `${meetingTitle} - ${date}`;
-}
-
-function displayTranscript() {
-  // Update metadata
-  const metaHtml = `
-    <div class="meta-item"><strong>Meeting:</strong> ${escapeHtml(meetingTitle)}</div>
-    <div class="meta-item"><strong>Date:</strong> ${meetingTimestamp ? new Date(meetingTimestamp).toLocaleString() : 'Unknown'}</div>
-    ${attendees.length > 0 ? `<div class="meta-item"><strong>Attendees:</strong> ${escapeHtml(attendees.join(', '))}</div>` : ''}
-  `;
-  elements.transcriptMeta.innerHTML = metaHtml;
-
-  // Display transcript
-  if (transcript) {
-    elements.transcriptDisplay.textContent = transcript;
-    elements.transcriptDisplay.classList.remove('empty');
-  } else {
-    elements.transcriptDisplay.textContent = 'No transcript captured. Use the manual paste option below.';
-    elements.transcriptDisplay.classList.add('empty');
-  }
+  const title = meetingTitle || meetingCode || 'Interview';
+  elements.headerMeta.textContent = `${title} - ${date}`;
 }
 
 function setupEventListeners() {
-  // Manual transcript button
-  elements.useManualTranscript.addEventListener('click', () => {
-    const manualText = elements.manualTranscript.value.trim();
-    if (manualText) {
-      transcript = manualText;
-      displayTranscript();
-      elements.manualPaste.classList.remove('visible');
-      elements.analysisLoading.style.display = 'flex';
-      analyzeTranscript();
-    } else {
-      showStatus('Please paste a transcript first', 'error');
-    }
-  });
-
-  // Re-analyze button
-  elements.reanalyzeBtn.addEventListener('click', () => {
-    elements.analysisLoading.style.display = 'flex';
-    elements.reanalyzeBtn.style.display = 'none';
-    analyzeTranscript();
+  // Retry button
+  elements.retryBtn.addEventListener('click', () => {
+    elements.retryBtn.style.display = 'none';
+    fetchTranscript();
   });
 
   // Candidate select
@@ -174,13 +116,129 @@ function setupEventListeners() {
   elements.submitBtn.addEventListener('click', submitToLever);
 }
 
+// ============ Transcript Fetching ============
+
+function startTranscriptFetch() {
+  countdownValue = INITIAL_WAIT;
+  updateCountdown();
+
+  countdownInterval = setInterval(() => {
+    countdownValue--;
+    updateCountdown();
+
+    if (countdownValue <= 0) {
+      clearInterval(countdownInterval);
+      fetchTranscript();
+    }
+  }, 1000);
+}
+
+function updateCountdown() {
+  elements.countdown.textContent = countdownValue;
+}
+
+async function fetchTranscript() {
+  elements.waitingState.querySelector('h3').textContent = 'Searching Google Drive for transcript...';
+  elements.countdown.style.display = 'none';
+  elements.waitingState.querySelector('.spinner-large').style.display = 'block';
+
+  try {
+    const response = await chrome.runtime.sendMessage({
+      action: 'fetchTranscript',
+      meetingTitle: meetingTitle,
+      meetingCode: meetingCode
+    });
+
+    if (response.success && response.transcript) {
+      // Success! Display transcript
+      transcript = response.transcript;
+      transcriptFileName = response.fileName || 'Google Meet Transcript';
+
+      displayTranscript();
+
+      // Start AI analysis
+      analyzeTranscript();
+
+    } else {
+      // Not found - retry or show manual option
+      handleTranscriptNotFound(response.error);
+    }
+
+  } catch (error) {
+    console.error('Error fetching transcript:', error);
+    handleTranscriptNotFound(error.message);
+  }
+}
+
+function handleTranscriptNotFound(errorMessage) {
+  retryCount++;
+
+  if (retryCount <= MAX_RETRIES) {
+    // Show retry countdown
+    elements.waitingState.querySelector('h3').textContent = 'Transcript not ready yet...';
+    elements.countdown.style.display = 'block';
+    countdownValue = RETRY_INTERVAL;
+    updateCountdown();
+
+    countdownInterval = setInterval(() => {
+      countdownValue--;
+      updateCountdown();
+
+      if (countdownValue <= 0) {
+        clearInterval(countdownInterval);
+        fetchTranscript();
+      }
+    }, 1000);
+
+    elements.retryBtn.style.display = 'inline-flex';
+    elements.retryBtn.textContent = `Retry Now (Attempt ${retryCount + 1}/${MAX_RETRIES + 1})`;
+
+  } else {
+    // Max retries reached - show error
+    elements.waitingState.innerHTML = `
+      <div style="color: #d93025; font-size: 48px; margin-bottom: 16px;">!</div>
+      <h3>Could not find transcript</h3>
+      <p style="margin-bottom: 16px;">${errorMessage || 'No transcript found in Google Drive.'}</p>
+      <p style="font-size: 13px; color: #5f6368;">
+        Make sure Google Meet transcription was enabled for this meeting.<br>
+        Transcripts are saved to your Google Drive after the meeting ends.
+      </p>
+      <button class="btn btn-primary retry-btn" onclick="location.reload()">
+        Try Again
+      </button>
+    `;
+  }
+}
+
+function displayTranscript() {
+  // Hide waiting state, show transcript
+  elements.waitingState.style.display = 'none';
+  elements.transcriptContainer.style.display = 'block';
+
+  // Update source indicator
+  elements.transcriptSource.textContent = 'From Google Drive';
+
+  // Update metadata
+  const metaHtml = `
+    <div class="meta-item"><strong>File:</strong> ${escapeHtml(transcriptFileName)}</div>
+    <div class="meta-item"><strong>Meeting:</strong> ${escapeHtml(meetingTitle || meetingCode || 'Unknown')}</div>
+    <div class="meta-item"><strong>Date:</strong> ${meetingTimestamp ? new Date(meetingTimestamp).toLocaleString() : 'Today'}</div>
+  `;
+  elements.transcriptMeta.innerHTML = metaHtml;
+
+  // Display transcript
+  elements.transcriptDisplay.textContent = transcript;
+
+  // Update form loading state
+  elements.formLoading.innerHTML = '<div class="spinner"></div><span>Analyzing transcript with AI...</span>';
+}
+
 // ============ Lever API Integration ============
 
 async function loadCandidates() {
   try {
     elements.candidateSelect.innerHTML = '<option value="">Loading candidates...</option>';
 
-    // Fetch opportunities with contact info expanded
     const response = await fetch('https://api.lever.co/v1/opportunities?limit=100&expand=contact', {
       headers: {
         'Authorization': `Basic ${btoa(apiKeys.leverKey + ':')}`,
@@ -208,8 +266,10 @@ async function loadCandidates() {
 
     elements.candidateSelect.disabled = false;
 
-    // Attempt auto-match
-    autoMatchCandidate();
+    // Attempt auto-match once we have transcript
+    if (transcript) {
+      autoMatchCandidate();
+    }
 
   } catch (error) {
     console.error('Error loading candidates:', error);
@@ -222,6 +282,7 @@ function autoMatchCandidate() {
   if (candidates.length === 0) return;
 
   const matches = [];
+  const searchText = (meetingTitle + ' ' + transcriptFileName + ' ' + transcript.substring(0, 500)).toLowerCase();
 
   candidates.forEach((opp, index) => {
     const contact = opp.contact;
@@ -233,21 +294,15 @@ function autoMatchCandidate() {
     const firstNameLower = firstName.toLowerCase();
     const lastNameLower = lastName.toLowerCase();
 
-    // Check meeting title
-    const titleLower = meetingTitle.toLowerCase();
-    const fullNameInTitle = titleLower.includes(candidateName);
-    const partialNameInTitle = titleLower.includes(firstNameLower) &&
-                               (lastNameLower === '' || titleLower.includes(lastNameLower));
+    // Check in meeting title, filename, and transcript
+    const fullNameMatch = searchText.includes(candidateName);
+    const partialNameMatch = searchText.includes(firstNameLower) &&
+                             (lastNameLower === '' || searchText.includes(lastNameLower));
 
-    // Check attendees
-    const attendeeMatch = attendees.some(attendee => {
-      const attendeeLower = attendee.toLowerCase();
-      return attendeeLower.includes(firstNameLower) &&
-             (lastNameLower === '' || attendeeLower.includes(lastNameLower));
-    });
-
-    if (fullNameInTitle || partialNameInTitle || attendeeMatch) {
-      matches.push({ index, name: contact.name, score: fullNameInTitle ? 3 : (partialNameInTitle ? 2 : 1) });
+    if (fullNameMatch) {
+      matches.push({ index, name: contact.name, score: 3 });
+    } else if (partialNameMatch) {
+      matches.push({ index, name: contact.name, score: 2 });
     }
   });
 
@@ -255,17 +310,13 @@ function autoMatchCandidate() {
   matches.sort((a, b) => b.score - a.score);
 
   if (matches.length === 1) {
-    // Single match - auto-select
     elements.candidateSelect.value = matches[0].index;
     showMatchBadge('success', `Auto-matched: ${matches[0].name}`);
     onCandidateSelect({ target: elements.candidateSelect });
   } else if (matches.length > 1) {
-    // Multiple matches - highlight but don't auto-select
-    showMatchBadge('warning', `${matches.length} potential matches - please select`);
-    // Could highlight matching options in dropdown
+    showMatchBadge('warning', `${matches.length} potential matches`);
   } else {
-    // No match
-    showMatchBadge('info', 'Please select the candidate');
+    showMatchBadge('info', 'Please select candidate');
   }
 }
 
@@ -286,24 +337,16 @@ async function onCandidateSelect(e) {
 
   selectedCandidate = candidates[index];
 
-  // For Lever, each "opportunity" is already a candidate+position combo
-  // So we just use the selected opportunity directly
-  elements.opportunitySelect.innerHTML = '<option value="">Loading...</option>';
-
-  // The opportunity is already selected, just show it
   const position = selectedCandidate.posting?.text || selectedCandidate.name || 'No position';
   elements.opportunitySelect.innerHTML = `<option value="0" selected>${position}</option>`;
   elements.opportunitySelect.disabled = false;
   selectedOpportunity = selectedCandidate;
 
-  // Load feedback templates
   await loadFeedbackTemplates();
-
   validateForm();
 }
 
-async function onOpportunitySelect(e) {
-  // In this simplified version, opportunity is same as candidate
+function onOpportunitySelect(e) {
   selectedOpportunity = selectedCandidate;
   validateForm();
 }
@@ -326,7 +369,6 @@ async function loadFeedbackTemplates() {
     const data = await response.json();
     feedbackTemplates = data.data || [];
 
-    // Populate dropdown
     elements.templateSelect.innerHTML = '<option value="">Select a template...</option>';
     feedbackTemplates.forEach((template, index) => {
       const option = document.createElement('option');
@@ -337,7 +379,7 @@ async function loadFeedbackTemplates() {
 
     elements.templateSelect.disabled = false;
 
-    // Try to auto-select an interview template
+    // Auto-select interview template
     const interviewTemplateIndex = feedbackTemplates.findIndex(t => {
       const name = (t.text || t.name || '').toLowerCase();
       return name.includes('interview') || name.includes('on-site') || name.includes('onsite');
@@ -356,22 +398,14 @@ async function loadFeedbackTemplates() {
 
 function onTemplateSelect(e) {
   const index = e.target.value;
-  if (index === '') {
-    selectedTemplate = null;
-    return;
-  }
-
-  selectedTemplate = feedbackTemplates[index];
+  selectedTemplate = index !== '' ? feedbackTemplates[index] : null;
   validateForm();
 }
 
 // ============ Claude AI Analysis ============
 
 async function analyzeTranscript() {
-  if (!transcript) {
-    console.log('No transcript to analyze');
-    return;
-  }
+  if (!transcript) return;
 
   try {
     elements.formLoading.style.display = 'flex';
@@ -404,20 +438,16 @@ async function analyzeTranscript() {
     const data = await response.json();
     const content = data.content?.[0]?.text || '';
 
-    // Parse JSON from response
     analysisResult = parseAnalysisResult(content);
-
-    // Hide loading, show form
-    elements.analysisLoading.style.display = 'none';
-    elements.reanalyzeBtn.style.display = 'inline-flex';
-
-    // Populate feedback form
     populateFeedbackForm();
+
+    // Try auto-matching candidate now that we have the transcript analyzed
+    if (!selectedCandidate) {
+      autoMatchCandidate();
+    }
 
   } catch (error) {
     console.error('Error analyzing transcript:', error);
-    elements.analysisLoading.style.display = 'none';
-    elements.reanalyzeBtn.style.display = 'inline-flex';
     elements.formLoading.innerHTML = `<span style="color: #d93025;">Analysis failed: ${error.message}</span>`;
     showStatus('AI analysis failed: ' + error.message, 'error');
   }
@@ -426,10 +456,8 @@ async function analyzeTranscript() {
 function buildAnalysisPrompt() {
   return `You are analyzing an interview transcript for a recruiting team at Academy, a design-led recruiting and staffing business.
 
-Meeting Context:
-- Meeting Title: ${meetingTitle}
-- Date: ${meetingTimestamp ? new Date(meetingTimestamp).toLocaleDateString() : 'Unknown'}
-- Attendees: ${attendees.join(', ') || 'Unknown'}
+Meeting: ${meetingTitle || meetingCode || 'Interview'}
+Date: ${meetingTimestamp ? new Date(meetingTimestamp).toLocaleDateString() : 'Today'}
 
 Transcript:
 ${transcript}
@@ -437,48 +465,35 @@ ${transcript}
 Analyze this interview and provide structured feedback in this exact JSON format:
 {
   "rating": "one of: 4 - Strong Hire, 3 - Hire, 2 - No Hire, 1 - Strong No Hire",
-  "strengths": "2-3 sentences about key strengths demonstrated in the interview",
-  "concerns": "2-3 sentences about any concerns or areas for improvement",
-  "technicalSkills": "List of specific technical skills, tools, or frameworks mentioned",
+  "strengths": "2-3 sentences about key strengths demonstrated",
+  "concerns": "2-3 sentences about concerns or areas for improvement",
+  "technicalSkills": "List of technical skills, tools, or frameworks mentioned",
   "culturalFit": "Brief assessment of cultural fit and soft skills",
   "recommendation": "Clear recommendation on next steps",
   "keyQuotes": ["notable quote 1", "notable quote 2", "notable quote 3"],
   "alternativeRatings": [
-    {"rating": "3 - Hire", "reasoning": "brief reason why this could also be appropriate"},
-    {"rating": "2 - No Hire", "reasoning": "brief reason if you have concerns"}
+    {"rating": "alternative rating", "reasoning": "brief reason"}
   ]
 }
 
-Be objective and base your assessment only on what was discussed in the interview. Focus on:
-- Specific examples and evidence from the conversation
-- Technical competency demonstrated
-- Communication and problem-solving approach
-- Culture and team fit indicators
-
-Respond with ONLY the JSON object, no additional text.`;
+Be objective. Focus on specific examples from the conversation. Respond with ONLY the JSON object.`;
 }
 
 function parseAnalysisResult(content) {
-  // Try to extract JSON from the response
   try {
-    // First try direct parse
     return JSON.parse(content);
   } catch (e) {
-    // Try to find JSON in the content
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       try {
         return JSON.parse(jsonMatch[0]);
-      } catch (e2) {
-        console.error('Failed to parse JSON from response:', e2);
-      }
+      } catch (e2) {}
     }
   }
 
-  // Return default structure if parsing fails
   return {
     rating: '3 - Hire',
-    strengths: 'Unable to analyze transcript automatically. Please fill in manually.',
+    strengths: 'Unable to parse analysis. Please fill in manually.',
     concerns: '',
     technicalSkills: '',
     culturalFit: '',
@@ -540,7 +555,7 @@ function populateFeedbackForm() {
 
     ${analysisResult.keyQuotes?.length > 0 ? `
       <div class="form-group">
-        <label>Key Quotes (Reference)</label>
+        <label>Key Quotes</label>
         <div class="key-quotes">
           ${analysisResult.keyQuotes.map(q => `<p>"${escapeHtml(q)}"</p>`).join('')}
         </div>
@@ -592,7 +607,6 @@ async function submitToLever() {
     elements.submitBtn.disabled = true;
     elements.submitBtn.textContent = 'Submitting...';
 
-    // Gather form values
     const formData = {
       rating: document.getElementById('ratingField')?.value || '',
       strengths: document.getElementById('strengthsField')?.value || '',
@@ -602,7 +616,6 @@ async function submitToLever() {
       recommendation: document.getElementById('recommendationField')?.value || ''
     };
 
-    // Build feedback text (since Lever templates vary, we'll combine into notes)
     const feedbackText = `
 Rating: ${formData.rating}
 
@@ -622,7 +635,6 @@ Recommendation:
 ${formData.recommendation}
     `.trim();
 
-    // Submit to Lever
     const opportunityId = selectedCandidate.id;
     const response = await fetch(
       `https://api.lever.co/v1/opportunities/${opportunityId}/feedback?perform_as=${apiKeys.leverUserId}`,
@@ -645,40 +657,34 @@ ${formData.recommendation}
       throw new Error(`Lever API error: ${response.status} - ${JSON.stringify(errorData)}`);
     }
 
-    // Success!
     showStatus('Feedback submitted successfully to Lever!', 'success');
     elements.submitBtn.textContent = 'Submitted!';
-    elements.submitBtn.classList.remove('btn-success');
     elements.submitBtn.style.background = '#1e8e3e';
 
     // Store in Gemini (non-blocking)
     storeInGemini(formData).catch(err => {
-      console.error('Gemini storage failed (non-blocking):', err);
+      console.error('Gemini storage failed:', err);
     });
 
-    // Clear pending transcript
-    await chrome.storage.local.remove('pendingTranscript');
+    // Clear pending meeting
+    await chrome.storage.local.remove('pendingMeeting');
 
-    // Prompt to close tab
     setTimeout(() => {
-      if (confirm('Feedback submitted successfully! Close this tab?')) {
+      if (confirm('Feedback submitted! Close this tab?')) {
         window.close();
       }
     }, 1000);
 
   } catch (error) {
     console.error('Error submitting to Lever:', error);
-    showStatus('Failed to submit feedback: ' + error.message, 'error');
+    showStatus('Failed to submit: ' + error.message, 'error');
     elements.submitBtn.disabled = false;
     elements.submitBtn.textContent = 'Submit to Lever';
   }
 }
 
 async function storeInGemini(formData) {
-  if (!apiKeys.geminiKey) {
-    console.log('No Gemini API key configured, skipping archive');
-    return;
-  }
+  if (!apiKeys.geminiKey) return;
 
   const candidateName = selectedCandidate?.contact?.name || 'Unknown';
   const position = selectedCandidate?.posting?.text || 'Unknown Position';
@@ -687,9 +693,8 @@ async function storeInGemini(formData) {
   const content = `
 CANDIDATE: ${candidateName}
 POSITION: ${position}
-INTERVIEW DATE: ${date}
-MEETING TITLE: ${meetingTitle}
-ATTENDEES: ${attendees.join(', ')}
+DATE: ${date}
+MEETING: ${meetingTitle || meetingCode}
 RATING: ${formData.rating}
 
 STRENGTHS:
@@ -701,24 +706,18 @@ ${formData.concerns}
 TECHNICAL SKILLS:
 ${formData.technicalSkills}
 
-CULTURAL FIT:
-${formData.culturalFit}
-
 RECOMMENDATION:
 ${formData.recommendation}
 
-FULL TRANSCRIPT:
+TRANSCRIPT:
 ${transcript}
   `.trim();
 
-  // Upload to Gemini File API
-  const response = await fetch(
+  await fetch(
     `https://generativelanguage.googleapis.com/upload/v1beta/files?key=${apiKeys.geminiKey}`,
     {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         file: {
           displayName: `${candidateName} - ${position} - ${date}`,
@@ -728,12 +727,6 @@ ${transcript}
       })
     }
   );
-
-  if (!response.ok) {
-    throw new Error(`Gemini API error: ${response.status}`);
-  }
-
-  console.log('Transcript archived to Gemini');
 }
 
 // ============ Utility Functions ============
@@ -747,6 +740,12 @@ function showStatus(message, type) {
       elements.statusMessage.classList.remove('visible');
     }, 5000);
   }
+}
+
+function showTranscriptStatus(message, type) {
+  const el = elements.transcriptStatus;
+  el.textContent = message;
+  el.className = `status-message visible ${type}`;
 }
 
 function escapeHtml(text) {
