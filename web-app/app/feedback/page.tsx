@@ -55,6 +55,7 @@ interface Posting {
   text: string // Job title
   team: string
   location: string
+  count?: number // Number of candidates
 }
 
 interface TemplateField {
@@ -523,7 +524,9 @@ function FeedbackContent() {
                                     <div className="flex flex-col">
                                       <span className="font-medium">{posting.text}</span>
                                       <span className="text-xs text-muted-foreground">
-                                        {posting.team} {posting.location && `• ${posting.location}`}
+                                        {posting.count && `${posting.count} candidate${posting.count > 1 ? 's' : ''}`}
+                                        {posting.team && ` • ${posting.team}`}
+                                        {posting.location && ` • ${posting.location}`}
                                       </span>
                                     </div>
                                   </CommandItem>

@@ -11,14 +11,9 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const postingId = searchParams.get('postingId')
 
-    // Build API URL - if postingId provided, filter by it
-    let apiUrl = 'https://api.lever.co/v1/opportunities?limit=100&expand=contact&expand=stage'
-    if (postingId) {
-      apiUrl += `&posting_id=${postingId}`
-    }
-
+    // Fetch opportunities with applications to get posting info
     const response = await fetch(
-      apiUrl,
+      'https://api.lever.co/v1/opportunities?limit=250&expand=contact&expand=stage&expand=applications',
       {
         headers: {
           'Authorization': `Basic ${Buffer.from(leverKey + ':').toString('base64')}`,
@@ -33,15 +28,24 @@ export async function GET(request: NextRequest) {
 
     const data = await response.json()
 
-    // Transform data for frontend
-    const candidates = data.data.map((opp: any) => ({
-      id: opp.id,
-      name: opp.contact?.name || 'Unknown',
-      email: opp.contact?.emails?.[0] || '',
-      position: opp.posting?.text || opp.name || 'No position',
-      stage: opp.stage?.text || 'Unknown Stage',
-      createdAt: opp.createdAt,
-    }))
+    // Transform and optionally filter data
+    let candidates = (data.data || []).map((opp: any) => {
+      const app = opp.applications?.[0]
+      return {
+        id: opp.id,
+        name: opp.contact?.name || 'Unknown',
+        email: opp.contact?.emails?.[0] || '',
+        position: app?.postingTitle || opp.name || 'No position',
+        postingId: app?.posting || opp.id,
+        stage: opp.stage?.text || 'Unknown Stage',
+        createdAt: opp.createdAt,
+      }
+    })
+
+    // Filter by posting if specified
+    if (postingId) {
+      candidates = candidates.filter((c: any) => c.postingId === postingId)
+    }
 
     return NextResponse.json({ success: true, candidates })
 

@@ -8,9 +8,9 @@ export async function GET() {
       return NextResponse.json({ error: 'Lever API key not configured' }, { status: 500 })
     }
 
-    // Fetch all postings (not just published) - includes internal, closed, etc.
+    // Fetch opportunities to extract unique positions
     const response = await fetch(
-      'https://api.lever.co/v1/postings',
+      'https://api.lever.co/v1/opportunities?limit=250&expand=applications',
       {
         headers: {
           'Authorization': `Basic ${Buffer.from(leverKey + ':').toString('base64')}`,
@@ -20,23 +20,40 @@ export async function GET() {
     )
 
     if (!response.ok) {
-      const errorText = await response.text()
-      console.error('Lever API error:', response.status, errorText)
       throw new Error(`Lever API error: ${response.status}`)
     }
 
     const data = await response.json()
-    console.log('Lever postings raw count:', data.data?.length || 0)
+    
+    // Extract unique positions from opportunities
+    const positionMap = new Map<string, { id: string; text: string; team: string; location: string; count: number }>()
+    
+    for (const opp of data.data || []) {
+      // Get position info - first check applications, then fallback to opportunity itself
+      const app = opp.applications?.[0]
+      const postingId = app?.posting || opp.id
+      const postingText = app?.postingTitle || opp.name || 'General Application'
+      
+      if (positionMap.has(postingId)) {
+        // Increment count for this position
+        const existing = positionMap.get(postingId)!
+        existing.count++
+      } else {
+        positionMap.set(postingId, {
+          id: postingId,
+          text: postingText,
+          team: '',
+          location: '',
+          count: 1
+        })
+      }
+    }
 
-    // Transform data for frontend
-    const postings = (data.data || []).map((posting: any) => ({
-      id: posting.id,
-      text: posting.text, // Job title
-      team: posting.categories?.team || '',
-      location: posting.categories?.location || '',
-      state: posting.state,
-    }))
-
+    const postings = Array.from(positionMap.values())
+      .sort((a, b) => b.count - a.count) // Most candidates first
+    
+    console.log('Positions extracted from opportunities:', postings.length)
+    
     return NextResponse.json({ success: true, postings })
 
   } catch (error: any) {
