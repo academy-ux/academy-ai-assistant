@@ -16,6 +16,7 @@ interface Interview {
   position: string | null
   meeting_title: string | null
   meeting_date: string | null
+  created_at: string
   rating: string | null
   transcript: string
   similarity?: number
