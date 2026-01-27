@@ -11,8 +11,8 @@ export function Navbar() {
   return (
     <nav className="border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
       <div className="container flex h-16 max-w-7xl items-center justify-between px-6 mx-auto">
-        <Link href="/" className="flex items-center space-x-2">
-          <div className="relative h-8 w-32">
+        <Link href="/" className="flex items-center space-x-0">
+          <div className="relative h-8 w-28 -ml-2">
              <Image 
                src="/academy-logo-2024-v1.svg" 
                alt="Academy UX" 
@@ -21,7 +21,8 @@ export function Navbar() {
                priority
              />
           </div>
-          <span className="text-muted-foreground hidden sm:inline-block font-grotesk text-sm border-l border-foreground/20 pl-2 ml-2">
+          <div className="h-5 w-px bg-foreground/20 mx-3"></div>
+          <span className="text-muted-foreground hidden sm:inline-block font-grotesk text-sm">
             AI Assistant
           </span>
         </Link>
