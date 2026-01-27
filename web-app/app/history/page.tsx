@@ -33,6 +33,14 @@ interface Source {
   similarity: number
 }
 
+interface UncategorizedCandidate {
+  id: string
+  name: string
+  email: string
+  stage: string
+  createdAt: number
+}
+
 export default function HistoryPage() {
   const { data: session } = useSession()
   const [interviews, setInterviews] = useState<Interview[]>([])
@@ -42,6 +50,10 @@ export default function HistoryPage() {
   const [answer, setAnswer] = useState<string | null>(null)
   const [sources, setSources] = useState<Source[]>([])
   const [asking, setAsking] = useState(false)
+
+  // Uncategorized Candidates State
+  const [uncategorizedCandidates, setUncategorizedCandidates] = useState<UncategorizedCandidate[]>([])
+  const [uncategorizedLoading, setUncategorizedLoading] = useState(false)
 
   // Import State
   const [importOpen, setImportOpen] = useState(false)
@@ -54,6 +66,7 @@ export default function HistoryPage() {
 
   useEffect(() => {
     fetchInterviews()
+    fetchUncategorizedCandidates()
   }, [])
 
   useEffect(() => {
@@ -61,6 +74,27 @@ export default function HistoryPage() {
       fetchFolders()
     }
   }, [importOpen])
+
+  async function fetchUncategorizedCandidates() {
+    setUncategorizedLoading(true)
+    try {
+      const res = await fetch('/api/lever/candidates?postingId=__uncategorized__')
+      const data = await res.json()
+      if (data.success && data.candidates) {
+        setUncategorizedCandidates(data.candidates.map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          email: c.email,
+          stage: c.stage,
+          createdAt: c.createdAt
+        })))
+      }
+    } catch (err) {
+      console.error('Failed to fetch uncategorized candidates:', err)
+    } finally {
+      setUncategorizedLoading(false)
+    }
+  }
 
   async function fetchFolders() {
     setFoldersLoading(true)
@@ -269,6 +303,48 @@ export default function HistoryPage() {
             </Button>
           </div>
         </div>
+
+        {/* Uncategorized Candidates Alert */}
+        {uncategorizedCandidates.length > 0 && (
+          <Card className="border-amber-200 bg-amber-50/50">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg text-amber-800">
+                    Uncategorized Candidates
+                  </CardTitle>
+                  <CardDescription className="text-amber-700">
+                    {uncategorizedCandidates.length} candidate{uncategorizedCandidates.length > 1 ? 's' : ''} without a job assignment in Lever
+                  </CardDescription>
+                </div>
+                <Badge variant="outline" className="border-amber-300 text-amber-700">
+                  Needs Review
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="flex flex-wrap gap-2">
+                {uncategorizedCandidates.slice(0, 10).map((candidate) => (
+                  <a
+                    key={candidate.id}
+                    href={`https://hire.lever.co/candidates/${candidate.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 px-2 py-1 bg-white border border-amber-200 rounded text-sm hover:bg-amber-100 transition-colors"
+                  >
+                    <span className="font-medium text-foreground">{candidate.name}</span>
+                    <span className="text-xs text-muted-foreground">• {candidate.stage}</span>
+                  </a>
+                ))}
+                {uncategorizedCandidates.length > 10 && (
+                  <span className="inline-flex items-center px-2 py-1 text-sm text-amber-700">
+                    +{uncategorizedCandidates.length - 10} more
+                  </span>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Search Bar */}
         <Card>

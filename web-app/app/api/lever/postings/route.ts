@@ -53,14 +53,11 @@ export async function GET() {
       if (oppsResponse.ok) {
         const oppsData = await oppsResponse.json()
         const countMap = new Map<string, number>()
-        let uncategorizedCount = 0
 
         for (const opp of oppsData.data || []) {
           const postingId = opp.applications?.[0]?.posting
           if (postingId) {
             countMap.set(postingId, (countMap.get(postingId) || 0) + 1)
-          } else {
-            uncategorizedCount++
           }
         }
 
@@ -68,26 +65,10 @@ export async function GET() {
         for (const posting of postings) {
           posting.count = countMap.get(posting.id) || 0
         }
-
-        // Add uncategorized if any
-        if (uncategorizedCount > 0) {
-          postings.unshift({
-            id: '__uncategorized__',
-            text: 'Uncategorized',
-            team: '',
-            location: '',
-            count: uncategorizedCount,
-            isUncategorized: true
-          })
-        }
       }
 
-      // Sort by count (most candidates first), but keep uncategorized at top
-      postings.sort((a, b) => {
-        if (a.isUncategorized) return -1
-        if (b.isUncategorized) return 1
-        return (b.count || 0) - (a.count || 0)
-      })
+      // Sort by count (most candidates first)
+      postings.sort((a, b) => (b.count || 0) - (a.count || 0))
 
       return NextResponse.json({ success: true, postings })
     }
