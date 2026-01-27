@@ -50,6 +50,13 @@ interface Candidate {
   stage: string
 }
 
+interface Posting {
+  id: string
+  text: string // Job title
+  team: string
+  location: string
+}
+
 interface TemplateField {
   text: string
   description?: string
@@ -79,10 +86,17 @@ function FeedbackContent() {
   const [analysis, setAnalysis] = useState<Analysis | null>(null)
   const [analysisLoading, setAnalysisLoading] = useState(false)
 
+  // Lever data
+  const [postings, setPostings] = useState<Posting[]>([])
+  const [selectedPosting, setSelectedPosting] = useState('')
+  const [postingOpen, setPostingOpen] = useState(false)
+  
   const [candidates, setCandidates] = useState<Candidate[]>([])
-  const [templates, setTemplates] = useState<Template[]>([])
+  const [candidatesLoading, setCandidatesLoading] = useState(false)
   const [selectedCandidate, setSelectedCandidate] = useState('')
   const [candidateOpen, setCandidateOpen] = useState(false)
+  
+  const [templates, setTemplates] = useState<Template[]>([])
   const [selectedTemplate, setSelectedTemplate] = useState('')
   const [currentTemplate, setCurrentTemplate] = useState<Template | null>(null)
   const [templateOpen, setTemplateOpen] = useState(false)
@@ -97,13 +111,21 @@ function FeedbackContent() {
   const meetingTitle = searchParams.get('title') || ''
   const meetingCode = searchParams.get('meeting') || ''
 
-  // Load candidates and templates on mount
+  // Load postings and templates on mount
   useEffect(() => {
     if (session) {
-      loadCandidates()
+      loadPostings()
       loadTemplates()
     }
   }, [session])
+
+  // Load candidates when posting is selected
+  useEffect(() => {
+    if (selectedPosting) {
+      loadCandidates(selectedPosting)
+      setSelectedCandidate('') // Reset candidate selection
+    }
+  }, [selectedPosting])
 
   // Start transcript fetch countdown
   useEffect(() => {
@@ -209,15 +231,31 @@ function FeedbackContent() {
     }
   }
 
-  async function loadCandidates() {
+  async function loadPostings() {
     try {
-      const res = await fetch('/api/lever/candidates')
+      const res = await fetch('/api/lever/postings')
+      const data = await res.json()
+      if (data.success) {
+        setPostings(data.postings)
+      }
+    } catch (err) {
+      console.error('Failed to load postings:', err)
+    }
+  }
+
+  async function loadCandidates(postingId: string) {
+    setCandidatesLoading(true)
+    setCandidates([])
+    try {
+      const res = await fetch(`/api/lever/candidates?postingId=${postingId}`)
       const data = await res.json()
       if (data.success) {
         setCandidates(data.candidates)
       }
     } catch (err) {
       console.error('Failed to load candidates:', err)
+    } finally {
+      setCandidatesLoading(false)
     }
   }
 
@@ -432,10 +470,64 @@ function FeedbackContent() {
              </CardHeader>
              
              <CardContent className="flex-1 overflow-y-auto p-6 space-y-8">
-                {/* Match Selection */}
-                <div className="grid grid-cols-2 gap-4">
+                {/* Selection Flow: Posting -> Candidate -> Template */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                   {/* Step 1: Select Opportunity (Posting/Job) */}
                    <div className="space-y-2">
-                      <Label>Candidate / Opportunity</Label>
+                      <Label>1. Opportunity (Job)</Label>
+                      <Popover open={postingOpen} onOpenChange={setPostingOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={postingOpen}
+                            className="w-full justify-between"
+                          >
+                            {selectedPosting
+                              ? postings.find((p) => p.id === selectedPosting)?.text
+                              : "Select job..."}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                          <Command>
+                            <CommandInput placeholder="Search jobs..." />
+                            <CommandList>
+                              <CommandEmpty>No jobs found.</CommandEmpty>
+                              <CommandGroup>
+                                {postings.map((posting) => (
+                                  <CommandItem
+                                    key={posting.id}
+                                    value={`${posting.text} ${posting.team} ${posting.location}`}
+                                    onSelect={() => {
+                                      setSelectedPosting(posting.id)
+                                      setPostingOpen(false)
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        selectedPosting === posting.id ? "opacity-100" : "opacity-0"
+                                      )}
+                                    />
+                                    <div className="flex flex-col">
+                                      <span className="font-medium">{posting.text}</span>
+                                      <span className="text-xs text-muted-foreground">
+                                        {posting.team} {posting.location && `• ${posting.location}`}
+                                      </span>
+                                    </div>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                   </div>
+                   
+                   {/* Step 2: Select Candidate */}
+                   <div className="space-y-2">
+                      <Label>2. Candidate</Label>
                       <Popover open={candidateOpen} onOpenChange={setCandidateOpen}>
                         <PopoverTrigger asChild>
                           <Button
@@ -443,10 +535,15 @@ function FeedbackContent() {
                             role="combobox"
                             aria-expanded={candidateOpen}
                             className="w-full justify-between"
+                            disabled={!selectedPosting || candidatesLoading}
                           >
-                            {selectedCandidate
-                              ? candidates.find((c) => c.id === selectedCandidate)?.name
-                              : "Select candidate..."}
+                            {candidatesLoading ? (
+                              "Loading..."
+                            ) : selectedCandidate ? (
+                              candidates.find((c) => c.id === selectedCandidate)?.name
+                            ) : (
+                              selectedPosting ? "Select candidate..." : "Select job first"
+                            )}
                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                           </Button>
                         </PopoverTrigger>
@@ -454,12 +551,14 @@ function FeedbackContent() {
                           <Command>
                             <CommandInput placeholder="Search candidate..." />
                             <CommandList>
-                              <CommandEmpty>No candidate found.</CommandEmpty>
+                              <CommandEmpty>
+                                {candidates.length === 0 ? "No candidates for this job." : "No match found."}
+                              </CommandEmpty>
                               <CommandGroup>
                                 {candidates.map((candidate) => (
                                   <CommandItem
                                     key={candidate.id}
-                                    value={`${candidate.name} ${candidate.position}`}
+                                    value={`${candidate.name} ${candidate.stage}`}
                                     onSelect={() => {
                                       setSelectedCandidate(candidate.id)
                                       setCandidateOpen(false)
@@ -474,7 +573,7 @@ function FeedbackContent() {
                                     <div className="flex flex-col">
                                       <span className="font-medium">{candidate.name}</span>
                                       <span className="text-xs text-muted-foreground">
-                                        {candidate.position} • <span className="text-primary/80">{candidate.stage}</span>
+                                        <span className="text-primary/80">{candidate.stage}</span>
                                       </span>
                                     </div>
                                   </CommandItem>
@@ -485,8 +584,10 @@ function FeedbackContent() {
                         </PopoverContent>
                       </Popover>
                    </div>
+                   
+                   {/* Step 3: Select Feedback Form */}
                    <div className="space-y-2">
-                      <Label>Feedback Form (Template)</Label>
+                      <Label>3. Feedback Form</Label>
                       <Popover open={templateOpen} onOpenChange={setTemplateOpen}>
                         <PopoverTrigger asChild>
                           <Button
@@ -497,15 +598,15 @@ function FeedbackContent() {
                           >
                             {selectedTemplate
                               ? templates.find((t) => t.id === selectedTemplate)?.name
-                              : "Select template..."}
+                              : "Select form..."}
                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                           <Command>
-                            <CommandInput placeholder="Search template..." />
+                            <CommandInput placeholder="Search form..." />
                             <CommandList>
-                              <CommandEmpty>No template found.</CommandEmpty>
+                              <CommandEmpty>No forms found.</CommandEmpty>
                               <CommandGroup>
                                 {templates.map((template) => (
                                   <CommandItem

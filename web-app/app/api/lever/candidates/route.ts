@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const leverKey = process.env.LEVER_API_KEY
 
@@ -8,8 +8,17 @@ export async function GET() {
       return NextResponse.json({ error: 'Lever API key not configured' }, { status: 500 })
     }
 
+    const searchParams = request.nextUrl.searchParams
+    const postingId = searchParams.get('postingId')
+
+    // Build API URL - if postingId provided, filter by it
+    let apiUrl = 'https://api.lever.co/v1/opportunities?limit=100&expand=contact&expand=stage'
+    if (postingId) {
+      apiUrl += `&posting_id=${postingId}`
+    }
+
     const response = await fetch(
-      'https://api.lever.co/v1/opportunities?limit=100&expand=contact&expand=stage',
+      apiUrl,
       {
         headers: {
           'Authorization': `Basic ${Buffer.from(leverKey + ':').toString('base64')}`,
