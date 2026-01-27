@@ -6,17 +6,16 @@
   :root {
     /* Academy UX "Sage & Stone" Palette */
     
-    /* Background: Muted Sage Green/Grey (from the image) */
-    /* Approx #D8DDD6 or #E2E4DE */
-    --background: 100 8% 88%; 
-    --foreground: 150 5% 10%; /* Almost black, slight green tint */
+    /* Background: More neutral/putty/stone, less green */
+    --background: 45 10% 92%;  /* Warm stone */
+    --foreground: 0 0% 10%;    /* Sharper black */
 
     /* Cards: Slightly lighter/transparent to blend */
-    --card: 100 8% 88%; 
-    --card-foreground: 150 5% 10%;
+    --card: 45 10% 92%; 
+    --card-foreground: 0 0% 10%;
 
-    --popover: 100 8% 88%;
-    --popover-foreground: 150 5% 10%;
+    --popover: 45 10% 92%;
+    --popover-foreground: 0 0% 10%;
 
     /* Primary: The Academy Orange */
     --primary: 24 100% 50%; /* Vibrant Orange */
@@ -42,6 +41,15 @@
     --radius: 0rem; /* Sharper corners like the site */
     
     --font-display: var(--font-serif); /* Switch display font to Serif */
+  }
+
+  /* Force Neue Haas everywhere */
+  body {
+    font-family: "neue-haas-grotesk-text", sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: "neue-haas-grotesk-display", sans-serif;
   }
 
   .dark {
@@ -90,5 +98,10 @@
 }
 
 .font-grotesk {
-  font-family: var(--font-grotesk), ui-sans-serif, system-ui, sans-serif;
+  font-family: "neue-haas-grotesk-display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-weight: 500;
+}
+
+.font-sans {
+  font-family: "neue-haas-grotesk-text", "Helvetica Neue", Helvetica, Arial, sans-serif;
 }

@@ -20,12 +20,12 @@ export default function Home() {
           <Badge variant="outline" className="rounded-none px-3 py-1 border-foreground/20 text-foreground font-mono uppercase tracking-widest text-xs bg-transparent">
             Internal Tool v1.0
           </Badge>
-          <h1 className="font-display text-7xl md:text-8xl font-medium tracking-tight leading-[0.9] text-foreground">
+          <h1 className="font-display text-7xl md:text-9xl font-medium tracking-tighter leading-[0.85] text-foreground -ml-1">
             Interview <br/>
-            <span className="italic text-foreground">Intelligence</span> <br/>
+            <span className="italic text-foreground font-serif">Intelligence</span> <br/>
             Studio
           </h1>
-          <p className="text-xl font-grotesk text-muted-foreground max-w-md leading-relaxed">
+          <p className="text-xl font-grotesk text-foreground/80 max-w-md leading-relaxed">
             Automate your notes. Analyze candidate fit.<br/> 
             Sync with Lever. <span className="text-primary">Seamlessly.</span>
           </p>
