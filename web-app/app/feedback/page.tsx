@@ -3,16 +3,20 @@
 import { useSession, signIn } from 'next-auth/react'
 import { useSearchParams } from 'next/navigation'
 import { useEffect, useState, Suspense } from 'react'
+import { Check, ChevronsUpDown, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { cn } from '@/lib/utils'
 
 interface Analysis {
   rating: string
@@ -84,6 +88,12 @@ function FeedbackContent() {
   const [templates, setTemplates] = useState<Template[]>([])
   const [selectedTemplate, setSelectedTemplate] = useState('')
   const [currentTemplate, setCurrentTemplate] = useState<Template | null>(null)
+  
+  // Search and dropdown states
+  const [postingSearch, setPostingSearch] = useState('')
+  const [postingOpen, setPostingOpen] = useState(false)
+  const [candidateSearch, setCandidateSearch] = useState('')
+  const [candidateOpen, setCandidateOpen] = useState(false)
   
   // Dynamic form state (maps field text to value)
   const [dynamicAnswers, setDynamicAnswers] = useState<Record<string, any>>({})
@@ -463,60 +473,134 @@ function FeedbackContent() {
                    {/* Step 1: Select Opportunity (Posting/Job) */}
                    <div className="space-y-2">
                       <Label>1. Opportunity (Job)</Label>
-                      <Select 
-                        value={selectedPosting} 
-                        onValueChange={(value) => setSelectedPosting(value)}
-                        disabled={postingsLoading}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder={postingsLoading ? "Loading jobs..." : "Select job..."} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <ScrollArea className="h-[300px]">
-                            {postings.map((posting) => (
-                              <SelectItem key={posting.id} value={posting.id}>
-                                <div className="flex flex-col">
-                                  <span>{posting.text}</span>
-                                  <span className="text-xs text-muted-foreground">
-                                    {posting.count ? `${posting.count} candidates` : ''}
-                                    {posting.team ? ` • ${posting.team}` : ''}
-                                  </span>
-                                </div>
-                              </SelectItem>
-                            ))}
+                      <Popover open={postingOpen} onOpenChange={setPostingOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            className="w-full justify-between font-normal"
+                            disabled={postingsLoading}
+                          >
+                            {postingsLoading 
+                              ? "Loading jobs..." 
+                              : selectedPosting 
+                                ? postings.find(p => p.id === selectedPosting)?.text 
+                                : "Select job..."}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[300px] p-0" align="start">
+                          <div className="p-2 border-b">
+                            <div className="flex items-center gap-2 px-2">
+                              <Search className="h-4 w-4 text-muted-foreground" />
+                              <Input
+                                placeholder="Search jobs..."
+                                value={postingSearch}
+                                onChange={(e) => setPostingSearch(e.target.value)}
+                                className="h-8 border-0 focus-visible:ring-0 p-0"
+                              />
+                            </div>
+                          </div>
+                          <ScrollArea className="h-[250px]">
+                            <div className="p-1">
+                              {postings
+                                .filter(p => 
+                                  p.text.toLowerCase().includes(postingSearch.toLowerCase()) ||
+                                  (p.team && p.team.toLowerCase().includes(postingSearch.toLowerCase()))
+                                )
+                                .map((posting) => (
+                                  <div
+                                    key={posting.id}
+                                    className={cn(
+                                      "flex items-center gap-2 px-2 py-2 rounded cursor-pointer hover:bg-accent",
+                                      selectedPosting === posting.id && "bg-accent"
+                                    )}
+                                    onClick={() => {
+                                      setSelectedPosting(posting.id)
+                                      setPostingOpen(false)
+                                      setPostingSearch('')
+                                    }}
+                                  >
+                                    <Check className={cn("h-4 w-4", selectedPosting === posting.id ? "opacity-100" : "opacity-0")} />
+                                    <div className="flex flex-col">
+                                      <span className="text-sm">{posting.text}</span>
+                                      <span className="text-xs text-muted-foreground">
+                                        {posting.count ? `${posting.count} candidates` : ''}
+                                        {posting.team ? ` • ${posting.team}` : ''}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                            </div>
                           </ScrollArea>
-                        </SelectContent>
-                      </Select>
+                        </PopoverContent>
+                      </Popover>
                    </div>
                    
                    {/* Step 2: Select Candidate */}
                    <div className="space-y-2">
                       <Label>2. Candidate</Label>
-                      <Select 
-                        value={selectedCandidate} 
-                        onValueChange={(value) => setSelectedCandidate(value)}
-                        disabled={!selectedPosting || candidatesLoading}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder={
-                            candidatesLoading ? "Loading..." : 
-                            !selectedPosting ? "Select job first" : 
-                            "Select candidate..."
-                          } />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <ScrollArea className="h-[300px]">
-                            {candidates.map((candidate) => (
-                              <SelectItem key={candidate.id} value={candidate.id}>
-                                <div className="flex flex-col">
-                                  <span>{candidate.name}</span>
-                                  <span className="text-xs text-muted-foreground">{candidate.stage}</span>
-                                </div>
-                              </SelectItem>
-                            ))}
+                      <Popover open={candidateOpen} onOpenChange={setCandidateOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            className="w-full justify-between font-normal"
+                            disabled={!selectedPosting || candidatesLoading}
+                          >
+                            {candidatesLoading 
+                              ? "Loading..." 
+                              : !selectedPosting 
+                                ? "Select job first" 
+                                : selectedCandidate 
+                                  ? candidates.find(c => c.id === selectedCandidate)?.name 
+                                  : "Select candidate..."}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[300px] p-0" align="start">
+                          <div className="p-2 border-b">
+                            <div className="flex items-center gap-2 px-2">
+                              <Search className="h-4 w-4 text-muted-foreground" />
+                              <Input
+                                placeholder="Search candidates..."
+                                value={candidateSearch}
+                                onChange={(e) => setCandidateSearch(e.target.value)}
+                                className="h-8 border-0 focus-visible:ring-0 p-0"
+                              />
+                            </div>
+                          </div>
+                          <ScrollArea className="h-[250px]">
+                            <div className="p-1">
+                              {candidates
+                                .filter(c => 
+                                  c.name.toLowerCase().includes(candidateSearch.toLowerCase()) ||
+                                  c.stage.toLowerCase().includes(candidateSearch.toLowerCase())
+                                )
+                                .map((candidate) => (
+                                  <div
+                                    key={candidate.id}
+                                    className={cn(
+                                      "flex items-center gap-2 px-2 py-2 rounded cursor-pointer hover:bg-accent",
+                                      selectedCandidate === candidate.id && "bg-accent"
+                                    )}
+                                    onClick={() => {
+                                      setSelectedCandidate(candidate.id)
+                                      setCandidateOpen(false)
+                                      setCandidateSearch('')
+                                    }}
+                                  >
+                                    <Check className={cn("h-4 w-4", selectedCandidate === candidate.id ? "opacity-100" : "opacity-0")} />
+                                    <div className="flex flex-col">
+                                      <span className="text-sm">{candidate.name}</span>
+                                      <span className="text-xs text-muted-foreground">{candidate.stage}</span>
+                                    </div>
+                                  </div>
+                                ))}
+                            </div>
                           </ScrollArea>
-                        </SelectContent>
-                      </Select>
+                        </PopoverContent>
+                      </Popover>
                    </div>
                    
                    {/* Step 3: Select Feedback Form */}
