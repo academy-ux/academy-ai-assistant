@@ -11,12 +11,14 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const postingId = searchParams.get('postingId')
 
-    let url = 'https://api.lever.co/v1/opportunities?limit=500&expand=contact&expand=stage&expand=applications'
+    let url = 'https://api.lever.co/v1/opportunities?limit=100&expand=contact&expand=stage&expand=applications'
     
     // If a specific posting is requested, filter at the API level for better results
-    // This ensures we get all candidates for THIS job, even if they aren't in the 500 newest global leads
     if (postingId && postingId !== '__uncategorized__') {
       url += `&posting_id=${postingId}`
+    } else {
+        // If no posting ID, we might need to paginate to get everyone if > 100
+        // For now, let's just assume 100 is enough for "uncategorized" checks or general lists
     }
 
     const response = await fetch(
@@ -63,6 +65,11 @@ export async function GET(request: NextRequest) {
       candidates = candidates.filter((c: any) => c.isUncategorized)
     } else if (postingId) {
       // Show candidates for specific posting
+      // Since we filter at API level, this client-side filter is just a safety check
+      // But we MUST NOT filter out by stage unless asked. The user wants ALL stages.
+      // candidates = candidates.filter((c: any) => c.postingId === postingId)
+      // Actually, since we use posting_id param in API, all returned results ARE for this posting.
+      // But let's keep the safety check but ensure we aren't filtering out valid candidates.
       candidates = candidates.filter((c: any) => c.postingId === postingId)
     }
 

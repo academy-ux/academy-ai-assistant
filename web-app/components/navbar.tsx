@@ -10,7 +10,7 @@ export function Navbar() {
 
   return (
     <nav className="border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
-      <div className="container flex h-16 max-w-7xl items-center justify-between px-6 mx-auto">
+      <div className="container flex h-16 max-w-[1600px] items-center justify-between px-6 mx-auto">
         <Link href="/" className="flex items-center gap-4">
           <Image 
             src="/academy-logo-2024-v1.svg" 

@@ -12,37 +12,13 @@ import { Separator } from '@/components/ui/separator'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog'
 import { Spinner } from '@/components/ui/spinner'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { CloudDownload } from 'lucide-react'
-
-interface Interview {
-  id: string
-  candidate_name: string | null
-  position: string | null
-  meeting_title: string | null
-  meeting_date: string | null
-  created_at: string
-  rating: string | null
-  transcript: string
-  similarity?: number
-}
-
-interface Source {
-  id: string
-  candidateName: string
-  meetingDate: string
-  similarity: number
-}
-
-interface UncategorizedCandidate {
-  id: string
-  name: string
-  email: string
-  stage: string
-  createdAt: number
-}
+import { ChevronsUpDown, Check, Search, CloudDownload } from 'lucide-react'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { cn } from '@/lib/utils'
 
 export default function HistoryPage() {
   const { data: session } = useSession()
+  // ... existing state ...
   const [interviews, setInterviews] = useState<Interview[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -63,58 +39,62 @@ export default function HistoryPage() {
   const [selectedFolder, setSelectedFolder] = useState('')
   const [importing, setImporting] = useState(false)
   const [importResults, setImportResults] = useState<{name: string, status: string}[]>([])
+  
+  // Folder search state
+  const [folderSearch, setFolderSearch] = useState('')
+  const [folderOpen, setFolderOpen] = useState(false)
+  const [folderSearchLoading, setFolderSearchLoading] = useState(false)
+  
+  // Debounce folder search
+  useEffect(() => {
+    if (!importOpen) return
+
+    const timer = setTimeout(() => {
+      fetchFolders(folderSearch)
+    }, 300)
+
+    return () => clearTimeout(timer)
+  }, [folderSearch, importOpen])
 
   useEffect(() => {
     fetchInterviews()
     fetchUncategorizedCandidates()
   }, [])
 
-  useEffect(() => {
-    if (importOpen) {
-      fetchFolders()
-    }
-  }, [importOpen])
+  // ... other existing functions ...
 
-  async function fetchUncategorizedCandidates() {
-    setUncategorizedLoading(true)
+  async function fetchFolders(query: string = '') {
+    setFolderSearchLoading(true)
+    // Only clear folders if it's a new search, not initial load
+    if (query) setFoldersError('')
+    
     try {
-      const res = await fetch('/api/lever/candidates?postingId=__uncategorized__')
-      const data = await res.json()
-      if (data.success && data.candidates) {
-        setUncategorizedCandidates(data.candidates.map((c: any) => ({
-          id: c.id,
-          name: c.name,
-          email: c.email,
-          stage: c.stage,
-          createdAt: c.createdAt
-        })))
-      }
-    } catch (err) {
-      console.error('Failed to fetch uncategorized candidates:', err)
-    } finally {
-      setUncategorizedLoading(false)
-    }
-  }
-
-  async function fetchFolders() {
-    setFoldersLoading(true)
-    setFoldersError('')
-    try {
-      const res = await fetch('/api/drive/folders')
+      const res = await fetch(`/api/drive/folders?q=${encodeURIComponent(query)}`)
       const data = await res.json()
       console.log('Folders response:', data)
       if (data.error) {
         setFoldersError(data.error)
       } else if (data.folders) {
         setFolders(data.folders)
+        
+        // Auto-select "Meet Recordings" if found and no folder selected yet
+        if (!selectedFolder && !query) {
+           const meetFolder = data.folders.find((f: any) => f.name === 'Meet Recordings')
+           if (meetFolder) {
+             setSelectedFolder(meetFolder.id)
+           }
+        }
       }
     } catch (error: any) {
       console.error('Failed to fetch folders', error)
       setFoldersError(error.message || 'Failed to load folders')
     } finally {
       setFoldersLoading(false)
+      setFolderSearchLoading(false)
     }
   }
+
+  // ... handleImport ...
 
   async function handleImport() {
     if (!selectedFolder) return
@@ -233,7 +213,7 @@ export default function HistoryPage() {
                 
                 {!importing && importResults.length === 0 && (
                   <div className="py-4 space-y-4">
-                    {foldersLoading ? (
+                    {foldersLoading && !folderSearchLoading ? (
                       <div className="flex items-center justify-center py-4">
                         <Spinner variant="infinite" className="text-primary" />
                         <span className="ml-2 text-sm text-muted-foreground">Loading folders...</span>
@@ -242,21 +222,76 @@ export default function HistoryPage() {
                       <div className="text-sm text-destructive py-4">
                         Error: {foldersError}
                       </div>
-                    ) : folders.length === 0 ? (
-                      <div className="text-sm text-muted-foreground py-4">
-                        No folders found in your Google Drive. Make sure you have granted Drive access.
-                      </div>
                     ) : (
-                      <Select value={selectedFolder} onValueChange={setSelectedFolder}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a folder..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {folders.map(folder => (
-                            <SelectItem key={folder.id} value={folder.id}>{folder.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                          Select Folder
+                        </label>
+                        <Popover open={folderOpen} onOpenChange={setFolderOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={folderOpen}
+                              className="w-full justify-between"
+                            >
+                              {selectedFolder
+                                ? folders.find((folder) => folder.id === selectedFolder)?.name
+                                : "Select folder..."}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[400px] p-0">
+                            <div className="p-2 border-b border-border/50">
+                              <div className="flex items-center gap-2 px-2">
+                                <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+                                <Input
+                                  placeholder="Search Drive folders..."
+                                  value={folderSearch}
+                                  onChange={(e) => setFolderSearch(e.target.value)}
+                                  className="h-8 border-0 focus-visible:ring-0 p-0 text-sm"
+                                />
+                                {folderSearchLoading && <Spinner size={16} />}
+                              </div>
+                            </div>
+                            <ScrollArea className="h-[200px]">
+                              {folders.length === 0 ? (
+                                <div className="p-4 text-sm text-muted-foreground text-center">
+                                  No folders found.
+                                </div>
+                              ) : (
+                                <div className="p-1">
+                                  {folders.map((folder) => (
+                                    <div
+                                      key={folder.id}
+                                      className={cn(
+                                        "flex items-center gap-2 px-2 py-2.5 rounded-md cursor-pointer transition-colors",
+                                        "hover:bg-muted/50",
+                                        selectedFolder === folder.id && "bg-muted"
+                                      )}
+                                      onClick={() => {
+                                        setSelectedFolder(folder.id)
+                                        setFolderOpen(false)
+                                      }}
+                                    >
+                                      <Check
+                                        className={cn(
+                                          "mr-2 h-4 w-4 text-primary",
+                                          selectedFolder === folder.id ? "opacity-100" : "opacity-0"
+                                        )}
+                                      />
+                                      <span className="truncate">{folder.name}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </ScrollArea>
+                          </PopoverContent>
+                        </Popover>
+                        <p className="text-xs text-muted-foreground">
+                          We recommend selecting your <strong>"Meet Recordings"</strong> folder.
+                        </p>
+                      </div>
                     )}
                   </div>
                 )}
@@ -305,7 +340,7 @@ export default function HistoryPage() {
         </div>
 
         {/* Uncategorized Candidates Alert */}
-        {uncategorizedCandidates.length > 0 && (
+        {/* {uncategorizedCandidates.length > 0 && (
           <Card className="border-amber-200 bg-amber-50/50">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -344,7 +379,7 @@ export default function HistoryPage() {
               </div>
             </CardContent>
           </Card>
-        )}
+        )} */}
 
         {/* Search Bar */}
         <Card>
