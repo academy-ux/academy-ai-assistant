@@ -680,10 +680,6 @@ function FeedbackContent() {
                       {/* Dynamic Form Rendering */}
                       {currentTemplate ? (
                          <div className="space-y-6">
-                            <div className="bg-muted/20 p-4 rounded-md border border-border/50 text-sm text-muted-foreground mb-6">
-                               <p className="font-medium text-foreground mb-1">Instructions</p>
-                               {currentTemplate.instructions || "Please fill out the feedback form below."}
-                            </div>
 
                             {currentTemplate.fields.map((field, idx) => (
                                <div key={idx} className="space-y-3">
