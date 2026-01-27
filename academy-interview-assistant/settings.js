@@ -1,5 +1,18 @@
-// Load existing settings on page load
+// DOM elements
+const googleAuthStatus = document.getElementById('googleAuthStatus');
+const googleAuthBtn = document.getElementById('googleAuthBtn');
+const statusEl = document.getElementById('status');
+
+// Check Google auth status on load
 document.addEventListener('DOMContentLoaded', async () => {
+  // Load existing settings
+  await loadSettings();
+
+  // Check Google auth status
+  await checkGoogleAuth();
+});
+
+async function loadSettings() {
   try {
     const settings = await chrome.storage.local.get([
       'anthropicKey',
@@ -23,12 +36,81 @@ document.addEventListener('DOMContentLoaded', async () => {
   } catch (error) {
     console.error('Error loading settings:', error);
   }
+}
+
+async function checkGoogleAuth() {
+  try {
+    // Try to get token non-interactively to check if already authorized
+    const response = await chrome.runtime.sendMessage({
+      action: 'getAuthToken',
+      interactive: false
+    });
+
+    if (response.success && response.token) {
+      updateGoogleAuthUI(true);
+    } else {
+      updateGoogleAuthUI(false);
+    }
+  } catch (error) {
+    console.error('Error checking Google auth:', error);
+    updateGoogleAuthUI(false);
+  }
+}
+
+function updateGoogleAuthUI(isConnected) {
+  if (isConnected) {
+    googleAuthStatus.className = 'auth-status connected';
+    googleAuthStatus.innerHTML = `
+      <div class="icon">✓</div>
+      <div class="text">
+        <div class="title">Connected</div>
+        <div class="subtitle">Google Drive access enabled</div>
+      </div>
+    `;
+    googleAuthBtn.textContent = 'Reconnect Google Account';
+    googleAuthBtn.className = 'secondary';
+  } else {
+    googleAuthStatus.className = 'auth-status disconnected';
+    googleAuthStatus.innerHTML = `
+      <div class="icon">!</div>
+      <div class="text">
+        <div class="title">Not connected</div>
+        <div class="subtitle">Connect to access Google Meet transcripts</div>
+      </div>
+    `;
+    googleAuthBtn.textContent = 'Connect Google Account';
+    googleAuthBtn.className = 'success';
+  }
+}
+
+// Google Auth button click
+googleAuthBtn.addEventListener('click', async () => {
+  try {
+    googleAuthBtn.disabled = true;
+    googleAuthBtn.textContent = 'Connecting...';
+
+    const response = await chrome.runtime.sendMessage({
+      action: 'getAuthToken',
+      interactive: true
+    });
+
+    if (response.success) {
+      updateGoogleAuthUI(true);
+      showStatus('Google account connected successfully!', 'success');
+    } else {
+      throw new Error(response.error || 'Failed to connect');
+    }
+  } catch (error) {
+    console.error('Google auth error:', error);
+    showStatus('Failed to connect Google account: ' + error.message, 'error');
+    updateGoogleAuthUI(false);
+  } finally {
+    googleAuthBtn.disabled = false;
+  }
 });
 
-// Save settings on button click
+// Save settings button click
 document.getElementById('saveBtn').addEventListener('click', async () => {
-  const statusEl = document.getElementById('status');
-
   try {
     const settings = {
       anthropicKey: document.getElementById('anthropicKey').value.trim(),
@@ -61,13 +143,12 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
 });
 
 function showStatus(message, type) {
-  const statusEl = document.getElementById('status');
   statusEl.textContent = message;
   statusEl.className = `status ${type}`;
 
   if (type === 'success') {
     setTimeout(() => {
       statusEl.className = 'status';
-    }, 2000);
+    }, 3000);
   }
 }
