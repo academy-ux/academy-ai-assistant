@@ -17,9 +17,11 @@
     --popover: 45 10% 92%;
     --popover-foreground: 0 0% 10%;
 
-    /* Primary: The Academy Orange */
-    --primary: 24 100% 50%; /* Vibrant Orange */
-    --primary-foreground: 60 9.1% 97.8%;
+    /* Primary: Peach (New Highlight) */
+    --primary: 25 57% 73%; /* #e2b494 */
+    --primary-foreground: 20 14% 4%; /* Dark text on light peach */
+
+    --peach: #e2b494; /* Defining variable for usage */
 
     /* Secondary: Darker Sage or Stone */
     --secondary: 100 5% 80%;
@@ -28,15 +30,15 @@
     --muted: 100 5% 80%;
     --muted-foreground: 150 2% 40%;
 
-    --accent: 24 100% 50%;
-    --accent-foreground: 60 9.1% 97.8%;
+    --accent: 25 57% 73%;
+    --accent-foreground: 20 14% 4%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 60 9.1% 97.8%;
 
     --border: 150 2% 70%; /* Subtle dark border */
     --input: 150 2% 70%;
-    --ring: 24 100% 50%;
+    --ring: 25 57% 73%;
 
     --radius: 0rem; /* Sharper corners like the site */
     
@@ -63,8 +65,8 @@
     --popover: 150 5% 12%;
     --popover-foreground: 100 8% 88%;
 
-    --primary: 24 100% 50%;
-    --primary-foreground: 60 9.1% 97.8%;
+    --primary: 25 57% 73%;
+    --primary-foreground: 20 14% 4%;
 
     --secondary: 150 5% 15%;
     --secondary-foreground: 100 8% 88%;
@@ -80,7 +82,7 @@
 
     --border: 150 5% 20%;
     --input: 150 5% 20%;
-    --ring: 24 100% 50%;
+    --ring: 25 57% 73%;
   }
 }
 
@@ -90,6 +92,34 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  .link-primary {
+    grid-column-gap: 0px;
+    grid-row-gap: 0px;
+    background-color: var(--peach);
+    opacity: 1;
+    cursor: pointer;
+    object-fit: fill;
+    border: 1px solid #e2b494;
+    border-radius: 4px;
+    flex-direction: row;
+    flex: 0 auto;
+    grid-template-rows: auto auto;
+    grid-template-columns: 1fr 1fr;
+    grid-auto-columns: 1fr;
+    justify-content: flex-start;
+    align-items: center;
+    padding: .1em .5em;
+    text-decoration: none;
+    transition: all 1s cubic-bezier(.165, .84, .44, 1);
+    display: flex;
+  }
+  
+  .link-primary:hover {
+    filter: brightness(0.95);
   }
 }
 
