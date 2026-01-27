@@ -9,7 +9,7 @@ export async function GET() {
     }
 
     const response = await fetch(
-      'https://api.lever.co/v1/feedback_templates',
+      'https://api.lever.co/v1/feedback_templates?include=fields',
       {
         headers: {
           'Authorization': `Basic ${Buffer.from(leverKey + ':').toString('base64')}`,
@@ -27,7 +27,8 @@ export async function GET() {
     // Transform data for frontend
     const templates = data.data.map((template: any) => ({
       id: template.id,
-      name: template.text || template.name || 'Unnamed Template',
+      name: template.text,
+      instructions: template.instructions || '',
       fields: template.fields || [],
     }))
 

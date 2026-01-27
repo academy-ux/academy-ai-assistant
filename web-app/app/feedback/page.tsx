@@ -37,7 +37,8 @@ interface Analysis {
   recommendation: string
   keyQuotes: string[]
   candidateName: string | null
-  alternativeRatings: { rating: string; reasoning: string }[]
+  alternativeRatings?: { rating: string; reasoning: string }[]
+  answers?: Record<string, string> // New dynamic field map
 }
 
 interface Candidate {
@@ -48,9 +49,18 @@ interface Candidate {
   stage: string
 }
 
+interface TemplateField {
+  text: string
+  description?: string
+  required: boolean
+  type: string // "text", "textarea", "score-system", "yes-no", etc.
+}
+
 interface Template {
   id: string
   name: string
+  instructions: string
+  fields: TemplateField[]
 }
 
 function FeedbackContent() {
@@ -73,16 +83,11 @@ function FeedbackContent() {
   const [selectedCandidate, setSelectedCandidate] = useState('')
   const [candidateOpen, setCandidateOpen] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState('')
+  const [currentTemplate, setCurrentTemplate] = useState<Template | null>(null)
   const [templateOpen, setTemplateOpen] = useState(false)
-
-  const [formData, setFormData] = useState({
-    rating: '3 - Hire',
-    strengths: '',
-    concerns: '',
-    technicalSkills: '',
-    culturalFit: '',
-    recommendation: '',
-  })
+  
+  // Dynamic form state (maps field text to value)
+  const [dynamicAnswers, setDynamicAnswers] = useState<Record<string, any>>({})
 
   const [submitting, setSubmitting] = useState(false)
   const [submitSuccess, setSubmitSuccess] = useState(false)
@@ -140,9 +145,27 @@ function FeedbackContent() {
     }
   }
 
+  useEffect(() => {
+    if (selectedTemplate) {
+      const template = templates.find(t => t.id === selectedTemplate) || null
+      setCurrentTemplate(template)
+      // Reset answers when template changes
+      setDynamicAnswers({})
+    }
+  }, [selectedTemplate, templates])
+
   async function analyzeTranscript(text: string) {
     setAnalysisLoading(true)
     try {
+      // Pass the current template structure to the AI so it knows what fields to fill
+      const templateContext = currentTemplate ? {
+        fields: currentTemplate.fields.map(f => ({
+          question: f.text,
+          description: f.description,
+          type: f.type
+        }))
+      } : null
+
       const res = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -150,22 +173,30 @@ function FeedbackContent() {
           transcript: text,
           meetingTitle,
           meetingDate: new Date().toLocaleDateString(),
+          template: templateContext // New: Send template schema
         }),
       })
       const data = await res.json()
 
       if (data.success) {
         setAnalysis(data.analysis)
-        setFormData({
-          rating: data.analysis.rating || '3 - Hire',
-          strengths: data.analysis.strengths || '',
-          concerns: data.analysis.concerns || '',
-          technicalSkills: data.analysis.technicalSkills || '',
-          culturalFit: data.analysis.culturalFit || '',
-          recommendation: data.analysis.recommendation || '',
-        })
+        
+        // Map AI analysis to dynamic form fields
+        if (data.analysis.answers) {
+           setDynamicAnswers(data.analysis.answers)
+        } else {
+           // Fallback for old/default schema
+           setDynamicAnswers({
+             // We'll map standard fields to potential template matches loosely
+             "Overall Rating": data.analysis.rating,
+             "Strengths": data.analysis.strengths,
+             "Concerns": data.analysis.concerns,
+             "Technical Skills": data.analysis.technicalSkills,
+             "Cultural Fit": data.analysis.culturalFit,
+             "Recommendation": data.analysis.recommendation
+           })
+        }
 
-        // Try to auto-match candidate
         if (data.analysis.candidateName) {
           autoMatchCandidate(data.analysis.candidateName)
         }
@@ -231,14 +262,24 @@ function FeedbackContent() {
     const candidate = candidates.find(c => c.id === selectedCandidate)
 
     try {
+      // Format answers for Lever API
+      // Lever expects an array of { text: "Question", value: "Answer" } or structured scores
+      const formattedFeedback = {
+         answers: Object.entries(dynamicAnswers).map(([key, value]) => ({
+            text: key,
+            value: value
+         })),
+         // Also include raw data for our Supabase backup
+         raw: dynamicAnswers
+      }
+
       const res = await fetch('/api/lever/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           opportunityId: selectedCandidate,
           templateId: selectedTemplate,
-          feedback: formData,
-          // Extra data for Supabase
+          feedback: formattedFeedback, // Send dynamic structure
           transcript,
           meetingTitle,
           meetingCode,
@@ -505,104 +546,60 @@ function FeedbackContent() {
                       </div>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                          <div className="animate-spin h-3 w-3 border-b-2 border-primary rounded-full"></div>
-                         Analyzing transcript...
+                         Analyzing transcript based on "{currentTemplate?.name || 'Default'}" form...
                       </div>
                    </div>
                 ) : (
-                   <div className="space-y-6">
-                      {/* Rating */}
-                      <div className="space-y-3">
-                         <Label>Overall Rating</Label>
-                         <Select 
-                            value={formData.rating} 
-                            onValueChange={(val) => setFormData({ ...formData, rating: val })}
-                         >
-                            <SelectTrigger>
-                               <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                               <SelectItem value="4 - Strong Hire">4 - Strong Hire</SelectItem>
-                               <SelectItem value="3 - Hire">3 - Hire</SelectItem>
-                               <SelectItem value="2 - No Hire">2 - No Hire</SelectItem>
-                               <SelectItem value="1 - Strong No Hire">1 - Strong No Hire</SelectItem>
-                            </SelectContent>
-                         </Select>
-                         
-                         {analysis?.alternativeRatings && analysis.alternativeRatings.length > 0 && (
-                            <div className="flex flex-wrap gap-2">
-                               {analysis.alternativeRatings.map((alt, i) => (
-                                  <Badge 
-                                    key={i} 
-                                    variant="outline" 
-                                    className="cursor-pointer hover:bg-primary/10 hover:text-primary transition-colors"
-                                    onClick={() => setFormData({ ...formData, rating: alt.rating })}
-                                    title={alt.reasoning}
-                                  >
-                                    Consider: {alt.rating}
-                                  </Badge>
-                               ))}
+                   <div className="space-y-8">
+                      {/* Dynamic Form Rendering */}
+                      {currentTemplate ? (
+                         <div className="space-y-6">
+                            <div className="bg-muted/20 p-4 rounded-md border border-border/50 text-sm text-muted-foreground mb-6">
+                               <p className="font-medium text-foreground mb-1">Instructions</p>
+                               {currentTemplate.instructions || "Please fill out the feedback form below."}
                             </div>
-                         )}
-                      </div>
 
-                      <div className="grid gap-6">
-                         <div className="space-y-2">
-                            <Label>Strengths</Label>
-                            <Textarea 
-                               value={formData.strengths} 
-                               onChange={e => setFormData({ ...formData, strengths: e.target.value })}
-                               rows={3}
-                            />
+                            {currentTemplate.fields.map((field, idx) => (
+                               <div key={idx} className="space-y-3">
+                                  <Label className="text-base">
+                                     {field.text}
+                                     {field.required && <span className="text-primary ml-1">*</span>}
+                                  </Label>
+                                  {field.description && (
+                                     <p className="text-xs text-muted-foreground mb-2">{field.description}</p>
+                                  )}
+                                  
+                                  {/* Render input based on type */}
+                                  {(field.type === 'score-system' || field.text.toLowerCase().includes('rating')) ? (
+                                     <Select 
+                                        value={dynamicAnswers[field.text] || ''} 
+                                        onValueChange={(val) => setDynamicAnswers({...dynamicAnswers, [field.text]: val})}
+                                     >
+                                        <SelectTrigger>
+                                           <SelectValue placeholder="Select rating..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                           <SelectItem value="4 - Strong Hire">4 - Strong Hire</SelectItem>
+                                           <SelectItem value="3 - Hire">3 - Hire</SelectItem>
+                                           <SelectItem value="2 - No Hire">2 - No Hire</SelectItem>
+                                           <SelectItem value="1 - Strong No Hire">1 - Strong No Hire</SelectItem>
+                                        </SelectContent>
+                                     </Select>
+                                  ) : (
+                                     <Textarea 
+                                        value={dynamicAnswers[field.text] || ''}
+                                        onChange={(e) => setDynamicAnswers({...dynamicAnswers, [field.text]: e.target.value})}
+                                        rows={field.type === 'textarea' ? 4 : 2}
+                                        className="resize-y"
+                                        placeholder="AI will generate this..."
+                                     />
+                                  )}
+                               </div>
+                            ))}
                          </div>
-                         
-                         <div className="space-y-2">
-                            <Label>Concerns</Label>
-                            <Textarea 
-                               value={formData.concerns} 
-                               onChange={e => setFormData({ ...formData, concerns: e.target.value })}
-                               rows={3}
-                            />
-                         </div>
-
-                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-2">
-                               <Label>Technical Skills</Label>
-                               <Textarea 
-                                  value={formData.technicalSkills} 
-                                  onChange={e => setFormData({ ...formData, technicalSkills: e.target.value })}
-                                  rows={4}
-                               />
-                            </div>
-                            <div className="space-y-2">
-                               <Label>Cultural Fit</Label>
-                               <Textarea 
-                                  value={formData.culturalFit} 
-                                  onChange={e => setFormData({ ...formData, culturalFit: e.target.value })}
-                                  rows={4}
-                               />
-                            </div>
-                         </div>
-
-                         <div className="space-y-2">
-                            <Label>Recommendation</Label>
-                            <Textarea 
-                               value={formData.recommendation} 
-                               onChange={e => setFormData({ ...formData, recommendation: e.target.value })}
-                               rows={2}
-                            />
-                         </div>
-                      </div>
-
-                      {analysis?.keyQuotes && analysis.keyQuotes.length > 0 && (
-                         <div className="bg-muted/30 p-4 rounded-lg border border-border/50">
-                            <Label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">Key Quotes</Label>
-                            <ul className="space-y-2">
-                               {analysis.keyQuotes.map((q, i) => (
-                                  <li key={i} className="text-sm italic text-muted-foreground pl-3 border-l-2 border-primary/30">
-                                     "{q}"
-                                  </li>
-                               ))}
-                            </ul>
+                      ) : (
+                         <div className="text-center py-12 text-muted-foreground border-2 border-dashed border-border/50 rounded-lg">
+                            <p>Select a Feedback Form (Template) above to start.</p>
                          </div>
                       )}
 
