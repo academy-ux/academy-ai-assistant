@@ -8,9 +8,9 @@ export async function GET() {
       return NextResponse.json({ error: 'Lever API key not configured' }, { status: 500 })
     }
 
-    // First, try to fetch actual job postings
+    // First, try to fetch actual job postings (only published/active ones)
     const postingsResponse = await fetch(
-      'https://api.lever.co/v1/postings',
+      'https://api.lever.co/v1/postings?state=published',
       {
         headers: {
           'Authorization': `Basic ${Buffer.from(leverKey + ':').toString('base64')}`,
@@ -23,9 +23,9 @@ export async function GET() {
 
     if (postingsResponse.ok) {
       const postingsData = await postingsResponse.json()
-      console.log('Lever postings found:', postingsData.data?.length || 0)
+      console.log('Active Lever postings found:', postingsData.data?.length || 0)
       
-      // Use actual job postings if available
+      // Use actual job postings if available (already filtered to published)
       for (const posting of postingsData.data || []) {
         postings.push({
           id: posting.id,
