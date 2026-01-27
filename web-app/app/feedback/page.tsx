@@ -509,7 +509,7 @@ function FeedbackContent() {
                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[320px] p-0" align="start">
+                        <PopoverContent className="w-[600px] p-0" align="start">
                           <div className="p-2 border-b border-border/50">
                             <div className="flex items-center gap-2 px-2">
                               <Search className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -581,7 +581,7 @@ function FeedbackContent() {
                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[320px] p-0" align="start">
+                        <PopoverContent className="w-[600px] p-0" align="start">
                           <div className="p-2 border-b border-border/50">
                             <div className="flex items-center gap-2 px-2">
                               <Search className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -683,23 +683,10 @@ function FeedbackContent() {
 
                             {currentTemplate.fields.map((field, idx) => (
                                <div key={idx} className="space-y-3">
-                                  <div className="flex justify-between items-center">
-                                    <Label className="text-base">
-                                       {field.text}
-                                       {field.required && <span className="text-primary ml-1">*</span>}
-                                    </Label>
-                                    {(field.type !== 'score-system' && !field.text.toLowerCase().includes('rating')) && (
-                                      <VoiceRecorder 
-                                        onTranscriptionComplete={(text) => {
-                                          setDynamicAnswers(prev => {
-                                            const currentVal = prev[field.text] || ''
-                                            const newVal = currentVal ? `${currentVal} ${text}` : text
-                                            return {...prev, [field.text]: newVal}
-                                          })
-                                        }} 
-                                      />
-                                    )}
-                                  </div>
+                                  <Label className="text-base">
+                                     {field.text}
+                                     {field.required && <span className="text-primary ml-1">*</span>}
+                                  </Label>
                                   {field.description && (
                                      <p className="text-xs text-muted-foreground mb-2">{field.description}</p>
                                   )}
@@ -721,13 +708,26 @@ function FeedbackContent() {
                                         </SelectContent>
                                      </Select>
                                   ) : (
-                                     <Textarea 
+                                    <div className="relative">
+                                      <Textarea 
                                         value={dynamicAnswers[field.text] || ''}
                                         onChange={(e) => setDynamicAnswers({...dynamicAnswers, [field.text]: e.target.value})}
                                         rows={field.type === 'textarea' ? 4 : 2}
-                                        className="resize-y"
+                                        className="resize-y pb-10" // Add padding bottom for the button
                                         placeholder="AI will generate this..."
-                                     />
+                                      />
+                                      <div className="absolute bottom-2 left-2">
+                                        <VoiceRecorder 
+                                          onTranscriptionComplete={(text) => {
+                                            setDynamicAnswers(prev => {
+                                              const currentVal = prev[field.text] || ''
+                                              const newVal = currentVal ? `${currentVal} ${text}` : text
+                                              return {...prev, [field.text]: newVal}
+                                            })
+                                          }} 
+                                        />
+                                      </div>
+                                    </div>
                                   )}
                                </div>
                             ))}
