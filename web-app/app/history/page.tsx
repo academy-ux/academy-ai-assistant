@@ -9,6 +9,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog'
+import { Spinner } from '@/components/ui/spinner'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { CloudDownload } from 'lucide-react'
 
 interface Interview {
   id: string
@@ -39,9 +43,58 @@ export default function HistoryPage() {
   const [sources, setSources] = useState<Source[]>([])
   const [asking, setAsking] = useState(false)
 
+  // Import State
+  const [importOpen, setImportOpen] = useState(false)
+  const [folders, setFolders] = useState<{id: string, name: string}[]>([])
+  const [selectedFolder, setSelectedFolder] = useState('')
+  const [importing, setImporting] = useState(false)
+  const [importResults, setImportResults] = useState<{name: string, status: string}[]>([])
+
   useEffect(() => {
     fetchInterviews()
   }, [])
+
+  useEffect(() => {
+    if (importOpen) {
+      fetchFolders()
+    }
+  }, [importOpen])
+
+  async function fetchFolders() {
+    try {
+      const res = await fetch('/api/drive/folders')
+      const data = await res.json()
+      if (data.folders) {
+        setFolders(data.folders)
+      }
+    } catch (error) {
+      console.error('Failed to fetch folders', error)
+    }
+  }
+
+  async function handleImport() {
+    if (!selectedFolder) return
+    setImporting(true)
+    setImportResults([])
+    
+    try {
+      const res = await fetch('/api/drive/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folderId: selectedFolder })
+      })
+      const data = await res.json()
+      
+      if (data.results) {
+        setImportResults(data.results)
+        fetchInterviews() // Refresh list
+      }
+    } catch (error) {
+      console.error('Import failed', error)
+    } finally {
+      setImporting(false)
+    }
+  }
 
   async function fetchInterviews() {
     try {
@@ -118,11 +171,78 @@ export default function HistoryPage() {
             <h1 className="text-4xl font-display font-bold text-foreground">Interview History</h1>
             <p className="text-muted-foreground mt-2">Search past interviews or ask AI for insights.</p>
           </div>
-          <Button variant="outline" asChild>
-            <Link href="/feedback">
-              ← Back to Feedback
-            </Link>
-          </Button>
+          <div className="flex gap-2">
+            <Dialog open={importOpen} onOpenChange={setImportOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  <CloudDownload className="h-4 w-4" />
+                  Import from Drive
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Import Meeting Transcripts</DialogTitle>
+                  <DialogDescription>
+                    Select a Google Drive folder containing your transcripts. We'll analyze and index them automatically.
+                  </DialogDescription>
+                </DialogHeader>
+                
+                {!importing && importResults.length === 0 && (
+                  <div className="py-4">
+                    <Select value={selectedFolder} onValueChange={setSelectedFolder}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a folder..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {folders.map(folder => (
+                          <SelectItem key={folder.id} value={folder.id}>{folder.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {importing && (
+                  <div className="py-8 flex flex-col items-center justify-center gap-4">
+                    <Spinner size={32} />
+                    <p className="text-sm text-muted-foreground">Importing and analyzing...</p>
+                  </div>
+                )}
+
+                {importResults.length > 0 && (
+                  <ScrollArea className="h-[200px] w-full rounded-md border p-4">
+                    <div className="space-y-2">
+                      {importResults.map((res, i) => (
+                        <div key={i} className="flex justify-between text-sm">
+                          <span className="truncate max-w-[200px]">{res.name}</span>
+                          <Badge variant={res.status === 'imported' ? 'default' : 'secondary'}>
+                            {res.status}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                )}
+
+                <DialogFooter>
+                  {!importing && importResults.length === 0 && (
+                    <Button onClick={handleImport} disabled={!selectedFolder}>
+                      Start Import
+                    </Button>
+                  )}
+                  {importResults.length > 0 && (
+                    <Button onClick={() => setImportOpen(false)}>Done</Button>
+                  )}
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            <Button variant="outline" asChild>
+              <Link href="/feedback">
+                ← Back to Feedback
+              </Link>
+            </Button>
+          </div>
         </div>
 
         {/* Search Bar */}
