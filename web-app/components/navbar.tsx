@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { useSession, signOut } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
@@ -11,8 +12,18 @@ export function Navbar() {
     <nav className="border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
       <div className="container flex h-16 max-w-7xl items-center justify-between px-6 mx-auto">
         <Link href="/" className="flex items-center space-x-2">
-          <span className="font-display text-2xl font-bold tracking-tight">Academy</span>
-          <span className="text-muted-foreground hidden sm:inline-block">/ AI Assistant</span>
+          <div className="relative h-8 w-32">
+             <Image 
+               src="/academy-logo-2024-v1.svg" 
+               alt="Academy UX" 
+               fill
+               className="object-contain object-left"
+               priority
+             />
+          </div>
+          <span className="text-muted-foreground hidden sm:inline-block font-grotesk text-sm border-l border-foreground/20 pl-2 ml-2">
+            AI Assistant
+          </span>
         </Link>
         
         <div className="flex items-center space-x-6">
