@@ -488,37 +488,39 @@ function FeedbackContent() {
                 {/* Selection Flow: Posting -> Candidate -> Template */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                    {/* Step 1: Select Opportunity (Posting/Job) */}
-                   <div className="space-y-2">
-                      <Label>1. Opportunity (Job)</Label>
+                   <div className="space-y-2 min-w-0">
+                      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">1. Opportunity (Job)</Label>
                       <Popover open={postingOpen} onOpenChange={setPostingOpen}>
                         <PopoverTrigger asChild>
                           <Button
                             variant="outline"
                             role="combobox"
-                            className="w-full justify-between font-normal"
+                            className="w-full h-10 px-3 justify-between font-normal text-left overflow-hidden"
                             disabled={postingsLoading}
                           >
-                            {postingsLoading 
-                              ? "Loading jobs..." 
-                              : selectedPosting 
-                                ? postings.find(p => p.id === selectedPosting)?.text 
-                                : "Select job..."}
+                            <span className="truncate flex-1 min-w-0">
+                              {postingsLoading 
+                                ? "Loading jobs..." 
+                                : selectedPosting 
+                                  ? postings.find(p => p.id === selectedPosting)?.text 
+                                  : "Select job..."}
+                            </span>
                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[300px] p-0" align="start">
-                          <div className="p-2 border-b">
+                        <PopoverContent className="w-[320px] p-0" align="start">
+                          <div className="p-2 border-b border-border/50">
                             <div className="flex items-center gap-2 px-2">
-                              <Search className="h-4 w-4 text-muted-foreground" />
+                              <Search className="h-4 w-4 text-muted-foreground shrink-0" />
                               <Input
                                 placeholder="Search jobs..."
                                 value={postingSearch}
                                 onChange={(e) => setPostingSearch(e.target.value)}
-                                className="h-8 border-0 focus-visible:ring-0 p-0"
+                                className="h-8 border-0 focus-visible:ring-0 p-0 text-sm"
                               />
                             </div>
                           </div>
-                          <ScrollArea className="h-[250px]">
+                          <ScrollArea className="h-[280px]">
                             <div className="p-1">
                               {postings
                                 .filter(p => 
@@ -529,8 +531,9 @@ function FeedbackContent() {
                                   <div
                                     key={posting.id}
                                     className={cn(
-                                      "flex items-center gap-2 px-2 py-2 rounded cursor-pointer hover:bg-accent",
-                                      selectedPosting === posting.id && "bg-accent"
+                                      "flex items-center gap-2 px-2 py-2.5 rounded-md cursor-pointer transition-colors",
+                                      "hover:bg-muted/50",
+                                      selectedPosting === posting.id && "bg-muted"
                                     )}
                                     onClick={() => {
                                       setSelectedPosting(posting.id)
@@ -538,10 +541,10 @@ function FeedbackContent() {
                                       setPostingSearch('')
                                     }}
                                   >
-                                    <Check className={cn("h-4 w-4", selectedPosting === posting.id ? "opacity-100" : "opacity-0")} />
-                                    <div className="flex flex-col">
-                                      <span className="text-sm">{posting.text}</span>
-                                      <span className="text-xs text-muted-foreground">
+                                    <Check className={cn("h-4 w-4 shrink-0 text-primary", selectedPosting === posting.id ? "opacity-100" : "opacity-0")} />
+                                    <div className="flex flex-col min-w-0 flex-1">
+                                      <span className="text-sm truncate">{posting.text}</span>
+                                      <span className="text-xs text-muted-foreground truncate">
                                         {posting.count ? `${posting.count} candidates` : ''}
                                         {posting.team ? ` • ${posting.team}` : ''}
                                       </span>
@@ -555,39 +558,41 @@ function FeedbackContent() {
                    </div>
                    
                    {/* Step 2: Select Candidate */}
-                   <div className="space-y-2">
-                      <Label>2. Candidate</Label>
+                   <div className="space-y-2 min-w-0">
+                      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">2. Candidate</Label>
                       <Popover open={candidateOpen} onOpenChange={setCandidateOpen}>
                         <PopoverTrigger asChild>
                           <Button
                             variant="outline"
                             role="combobox"
-                            className="w-full justify-between font-normal"
+                            className="w-full h-10 px-3 justify-between font-normal text-left overflow-hidden"
                             disabled={!selectedPosting || candidatesLoading}
                           >
-                            {candidatesLoading 
-                              ? "Loading..." 
-                              : !selectedPosting 
-                                ? "Select job first" 
-                                : selectedCandidate 
-                                  ? candidates.find(c => c.id === selectedCandidate)?.name 
-                                  : "Select candidate..."}
+                            <span className="truncate flex-1 min-w-0">
+                              {candidatesLoading 
+                                ? "Loading..." 
+                                : !selectedPosting 
+                                  ? "Select job first" 
+                                  : selectedCandidate 
+                                    ? candidates.find(c => c.id === selectedCandidate)?.name 
+                                    : "Select candidate..."}
+                            </span>
                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[300px] p-0" align="start">
-                          <div className="p-2 border-b">
+                        <PopoverContent className="w-[320px] p-0" align="start">
+                          <div className="p-2 border-b border-border/50">
                             <div className="flex items-center gap-2 px-2">
-                              <Search className="h-4 w-4 text-muted-foreground" />
+                              <Search className="h-4 w-4 text-muted-foreground shrink-0" />
                               <Input
                                 placeholder="Search candidates..."
                                 value={candidateSearch}
                                 onChange={(e) => setCandidateSearch(e.target.value)}
-                                className="h-8 border-0 focus-visible:ring-0 p-0"
+                                className="h-8 border-0 focus-visible:ring-0 p-0 text-sm"
                               />
                             </div>
                           </div>
-                          <ScrollArea className="h-[250px]">
+                          <ScrollArea className="h-[280px]">
                             <div className="p-1">
                               {candidates
                                 .filter(c => 
@@ -598,8 +603,9 @@ function FeedbackContent() {
                                   <div
                                     key={candidate.id}
                                     className={cn(
-                                      "flex items-center gap-2 px-2 py-2 rounded cursor-pointer hover:bg-accent",
-                                      selectedCandidate === candidate.id && "bg-accent"
+                                      "flex items-center gap-2 px-2 py-2.5 rounded-md cursor-pointer transition-colors",
+                                      "hover:bg-muted/50",
+                                      selectedCandidate === candidate.id && "bg-muted"
                                     )}
                                     onClick={() => {
                                       setSelectedCandidate(candidate.id)
@@ -607,10 +613,10 @@ function FeedbackContent() {
                                       setCandidateSearch('')
                                     }}
                                   >
-                                    <Check className={cn("h-4 w-4", selectedCandidate === candidate.id ? "opacity-100" : "opacity-0")} />
-                                    <div className="flex flex-col">
-                                      <span className="text-sm">{candidate.name}</span>
-                                      <span className="text-xs text-muted-foreground">{candidate.stage}</span>
+                                    <Check className={cn("h-4 w-4 shrink-0 text-primary", selectedCandidate === candidate.id ? "opacity-100" : "opacity-0")} />
+                                    <div className="flex flex-col min-w-0 flex-1">
+                                      <span className="text-sm truncate">{candidate.name}</span>
+                                      <span className="text-xs text-muted-foreground truncate">{candidate.stage}</span>
                                     </div>
                                   </div>
                                 ))}
@@ -621,19 +627,19 @@ function FeedbackContent() {
                    </div>
                    
                    {/* Step 3: Select Feedback Form */}
-                   <div className="space-y-2">
-                      <Label>3. Feedback Form</Label>
+                   <div className="space-y-2 min-w-0">
+                      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">3. Feedback Form</Label>
                       <Select 
                         value={selectedTemplate} 
                         onValueChange={(value) => setSelectedTemplate(value)}
                         disabled={templatesLoading}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="h-10">
                           <SelectValue placeholder={
                             templatesLoading 
                               ? "Loading forms..." 
                               : templatesError 
-                                ? "Error loading forms" 
+                                ? "Error loading" 
                                 : templates.length === 0 
                                   ? "No forms available" 
                                   : "Select form..."
@@ -641,7 +647,7 @@ function FeedbackContent() {
                         </SelectTrigger>
                         <SelectContent>
                           {templates.length === 0 ? (
-                            <div className="p-2 text-sm text-muted-foreground text-center">
+                            <div className="p-3 text-sm text-muted-foreground text-center">
                               {templatesError || "No feedback templates found in Lever"}
                             </div>
                           ) : (
