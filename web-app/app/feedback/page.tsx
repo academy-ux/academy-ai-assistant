@@ -514,20 +514,29 @@ function FeedbackContent() {
                                       setSelectedPosting(posting.id)
                                       setPostingOpen(false)
                                     }}
+                                    className="cursor-pointer"
                                   >
-                                    <Check
-                                      className={cn(
-                                        "mr-2 h-4 w-4",
-                                        selectedPosting === posting.id ? "opacity-100" : "opacity-0"
-                                      )}
-                                    />
-                                    <div className="flex flex-col">
-                                      <span className="font-medium">{posting.text}</span>
-                                      <span className="text-xs text-muted-foreground">
-                                        {posting.count && `${posting.count} candidate${posting.count > 1 ? 's' : ''}`}
-                                        {posting.team && ` • ${posting.team}`}
-                                        {posting.location && ` • ${posting.location}`}
-                                      </span>
+                                    <div 
+                                      className="flex items-center w-full"
+                                      onClick={() => {
+                                        setSelectedPosting(posting.id)
+                                        setPostingOpen(false)
+                                      }}
+                                    >
+                                      <Check
+                                        className={cn(
+                                          "mr-2 h-4 w-4 flex-shrink-0",
+                                          selectedPosting === posting.id ? "opacity-100" : "opacity-0"
+                                        )}
+                                      />
+                                      <div className="flex flex-col">
+                                        <span className="font-medium">{posting.text}</span>
+                                        <span className="text-xs text-muted-foreground">
+                                          {posting.count && `${posting.count} candidate${posting.count > 1 ? 's' : ''}`}
+                                          {posting.team && ` • ${posting.team}`}
+                                          {posting.location && ` • ${posting.location}`}
+                                        </span>
+                                      </div>
                                     </div>
                                   </CommandItem>
                                 ))}
@@ -576,18 +585,27 @@ function FeedbackContent() {
                                       setSelectedCandidate(candidate.id)
                                       setCandidateOpen(false)
                                     }}
+                                    className="cursor-pointer"
                                   >
-                                    <Check
-                                      className={cn(
-                                        "mr-2 h-4 w-4",
-                                        selectedCandidate === candidate.id ? "opacity-100" : "opacity-0"
-                                      )}
-                                    />
-                                    <div className="flex flex-col">
-                                      <span className="font-medium">{candidate.name}</span>
-                                      <span className="text-xs text-muted-foreground">
-                                        <span className="text-primary/80">{candidate.stage}</span>
-                                      </span>
+                                    <div 
+                                      className="flex items-center w-full"
+                                      onClick={() => {
+                                        setSelectedCandidate(candidate.id)
+                                        setCandidateOpen(false)
+                                      }}
+                                    >
+                                      <Check
+                                        className={cn(
+                                          "mr-2 h-4 w-4 flex-shrink-0",
+                                          selectedCandidate === candidate.id ? "opacity-100" : "opacity-0"
+                                        )}
+                                      />
+                                      <div className="flex flex-col">
+                                        <span className="font-medium">{candidate.name}</span>
+                                        <span className="text-xs text-muted-foreground">
+                                          <span className="text-primary/80">{candidate.stage}</span>
+                                        </span>
+                                      </div>
                                     </div>
                                   </CommandItem>
                                 ))}
@@ -629,14 +647,23 @@ function FeedbackContent() {
                                       setSelectedTemplate(template.id)
                                       setTemplateOpen(false)
                                     }}
+                                    className="cursor-pointer"
                                   >
-                                    <Check
-                                      className={cn(
-                                        "mr-2 h-4 w-4",
-                                        selectedTemplate === template.id ? "opacity-100" : "opacity-0"
-                                      )}
-                                    />
-                                    {template.name}
+                                    <div 
+                                      className="flex items-center w-full"
+                                      onClick={() => {
+                                        setSelectedTemplate(template.id)
+                                        setTemplateOpen(false)
+                                      }}
+                                    >
+                                      <Check
+                                        className={cn(
+                                          "mr-2 h-4 w-4 flex-shrink-0",
+                                          selectedTemplate === template.id ? "opacity-100" : "opacity-0"
+                                        )}
+                                      />
+                                      {template.name}
+                                    </div>
                                   </CommandItem>
                                 ))}
                               </CommandGroup>
