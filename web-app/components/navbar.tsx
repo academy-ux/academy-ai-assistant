@@ -11,17 +11,16 @@ export function Navbar() {
   return (
     <nav className="border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
       <div className="container flex h-16 max-w-7xl items-center justify-between px-6 mx-auto">
-        <Link href="/" className="flex items-center">
-          <div className="relative h-6 w-24">
-             <Image 
-               src="/academy-logo-2024-v1.svg" 
-               alt="Academy UX" 
-               fill
-               className="object-contain object-left"
-               priority
-             />
-          </div>
-          <span className="text-foreground/30 font-light hidden sm:inline-block mx-4">|</span>
+        <Link href="/" className="flex items-center gap-4">
+          <Image 
+            src="/academy-logo-2024-v1.svg" 
+            alt="Academy UX" 
+            width={100}
+            height={24}
+            className="h-5 w-auto"
+            priority
+          />
+          <span className="text-foreground/30 font-light hidden sm:inline-block">|</span>
           <span className="text-foreground/60 hidden sm:inline-block text-sm tracking-wide">
             AI Assistant
           </span>
