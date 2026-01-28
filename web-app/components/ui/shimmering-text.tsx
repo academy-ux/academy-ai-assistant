@@ -40,7 +40,7 @@ const ShimmeringText = React.forwardRef<HTMLDivElement, ShimmeringTextProps>(
     const localRef = React.useRef<HTMLDivElement>(null)
     const isInView = useInView(localRef, {
       once,
-      margin: inViewMargin,
+      margin: inViewMargin as any,
     })
 
     const shouldAnimate = startOnView ? isInView : true
@@ -60,7 +60,7 @@ const ShimmeringText = React.forwardRef<HTMLDivElement, ShimmeringTextProps>(
             duration,
             repeat: Infinity,
             repeatDelay,
-            ease: "linear",
+            ease: "linear" as any,
           },
         }
       }
@@ -72,7 +72,7 @@ const ShimmeringText = React.forwardRef<HTMLDivElement, ShimmeringTextProps>(
         transition: {
           delay,
           duration,
-          ease: "easeInOut",
+          ease: "easeInOut" as any,
         },
       }
     }, [repeat, shouldAnimate, spreadValue, delay, duration, repeatDelay])

@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { StickToBottom } from "use-stick-to-bottom"
+import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom"
 import { ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -15,15 +15,15 @@ interface ConversationProps extends React.ComponentPropsWithoutRef<typeof StickT
 const Conversation = React.forwardRef<HTMLDivElement, ConversationProps>(
   ({ className, initial = "smooth", resize = "smooth", children, ...props }, ref) => {
     return (
-      <StickToBottom
-        ref={ref}
-        className={cn("relative flex flex-col overflow-hidden", className)}
-        initial={initial}
-        resize={resize}
-        {...props}
-      >
-        {children}
-      </StickToBottom>
+      <div ref={ref} className={cn("relative flex flex-col overflow-hidden", className)}>
+        <StickToBottom
+          initial={initial}
+          resize={resize}
+          {...props}
+        >
+          {children}
+        </StickToBottom>
+      </div>
     )
   }
 )
@@ -37,13 +37,13 @@ interface ConversationContentProps
 const ConversationContent = React.forwardRef<HTMLDivElement, ConversationContentProps>(
   ({ className, children, ...props }, ref) => {
     return (
-      <StickToBottom.Content
-        ref={ref}
-        className={cn("flex-1 overflow-y-auto", className)}
-        {...props}
-      >
-        {children}
-      </StickToBottom.Content>
+      <div ref={ref} className={cn("flex-1 overflow-y-auto", className)}>
+        <StickToBottom.Content
+          {...props}
+        >
+          {children}
+        </StickToBottom.Content>
+      </div>
     )
   }
 )
@@ -92,26 +92,24 @@ const ConversationScrollButton = React.forwardRef<
   HTMLButtonElement,
   ConversationScrollButtonProps
 >(({ className, ...props }, ref) => {
+  const { isAtBottom, scrollToBottom } = useStickToBottomContext()
+
+  if (isAtBottom) return null
+
   return (
-    <StickToBottom.ScrollButton
+    <Button
       ref={ref}
+      variant="outline"
+      size="sm"
       className={cn(
-        "absolute bottom-4 left-1/2 -translate-x-1/2 z-10",
-        "opacity-0 transition-opacity duration-200",
-        "data-[visible=true]:opacity-100",
+        "absolute bottom-4 left-1/2 -translate-x-1/2 z-10 rounded-full shadow-lg bg-card/80 backdrop-blur-sm border-border/60 hover:bg-card transition-opacity duration-200",
         className
       )}
-      asChild
+      onClick={() => scrollToBottom()}
       {...props}
     >
-      <Button
-        variant="outline"
-        size="sm"
-        className="rounded-full shadow-lg bg-card/80 backdrop-blur-sm border-border/60 hover:bg-card"
-      >
-        <ChevronDown className="h-4 w-4" />
-      </Button>
-    </StickToBottom.ScrollButton>
+      <ChevronDown className="h-4 w-4" />
+    </Button>
   )
 })
 ConversationScrollButton.displayName = "ConversationScrollButton"
