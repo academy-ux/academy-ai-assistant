@@ -11,6 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog'
 import { Spinner } from '@/components/ui/spinner'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -105,6 +107,21 @@ export default function HistoryPage() {
   const [folderSearch, setFolderSearch] = useState('')
   const [folderOpen, setFolderOpen] = useState(false)
   
+  // Settings State
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [settings, setSettings] = useState({
+    driveFolderId: null as string | null,
+    autoPollEnabled: false,
+    pollIntervalMinutes: 15,
+    lastPollTime: null as string | null,
+    folderName: null as string | null,
+    lastPollFileCount: 0,
+  })
+  const [settingsLoading, setSettingsLoading] = useState(false)
+  const [settingsSaving, setSettingsSaving] = useState(false)
+  const [polling, setPolling] = useState(false)
+  const [pollResult, setPollResult] = useState<{imported: number, skipped: number, errors: number} | null>(null)
+  
   // Regenerate summaries state
   const [regenerating, setRegenerating] = useState(false)
   const [regenerateProgress, setRegenerateProgress] = useState({ current: 0, total: 0 })
@@ -196,6 +213,7 @@ export default function HistoryPage() {
 
   useEffect(() => {
     fetchMeetings()
+    loadSettings()
   }, [])
 
   // Auto-scroll to bottom when conversation updates
@@ -272,6 +290,70 @@ export default function HistoryPage() {
       console.error('Failed to load preview files', e)
     } finally {
       setPreviewLoading(false)
+    }
+  }
+
+  async function loadSettings() {
+    setSettingsLoading(true)
+    try {
+      const res = await fetch('/api/settings')
+      const data = await res.json()
+      if (data) {
+        setSettings(data)
+      }
+    } catch (e) {
+      console.error('Failed to load settings', e)
+    } finally {
+      setSettingsLoading(false)
+    }
+  }
+
+  async function saveSettings(updates: Partial<typeof settings>) {
+    setSettingsSaving(true)
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+      })
+      if (res.ok) {
+        setSettings({ ...settings, ...updates })
+      }
+    } catch (e) {
+      console.error('Failed to save settings', e)
+    } finally {
+      setSettingsSaving(false)
+    }
+  }
+
+  async function handleManualPoll() {
+    setPolling(true)
+    setPollResult(null)
+    try {
+      const res = await fetch('/api/poll-drive', {
+        method: 'POST'
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setPollResult({
+          imported: data.imported,
+          skipped: data.skipped,
+          errors: data.errors
+        })
+        // Reload settings to get updated lastPollTime
+        await loadSettings()
+        // Refresh meetings list if new files were imported
+        if (data.imported > 0) {
+          await fetchMeetings(0, false)
+        }
+      } else {
+        alert(data.error || 'Failed to poll Drive folder')
+      }
+    } catch (e) {
+      console.error('Failed to poll Drive', e)
+      alert('Failed to poll Drive folder')
+    } finally {
+      setPolling(false)
     }
   }
 
@@ -1062,6 +1144,159 @@ export default function HistoryPage() {
                 </DialogContent>
               </Dialog>
 
+              {/* Settings Dialog */}
+              <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="gap-2">
+                    <SlidersHorizontal className="h-4 w-4" />
+                    Settings
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[520px]">
+                  <DialogHeader>
+                    <DialogTitle>Auto-Polling Settings</DialogTitle>
+                    <DialogDescription>
+                      Configure automatic import of new transcripts from Google Drive.
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  {settingsLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Spinner className="text-primary" />
+                    </div>
+                  ) : (
+                    <div className="space-y-6 py-4">
+                      {/* Folder Info */}
+                      {settings.driveFolderId ? (
+                        <div className="p-4 bg-muted/50 rounded-lg space-y-2">
+                          <div className="flex items-center gap-2 text-sm">
+                            <FileText className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-medium">Configured Folder:</span>
+                          </div>
+                          <p className="text-sm text-foreground ml-6">
+                            {settings.folderName || 'Drive folder configured'}
+                          </p>
+                          {settings.lastPollTime && (
+                            <p className="text-xs text-muted-foreground ml-6">
+                              Last checked: {new Date(settings.lastPollTime).toLocaleString()}
+                              {settings.lastPollFileCount > 0 && ` (${settings.lastPollFileCount} files found)`}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="p-4 bg-muted/50 rounded-lg">
+                          <p className="text-sm text-muted-foreground">
+                            No Drive folder configured yet. Import a folder first to enable auto-polling.
+                          </p>
+                        </div>
+                      )}
+
+                      {settings.driveFolderId && (
+                        <>
+                          {/* Auto-Poll Toggle */}
+                          <div className="flex items-center justify-between">
+                            <div className="space-y-0.5">
+                              <Label htmlFor="auto-poll" className="text-base">
+                                Enable Auto-Polling
+                              </Label>
+                              <p className="text-sm text-muted-foreground">
+                                Automatically check for new transcripts
+                              </p>
+                            </div>
+                            <Switch
+                              id="auto-poll"
+                              checked={settings.autoPollEnabled}
+                              onCheckedChange={(checked) => {
+                                saveSettings({ autoPollEnabled: checked })
+                              }}
+                              disabled={settingsSaving}
+                            />
+                          </div>
+
+                          {settings.autoPollEnabled && (
+                            <>
+                              <Separator />
+                              
+                              {/* Poll Interval */}
+                              <div className="space-y-3">
+                                <Label htmlFor="poll-interval">
+                                  Check Interval
+                                </Label>
+                                <Select
+                                  value={settings.pollIntervalMinutes.toString()}
+                                  onValueChange={(value) => {
+                                    saveSettings({ pollIntervalMinutes: parseInt(value) })
+                                  }}
+                                  disabled={settingsSaving}
+                                >
+                                  <SelectTrigger id="poll-interval" className="w-full">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="5">Every 5 minutes</SelectItem>
+                                    <SelectItem value="15">Every 15 minutes</SelectItem>
+                                    <SelectItem value="30">Every 30 minutes</SelectItem>
+                                    <SelectItem value="60">Every hour</SelectItem>
+                                    <SelectItem value="120">Every 2 hours</SelectItem>
+                                    <SelectItem value="360">Every 6 hours</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <p className="text-xs text-muted-foreground">
+                                  How often to check for new files in your Drive folder
+                                </p>
+                              </div>
+                            </>
+                          )}
+
+                          <Separator />
+
+                          {/* Manual Poll */}
+                          <div className="space-y-3">
+                            <Label>Manual Check</Label>
+                            <Button
+                              variant="outline"
+                              className="w-full gap-2"
+                              onClick={handleManualPoll}
+                              disabled={polling}
+                            >
+                              {polling ? (
+                                <>
+                                  <Spinner size={16} className="text-primary" />
+                                  Checking Drive...
+                                </>
+                              ) : (
+                                <>
+                                  <RefreshCw className="h-4 w-4" />
+                                  Check Now
+                                </>
+                              )}
+                            </Button>
+                            <p className="text-xs text-muted-foreground">
+                              Manually trigger a check for new files
+                            </p>
+                            
+                            {pollResult && (
+                              <div className="p-3 bg-muted/50 rounded-lg text-sm space-y-1">
+                                <p className="font-medium">Poll Results:</p>
+                                <p className="text-muted-foreground">
+                                  ✓ {pollResult.imported} imported, {pollResult.skipped} skipped, {pollResult.errors} errors
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setSettingsOpen(false)}>
+                      Close
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
             </div>
             )}
           </div>
@@ -1286,33 +1521,36 @@ export default function HistoryPage() {
           <div className="animate-fade-in">
             {/* Quick Stats Bar */}
             {!loading && meetings.length > 0 && (
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
-                <div className="border border-border/60 bg-card/30 rounded-xl p-6 flex flex-col justify-between h-40 hover:bg-card/50 transition-colors relative group">
-               
-                  <div>
-                    <p className="text-4xl font-normal text-foreground tracking-tight group-hover:text-primary transition-colors duration-300">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 mb-12">
+                <div className="border border-border/40 bg-gradient-to-br from-card/40 to-card/20 rounded-2xl p-7 flex flex-col justify-between h-44 hover:bg-card/50 hover:border-border/60 hover:shadow-lg transition-all duration-300 relative group">
+                  <div className="space-y-3">
+                    <p className="text-5xl font-semibold text-foreground tracking-tight group-hover:text-primary transition-colors duration-300">
                       {hasActiveFilters ? filteredMeetings.length : totalCount}
                     </p>
-                    <p className="text-sm font-medium text-muted-foreground mt-2 uppercase tracking-wide text-xs">
-                      {hasActiveFilters ? 'Filtered Meetings' : 'Total Meetings'}
+                    <p className="text-sm font-normal font-sans">
+                      {hasActiveFilters ? 'Filtered' : 'Total'} Meetings
                     </p>
+                  </div>
+                  <div className="absolute top-6 right-6 h-10 w-10 rounded-xl bg-peach/10 flex items-center justify-center opacity-50 group-hover:opacity-100 transition-opacity">
+                    <FileText className="h-5 w-5 text-peach" />
                   </div>
                 </div>
                 
-                <div className="border border-border/60 bg-card/30 rounded-xl p-6 flex flex-col justify-between h-40 hover:bg-card/50 transition-colors relative group">
-            
-                  <div>
-                    <p className="text-4xl font-normal text-foreground tracking-tight group-hover:text-primary transition-colors duration-300">
+                <div className="border border-border/40 bg-gradient-to-br from-card/40 to-card/20 rounded-2xl p-7 flex flex-col justify-between h-44 hover:bg-card/50 hover:border-border/60 hover:shadow-lg transition-all duration-300 relative group">
+                  <div className="space-y-3">
+                    <p className="text-5xl font-semibold text-foreground tracking-tight group-hover:text-primary transition-colors duration-300">
                       {new Set(filteredMeetings.map(i => i.candidate_name)).size}
                     </p>
-                    <p className="text-sm font-medium text-muted-foreground mt-2 uppercase tracking-wide text-xs">Participants</p>
+                    <p className="text-sm font-normal font-sans">Participants</p>
+                  </div>
+                  <div className="absolute top-6 right-6 h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center opacity-50 group-hover:opacity-100 transition-opacity">
+                    <User className="h-5 w-5 text-primary" />
                   </div>
                 </div>
 
-                <div className="border border-border/60 bg-card/30 rounded-xl p-6 flex flex-col justify-between h-40 hover:bg-card/50 transition-colors relative group">
-                 
-                  <div>
-                    <p className="text-4xl font-normal text-foreground tracking-tight group-hover:text-primary transition-colors duration-300">
+                <div className="border border-border/40 bg-gradient-to-br from-card/40 to-card/20 rounded-2xl p-7 flex flex-col justify-between h-44 hover:bg-card/50 hover:border-border/60 hover:shadow-lg transition-all duration-300 relative group">
+                  <div className="space-y-3">
+                    <p className="text-5xl font-semibold text-foreground tracking-tight group-hover:text-primary transition-colors duration-300">
                       {filteredMeetings.filter((i: Meeting) => {
                         const date = new Date(i.meeting_date || i.created_at)
                         const weekAgo = new Date()
@@ -1320,17 +1558,22 @@ export default function HistoryPage() {
                         return date > weekAgo
                       }).length}
                     </p>
-                    <p className="text-sm font-medium text-muted-foreground mt-2 uppercase tracking-wide text-xs">This Week</p>
+                    <p className="text-sm font-normal font-sans">This Week</p>
+                  </div>
+                  <div className="absolute top-6 right-6 h-10 w-10 rounded-xl bg-peach/10 flex items-center justify-center opacity-50 group-hover:opacity-100 transition-opacity">
+                    <Calendar className="h-5 w-5 text-peach" />
                   </div>
                 </div>
 
-                <div className="border border-border/60 bg-card/30 rounded-xl p-6 flex flex-col justify-between h-40 hover:bg-card/50 transition-colors relative group">
-            
-                  <div>
-                    <p className="text-4xl font-normal text-foreground tracking-tight group-hover:text-primary transition-colors duration-300">
+                <div className="border border-border/40 bg-gradient-to-br from-card/40 to-card/20 rounded-2xl p-7 flex flex-col justify-between h-44 hover:bg-card/50 hover:border-border/60 hover:shadow-lg transition-all duration-300 relative group">
+                  <div className="space-y-3">
+                    <p className="text-5xl font-semibold text-foreground tracking-tight group-hover:text-primary transition-colors duration-300">
                       {new Set(filteredMeetings.map((i: Meeting) => i.position).filter(Boolean)).size}
                     </p>
-                    <p className="text-sm font-medium text-muted-foreground mt-2 uppercase tracking-wide text-xs">Positions</p>
+                    <p className="text-sm font-normal font-sans">Positions</p>
+                  </div>
+                  <div className="absolute top-6 right-6 h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center opacity-50 group-hover:opacity-100 transition-opacity">
+                    <FileText className="h-5 w-5 text-primary" />
                   </div>
                 </div>
               </div>
@@ -1405,7 +1648,7 @@ export default function HistoryPage() {
                   <button
                     onClick={() => setSelectedMeetingType('all')}
                     className={cn(
-                      "px-4 py-1.5 text-xs uppercase tracking-wider rounded-full transition-all font-medium whitespace-nowrap",
+                      "px-4 py-1.5 text-xs rounded-full transition-all font-medium whitespace-nowrap",
                       selectedMeetingType === 'all'
                         ? "bg-peach text-foreground"
                         : "bg-card/40 text-muted-foreground hover:bg-card/60 hover:text-foreground border border-border/40"
@@ -1445,7 +1688,7 @@ export default function HistoryPage() {
                         key={type}
                         onClick={() => setSelectedMeetingType(type)}
                         className={cn(
-                          "px-4 py-1.5 text-xs uppercase tracking-wider rounded-full transition-all font-medium whitespace-nowrap",
+                          "px-4 py-1.5 text-xs rounded-full transition-all font-medium whitespace-nowrap",
                           selectedMeetingType === type
                             ? "bg-peach text-foreground"
                             : "bg-card/40 text-muted-foreground hover:bg-card/60 hover:text-foreground border border-border/40"
@@ -1516,81 +1759,97 @@ export default function HistoryPage() {
               {filteredMeetings.map((meeting, index) => (
                 <div 
                   key={meeting.id} 
-                  className="group relative border border-border/60 rounded-xl p-6 bg-card/40 hover:bg-card/60 transition-all duration-300 hover:shadow-sm cursor-pointer"
+                  className="group relative border border-border/40 rounded-2xl p-8 bg-card/30 hover:bg-card/50 hover:border-border/60 transition-all duration-300 hover:shadow-lg cursor-pointer"
                   style={{ animationDelay: `${index * 50}ms` }}
                   onClick={() => router.push(`/history/${meeting.id}`)}
                 >
-                  <div className="flex flex-col gap-4">
-                    {/* Header: Name, Date, Meta */}
-                    <div className="flex justify-between items-start">
-                       <div className="flex items-center gap-3 flex-wrap">
-                          <h3 className="text-xl font-medium text-foreground leading-tight group-hover:text-primary transition-colors duration-200">
-                             {meeting.candidate_name || 'Unknown Participant'}
-                          </h3>
-                          {meeting.position && (
-                            <span className="text-sm text-muted-foreground font-light px-2.5 py-0.5 border border-border/40 rounded-full bg-background/50">
-                               {meeting.position}
-                            </span>
-                          )}
-                       </div>
-
-                       <div className="text-right shrink-0">
-                         <time className="text-xs text-muted-foreground block mb-0.5">
-                            {(() => {
-                                const date = new Date(meeting.meeting_date || meeting.created_at)
-                                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                            })()}
-                         </time>
-                       </div>
+                  <div className="flex gap-5">
+                    {/* Left: Avatar */}
+                    <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-peach/30 to-peach/10 flex items-center justify-center shrink-0 border border-peach/20 shadow-sm">
+                      <span className="text-base font-semibold text-foreground tracking-tight">
+                        {(meeting.candidate_name || 'U').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                      </span>
                     </div>
 
-                    {/* Content Row */}
-                    <div className="flex gap-4 items-start">
-                       {/* Avatar */}
-                      <div className="h-10 w-10 rounded-full bg-peach/20 text-foreground flex items-center justify-center shrink-0 border border-peach/10 mt-0.5">
-                        <span className="text-xs font-semibold text-foreground/80">
-                          {(meeting.candidate_name || 'U').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
-                        </span>
+                    {/* Right: Content */}
+                    <div className="flex-1 min-w-0">
+                      {/* Header Row */}
+                      <div className="flex items-start justify-between gap-4 mb-2">
+                        <div className="flex items-baseline gap-3 flex-wrap">
+                          <h3 className="text-xl font-normal text-foreground leading-tight group-hover:text-primary transition-colors duration-200">
+                            {meeting.candidate_name || 'Unknown Participant'}
+                          </h3>
+                          {meeting.position && (
+                            <span className="text-sm text-muted-foreground font-medium px-3 py-1 border border-border/50 rounded-full bg-muted/30">
+                              {meeting.position}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Date - More prominent */}
+                        <time className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+                          {(() => {
+                            const date = new Date(meeting.meeting_date || meeting.created_at)
+                            const today = new Date()
+                            const yesterday = new Date(today)
+                            yesterday.setDate(yesterday.getDate() - 1)
+                            
+                            // Check if date is today
+                            if (date.toDateString() === today.toDateString()) {
+                              return 'Today'
+                            }
+                            // Check if date is yesterday
+                            if (date.toDateString() === yesterday.toDateString()) {
+                              return 'Yesterday'
+                            }
+                            // Otherwise show formatted date
+                            return date.toLocaleDateString('en-US', { 
+                              month: 'short', 
+                              day: 'numeric',
+                              year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined
+                            })
+                          })()}
+                        </time>
                       </div>
 
-                      <div className="flex-1 min-w-0">
-                        {/* Summary */}
-                        {meeting.summary && 
-                           !meeting.summary.startsWith('Interview conversation between') && 
-                           meeting.summary !== 'Imported from Drive' && (
-                            <p className="text-sm text-muted-foreground/80 leading-relaxed line-clamp-2 mb-3 font-light">
-                              {meeting.summary}
-                            </p>
-                        )}
+                      {/* Summary */}
+                      {meeting.summary && 
+                        !meeting.summary.startsWith('Interview conversation between') && 
+                        meeting.summary !== 'Imported from Drive' && (
+                          <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 mb-4">
+                            {meeting.summary}
+                          </p>
+                      )}
+                      
+                      {/* Tags & Meta Row */}
+                      <div className="flex items-center justify-between pt-2 border-t border-border/30">
+                        <div className="flex flex-wrap gap-2 items-center">
+                          {meeting.meeting_type && (
+                            <Badge variant="secondary" className="text-xs font-medium px-3 py-1 bg-peach/20 text-foreground border-0 rounded-full">
+                              {meeting.meeting_type}
+                            </Badge>
+                          )}
+                          {meeting.meeting_title && meeting.meeting_title !== 'Interview' && meeting.meeting_title !== meeting.meeting_type && (
+                            <Badge variant="outline" className="text-xs px-2.5 py-0.5 border-border/40 text-muted-foreground rounded-full">
+                              {meeting.meeting_title}
+                            </Badge>
+                          )}
+                          {meeting.interviewer && meeting.interviewer !== 'Unknown' && (
+                            <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                              <User className="h-3 w-3" />
+                              {meeting.interviewer.split(' ')[0]}
+                            </span>
+                          )}
+                          {meeting.similarity && (
+                            <Badge variant="secondary" className="text-xs px-2.5 py-0.5 bg-primary/10 text-primary border-0 rounded-full">
+                              {Math.round(meeting.similarity * 100)}% Match
+                            </Badge>
+                          )}
+                        </div>
                         
-                        {/* Tags & Footer */}
-                        <div className="flex items-center justify-between pt-1">
-                           <div className="flex flex-wrap gap-3 items-center">
-                              {meeting.meeting_type && (
-                                 <Badge variant="pill" className="text-[10px] uppercase tracking-wider px-2.5 py-0.5 bg-peach/30 text-foreground border border-peach/20 h-5 font-medium">
-                                   {meeting.meeting_type}
-                                 </Badge>
-                              )}
-                              {meeting.interviewer && meeting.interviewer !== 'Unknown' && (
-                                  <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">
-                                    BY {meeting.interviewer.split(' ')[0]}
-                                  </span>
-                               )}
-                              {meeting.meeting_title && meeting.meeting_title !== 'Interview' && meeting.meeting_title !== meeting.meeting_type && (
-                                 <Badge variant="pill-outline" className="text-[10px] uppercase tracking-wider px-2 py-0.5 bg-transparent border-border/40 text-muted-foreground h-5 font-normal">
-                                   {meeting.meeting_title}
-                                 </Badge>
-                              )}
-                              {meeting.similarity && (
-                                  <Badge variant="secondary" className="text-[10px] uppercase tracking-wider px-2 py-0.5 bg-secondary/50 text-foreground/70 h-5 font-normal">
-                                    {Math.round(meeting.similarity * 100)}% Match
-                                  </Badge>
-                              )}
-                           </div>
-                           
-                           <div className="h-6 w-6 rounded-full border border-border/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0">
-                              <ChevronRight className="h-3 w-3 text-foreground/50" />
-                           </div>
+                        {/* Arrow indicator */}
+                        <div className="h-8 w-8 rounded-full bg-muted/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform -translate-x-2 group-hover:translate-x-0">
+                          <ChevronRight className="h-4 w-4 text-foreground" />
                         </div>
                       </div>
                     </div>

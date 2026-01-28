@@ -7,6 +7,9 @@ import { AppErrorBoundary } from '@/components/app-error-boundary'
 export const metadata: Metadata = {
   title: 'Academy Interview Assistant',
   description: 'AI-powered interview feedback automation for Lever ATS',
+  icons: {
+    icon: '/Academy Favicon White.png',
+  },
 }
 
 export default function RootLayout({

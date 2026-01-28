@@ -216,6 +216,50 @@ export async function POST(req: NextRequest) {
           }));
         }
 
+        // Save folder ID to user settings for future polling
+        if (token.email) {
+          try {
+            // Get folder name
+            let folderName = 'Drive Folder'
+            try {
+              const folderRes = await drive.files.get({
+                fileId: folderId,
+                fields: 'name'
+              })
+              folderName = folderRes.data.name || folderName
+            } catch (e) {
+              console.error('Failed to get folder name:', e)
+            }
+
+            const { data: existing } = await supabase
+              .from('user_settings')
+              .select('id')
+              .eq('user_email', token.email)
+              .single()
+
+            const settingsData = {
+              user_email: token.email,
+              drive_folder_id: folderId,
+              folder_name: folderName,
+              last_poll_time: new Date().toISOString(),
+              last_poll_file_count: totalFiles
+            }
+
+            if (existing) {
+              await supabase
+                .from('user_settings')
+                .update(settingsData)
+                .eq('user_email', token.email)
+            } else {
+              await supabase
+                .from('user_settings')
+                .insert(settingsData)
+            }
+          } catch (settingsError) {
+            console.error('Failed to save folder settings:', settingsError)
+          }
+        }
+
         // Send complete signal with summary
         safeEnqueue(
           encoder.encode(`data: ${JSON.stringify({ 

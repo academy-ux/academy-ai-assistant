@@ -29,26 +29,26 @@ module.exports = {
   				'0%, 100%': { transform: 'translateY(0)' },
   				'50%': { transform: 'translateY(-5%)' }
   			},
-  			'fade-in': {
-  				'0%': { opacity: '0', transform: 'translateY(10px)' },
-  				'100%': { opacity: '1', transform: 'translateY(0)' }
-  			},
-  			'fade-in-up': {
-  				'0%': { opacity: '0', transform: 'translateY(20px)' },
-  				'100%': { opacity: '1', transform: 'translateY(0)' }
-  			},
-  			'fade-in-down': {
-  				'0%': { opacity: '0', transform: 'translateY(-10px)' },
-  				'100%': { opacity: '1', transform: 'translateY(0)' }
-  			},
-  			'fade-in-left': {
-  				'0%': { opacity: '0', transform: 'translateX(20px)' },
-  				'100%': { opacity: '1', transform: 'translateX(0)' }
-  			},
-  			'fade-in-right': {
-  				'0%': { opacity: '0', transform: 'translateX(-20px)' },
-  				'100%': { opacity: '1', transform: 'translateX(0)' }
-  			},
+			'fade-in': {
+				'0%': { opacity: '0', transform: 'translateY(10px)', filter: 'blur(10px)' },
+				'100%': { opacity: '1', transform: 'translateY(0)', filter: 'blur(0)' }
+			},
+			'fade-in-up': {
+				'0%': { opacity: '0', transform: 'translateY(20px)', filter: 'blur(10px)' },
+				'100%': { opacity: '1', transform: 'translateY(0)', filter: 'blur(0)' }
+			},
+			'fade-in-down': {
+				'0%': { opacity: '0', transform: 'translateY(-10px)', filter: 'blur(10px)' },
+				'100%': { opacity: '1', transform: 'translateY(0)', filter: 'blur(0)' }
+			},
+			'fade-in-left': {
+				'0%': { opacity: '0', transform: 'translateX(20px)', filter: 'blur(10px)' },
+				'100%': { opacity: '1', transform: 'translateX(0)', filter: 'blur(0)' }
+			},
+			'fade-in-right': {
+				'0%': { opacity: '0', transform: 'translateX(-20px)', filter: 'blur(10px)' },
+				'100%': { opacity: '1', transform: 'translateX(0)', filter: 'blur(0)' }
+			},
   			'scale-in': {
   				'0%': { opacity: '0', transform: 'scale(0.95)' },
   				'100%': { opacity: '1', transform: 'scale(1)' }

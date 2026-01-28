@@ -4,8 +4,8 @@
  * Simple: Opens the web app when meeting ends
  */
 
-// Default web app URL (can be configured in settings)
-const DEFAULT_WEB_APP_URL = 'http://localhost:3000'
+// Production web app URL
+const WEB_APP_URL = 'https://academy-ai-assistant.vercel.app'
 
 // Listen for messages from content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -22,17 +22,13 @@ async function handleMeetingEnded(request) {
   console.log('[Academy] Title:', request.meetingTitle)
   console.log('[Academy] Code:', request.meetingCode)
 
-  // Get configured web app URL
-  const settings = await chrome.storage.local.get(['webAppUrl'])
-  const baseUrl = settings.webAppUrl || DEFAULT_WEB_APP_URL
-
   // Build URL with query params
   const params = new URLSearchParams()
   if (request.meetingCode) params.set('meeting', request.meetingCode)
   if (request.meetingTitle) params.set('title', request.meetingTitle)
   params.set('ts', Date.now().toString())
 
-  const url = `${baseUrl}/feedback?${params.toString()}`
+  const url = `${WEB_APP_URL}/feedback?${params.toString()}`
 
   console.log('[Academy] Opening:', url)
 
@@ -44,11 +40,3 @@ async function handleMeetingEnded(request) {
 
   return { success: true, tabId: tab.id }
 }
-
-// Handle extension install
-chrome.runtime.onInstalled.addListener((details) => {
-  if (details.reason === 'install') {
-    console.log('[Academy] Extension installed')
-    chrome.tabs.create({ url: chrome.runtime.getURL('settings.html') })
-  }
-})

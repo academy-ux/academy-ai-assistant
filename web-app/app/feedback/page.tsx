@@ -403,9 +403,19 @@ function FeedbackContent() {
           <h1 className="text-4xl md:text-5xl font-normal tracking-tight text-foreground mb-4">
             Evaluation
           </h1>
-          <p className="text-muted-foreground font-light text-lg">
-            {meetingTitle || meetingCode || 'Interview'} • {new Date().toLocaleDateString()}
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 text-muted-foreground">
+            {(meetingTitle || meetingCode) && (
+              <p className="font-light text-base break-words max-w-3xl">
+                {meetingTitle || meetingCode}
+              </p>
+            )}
+            {(meetingTitle || meetingCode) && (
+              <span className="hidden sm:inline text-muted-foreground/40">•</span>
+            )}
+            <p className="font-light text-base whitespace-nowrap">
+              {new Date().toLocaleDateString()}
+            </p>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
