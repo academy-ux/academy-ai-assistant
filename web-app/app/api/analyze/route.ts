@@ -1,15 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { analyzeSchema, validateBody, errorResponse } from '@/lib/validation'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 
 export async function POST(request: NextRequest) {
   try {
-    const { transcript, meetingTitle, meetingDate, template } = await request.json()
+    // Rate limit AI endpoints (expensive)
+    const { success, response: rateLimitResponse } = await checkRateLimit(request, 'ai')
+    if (!success && rateLimitResponse) return rateLimitResponse
 
-    if (!transcript) {
-      return NextResponse.json({ error: 'No transcript provided' }, { status: 400 })
-    }
+    const { data: body, error: validationError } = await validateBody(request, analyzeSchema)
+    if (validationError) return validationError
+
+    const { transcript, meetingTitle, meetingDate, template } = body
 
     const model = genAI.getGenerativeModel({ 
       model: 'gemini-1.5-flash',
@@ -41,7 +46,7 @@ Example Output Format:
 {
   "answers": {
     "${template.fields[0].question}": "Your detailed analysis here...",
-    "${template.fields[1].question}": "Your answer here..."
+    "${template.fields[1]?.question || 'Additional field'}": "Your answer here..."
   },
   "candidateName": "extracted name"
 }
@@ -93,11 +98,7 @@ Be objective. Focus on specific examples from the conversation.`
 
     return NextResponse.json({ success: true, analysis })
 
-  } catch (error: any) {
-    console.error('Analysis error:', error)
-    return NextResponse.json({
-      error: 'Analysis failed',
-      message: error.message
-    }, { status: 500 })
+  } catch (error) {
+    return errorResponse(error, 'Analysis error')
   }
 }

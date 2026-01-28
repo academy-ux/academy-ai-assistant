@@ -1,31 +1,83 @@
 'use client'
 
 import { useSession } from 'next-auth/react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog'
 import { Spinner } from '@/components/ui/spinner'
+import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { ChevronsUpDown, Check, Search, CloudDownload } from 'lucide-react'
+import { ChevronsUpDown, Check, Search, CloudDownload, FileText, Calendar, User, X, Send, ChevronRight, RefreshCw, SlidersHorizontal } from 'lucide-react'
+import { MagicWandIcon } from '@/components/icons/magic-wand'
+import { VoiceRecorder } from '@/components/voice-recorder'
+import { Message, MessageContent, MessageAvatar } from '@/components/ui/message'
+import { Response } from '@/components/ui/response'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
+import { SetupGuideDialog } from '@/components/setup-guide-dialog'
+import { ConfirmDialog } from '@/components/confirm-dialog'
+
+interface Meeting {
+  id: string
+  candidate_name: string
+  interviewer?: string
+  position: string
+  meeting_title: string
+  meeting_type?: string
+  meeting_date?: string
+  summary?: string
+  transcript: string
+  created_at: string
+  similarity?: number
+}
+
+interface Source {
+  id: string
+  candidateName: string
+  meetingDate: string
+}
+
+interface ConversationMessage {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  sources?: Source[]
+  timestamp: Date
+}
+
+interface UncategorizedCandidate {
+  id: string
+  name: string
+  stage: string
+}
 
 export default function HistoryPage() {
   const { data: session } = useSession()
-  // ... existing state ...
-  const [interviews, setInterviews] = useState<Interview[]>([])
+  const [meetings, setMeetings] = useState<Meeting[]>([])
+  const [totalCount, setTotalCount] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
+  const [page, setPage] = useState(0)
   const [searchQuery, setSearchQuery] = useState('')
-  const [searchMode, setSearchMode] = useState<'list' | 'ask'>('list')
-  const [answer, setAnswer] = useState<string | null>(null)
-  const [sources, setSources] = useState<Source[]>([])
+  const [selectedMeetingType, setSelectedMeetingType] = useState<string>('all')
+  const [aiQuestion, setAiQuestion] = useState('')
+  const [messages, setMessages] = useState<ConversationMessage[]>([])
   const [asking, setAsking] = useState(false)
+  const [activeTab, setActiveTab] = useState<'meetings' | 'ask'>('meetings')
+  const router = useRouter()
+  
+  // Intersection observer for infinite scroll
+  const loadMoreRef = useRef<HTMLDivElement>(null)
 
   // Uncategorized Candidates State
   const [uncategorizedCandidates, setUncategorizedCandidates] = useState<UncategorizedCandidate[]>([])
@@ -33,17 +85,94 @@ export default function HistoryPage() {
 
   // Import State
   const [importOpen, setImportOpen] = useState(false)
-  const [folders, setFolders] = useState<{id: string, name: string}[]>([])
+  const [folders, setFolders] = useState<{id: string, name: string, modifiedTime: string, owners?: {displayName: string}[], shared?: boolean}[]>([])
   const [foldersLoading, setFoldersLoading] = useState(false)
   const [foldersError, setFoldersError] = useState('')
   const [selectedFolder, setSelectedFolder] = useState('')
   const [importing, setImporting] = useState(false)
   const [importResults, setImportResults] = useState<{name: string, status: string}[]>([])
+  const [previewFiles, setPreviewFiles] = useState<{id: string, name: string, modifiedTime: string, alreadyImported?: boolean}[]>([])
+  const [previewStats, setPreviewStats] = useState<{total: number, newCount: number, importedCount: number}>({ total: 0, newCount: 0, importedCount: 0 })
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [importProgress, setImportProgress] = useState({ current: 0, total: 0, fileName: '' })
+  const [importStartTime, setImportStartTime] = useState<number>(0)
+  const [estimatedTimeRemaining, setEstimatedTimeRemaining] = useState<string>('')
+  const [importComplete, setImportComplete] = useState(false)
+  const importReaderRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null)
   
   // Folder search state
   const [folderSearch, setFolderSearch] = useState('')
   const [folderOpen, setFolderOpen] = useState(false)
+  
+  // Regenerate summaries state
+  const [regenerating, setRegenerating] = useState(false)
+  const [regenerateProgress, setRegenerateProgress] = useState({ current: 0, total: 0 })
+  const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false)
+  const [showRecategorizeConfirm, setShowRecategorizeConfirm] = useState(false)
+  
+  // Voice recording state
+  const [isRecording, setIsRecording] = useState(false)
+  
+  // Conversation scroll ref
+  const conversationEndRef = useRef<HTMLDivElement>(null)
   const [folderSearchLoading, setFolderSearchLoading] = useState(false)
+  
+  // Filters state
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [dateRange, setDateRange] = useState<string>('all')
+  const [selectedPosition, setSelectedPosition] = useState<string>('all')
+  const [selectedInterviewer, setSelectedInterviewer] = useState<string>('all')
+  const [selectedCandidate, setSelectedCandidate] = useState<string>('all')
+  const [sortBy, setSortBy] = useState<string>('date-desc')
+  
+  const ITEMS_PER_PAGE = 20
+
+  async function fetchMeetings(pageNum = 0, append = false) {
+    try {
+      if (append) {
+        setLoadingMore(true)
+      } else {
+        setLoading(true)
+        setMeetings([])
+        setPage(0)
+        setHasMore(true)
+      }
+      
+      const offset = pageNum * ITEMS_PER_PAGE
+      const res = await fetch(`/api/interviews?limit=${ITEMS_PER_PAGE}&offset=${offset}`)
+      const data = await res.json()
+      
+      const newMeetings = data.interviews || data || []
+      
+      if (append) {
+        setMeetings(prev => [...prev, ...newMeetings])
+      } else {
+        setMeetings(newMeetings)
+      }
+      
+      // Set total count from API response
+      if (data.count !== undefined) {
+        setTotalCount(data.count)
+      }
+      
+      // Check if there are more items to load
+      setHasMore(newMeetings.length === ITEMS_PER_PAGE)
+      
+    } catch (error) {
+      console.error('Error loading meetings', error)
+    } finally {
+      setLoading(false)
+      setLoadingMore(false)
+    }
+  }
+  
+  function loadMoreMeetings() {
+    if (!loadingMore && hasMore) {
+      const nextPage = page + 1
+      setPage(nextPage)
+      fetchMeetings(nextPage, true)
+    }
+  }
   
   // Debounce folder search
   useEffect(() => {
@@ -57,27 +186,58 @@ export default function HistoryPage() {
   }, [folderSearch, importOpen])
 
   useEffect(() => {
-    fetchInterviews()
-    fetchUncategorizedCandidates()
+    if (selectedFolder) {
+      fetchPreviewFiles(selectedFolder)
+    } else {
+      setPreviewFiles([])
+    }
+  }, [selectedFolder])
+
+  useEffect(() => {
+    fetchMeetings()
   }, [])
 
-  // ... other existing functions ...
+  // Auto-scroll to bottom when conversation updates
+  useEffect(() => {
+    if (conversationEndRef.current) {
+      conversationEndRef.current.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [messages, asking])
+
+  // Intersection observer for infinite scroll
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loading && !loadingMore) {
+          loadMoreMeetings()
+        }
+      },
+      { threshold: 0.1 }
+    )
+
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current)
+    }
+
+    return () => {
+      if (loadMoreRef.current) {
+        observer.unobserve(loadMoreRef.current)
+      }
+    }
+  }, [hasMore, loading, loadingMore, page])
 
   async function fetchFolders(query: string = '') {
     setFolderSearchLoading(true)
-    // Only clear folders if it's a new search, not initial load
     if (query) setFoldersError('')
     
     try {
       const res = await fetch(`/api/drive/folders?q=${encodeURIComponent(query)}`)
       const data = await res.json()
-      console.log('Folders response:', data)
       if (data.error) {
         setFoldersError(data.error)
       } else if (data.folders) {
         setFolders(data.folders)
         
-        // Auto-select "Meet Recordings" if found and no folder selected yet
         if (!selectedFolder && !query) {
            const meetFolder = data.folders.find((f: any) => f.name === 'Meet Recordings')
            if (meetFolder) {
@@ -94,56 +254,143 @@ export default function HistoryPage() {
     }
   }
 
-  // ... handleImport ...
+  async function fetchPreviewFiles(folderId: string) {
+    setPreviewLoading(true)
+    try {
+      const res = await fetch(`/api/drive/files?folderId=${folderId}`)
+      const data = await res.json()
+      if (data.files) {
+        setPreviewFiles(data.files)
+        setPreviewStats({
+          total: data.total || data.files.length,
+          newCount: data.newCount || 0,
+          importedCount: data.importedCount || 0
+        })
+      }
+    } catch (e) {
+      console.error('Failed to load preview files', e)
+    } finally {
+      setPreviewLoading(false)
+    }
+  }
 
   async function handleImport() {
     if (!selectedFolder) return
     setImporting(true)
     setImportResults([])
+    setImportProgress({ current: 0, total: previewFiles.length || 0, fileName: '' })
+    setImportStartTime(Date.now())
+    setEstimatedTimeRemaining('Calculating...')
+    setImportComplete(false)
     
     try {
-      const res = await fetch('/api/drive/import', {
+      const res = await fetch('/api/drive/import/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ folderId: selectedFolder })
       })
-      const data = await res.json()
-      
-      if (data.results) {
-        setImportResults(data.results)
-        fetchInterviews() // Refresh list
+
+      if (!res.ok || !res.body) {
+        throw new Error('Failed to start import')
       }
+
+      const reader = res.body.getReader()
+      importReaderRef.current = reader
+      const decoder = new TextDecoder()
+      let buffer = ''
+      
+      // Throttling state updates to prevent UI freezing with 1000+ files
+      let lastUpdate = Date.now()
+      let pendingResults: {name: string, status: string}[] = []
+      let pendingProgress: { current: number, total: number, fileName: string } | null = null
+
+      // Function to flush pending updates to state
+        const flushUpdates = () => {
+          if (pendingResults.length > 0) {
+            const currentBatch = [...pendingResults]
+            setImportResults(prev => [...prev, ...currentBatch])
+            pendingResults = []
+          }
+          if (pendingProgress) {
+            setImportProgress(pendingProgress)
+            
+            // Calculate ETA
+            const elapsed = Date.now() - importStartTime
+            const progress = pendingProgress.current / pendingProgress.total
+            
+            if (progress > 0 && pendingProgress.current > 0) {
+              const totalEstimated = elapsed / progress
+              const remaining = totalEstimated - elapsed
+              
+              if (remaining > 0) {
+                const minutes = Math.floor(remaining / 60000)
+                const seconds = Math.floor((remaining % 60000) / 1000)
+                
+                if (minutes > 0) {
+                  setEstimatedTimeRemaining(`~${minutes}m ${seconds}s remaining`)
+                } else {
+                  setEstimatedTimeRemaining(`~${seconds}s remaining`)
+                }
+              } else {
+                setEstimatedTimeRemaining('Almost done...')
+              }
+            }
+            
+            pendingProgress = null
+          }
+          lastUpdate = Date.now()
+        }
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n\n')
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = JSON.parse(line.slice(6))
+            
+            if (data.type === 'total') {
+              setImportProgress({ current: 0, total: data.total, fileName: '' })
+            } else if (data.type === 'progress') {
+              pendingProgress = { current: data.current, total: data.total, fileName: data.fileName || '' }
+            } else if (data.type === 'result') {
+              pendingResults.push({ name: data.name, status: data.status })
+            } else if (data.type === 'complete') {
+              flushUpdates() // Ensure final updates are shown
+              setImportComplete(true)
+              fetchMeetings()
+            } else if (data.type === 'error') {
+              console.error('Import error:', data.message)
+            }
+          }
+        }
+
+        // Only update React state every 100ms to keep UI responsive
+        if (Date.now() - lastUpdate > 100) {
+          flushUpdates()
+        }
+      }
+      
+      // Final flush after loop (in case it finished without 'complete' event or just to be safe)
+      flushUpdates()
+      
     } catch (error) {
       console.error('Import failed', error)
     } finally {
       setImporting(false)
+      importReaderRef.current = null
     }
   }
 
-  async function fetchInterviews() {
-    try {
-      setLoading(true)
-      const res = await fetch('/api/interviews')
-      const data = await res.json()
-      if (data.interviews) {
-        setInterviews(data.interviews)
-      }
-    } catch (error) {
-      console.error('Failed to fetch interviews', error)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault()
     if (!searchQuery.trim()) {
-      fetchInterviews()
-      return
-    }
-
-    if (searchMode === 'ask') {
-      await handleAskQuestion()
+      fetchMeetings()
       return
     }
 
@@ -156,7 +403,7 @@ export default function HistoryPage() {
       })
       const data = await res.json()
       if (data.results) {
-        setInterviews(data.results)
+        setMeetings(data.results)
       }
     } catch (error) {
       console.error('Search failed', error)
@@ -165,329 +412,1218 @@ export default function HistoryPage() {
     }
   }
 
-  async function handleAskQuestion() {
+  async function handleAskQuestion(e: React.FormEvent) {
+    e.preventDefault()
+    if (!aiQuestion.trim()) return
+    
+    const userMessage: ConversationMessage = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: aiQuestion,
+      timestamp: new Date()
+    }
+    
     try {
       setAsking(true)
-      setAnswer(null)
-      setSources([])
+      setMessages(prev => [...prev, userMessage])
+      const currentQuestion = aiQuestion
+      setAiQuestion('') // Clear input immediately
+      
+      // Include conversation history for context
+      const conversationHistory = messages.map(m => ({
+        role: m.role,
+        content: m.content
+      }))
       
       const res = await fetch('/api/interviews/ask', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: searchQuery })
+        body: JSON.stringify({ 
+          question: currentQuestion,
+          history: conversationHistory
+        })
       })
       const data = await res.json()
       
-      setAnswer(data.answer)
-      setSources(data.sources || [])
+      const assistantMessage: ConversationMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: data.answer,
+        sources: data.sources || [],
+        timestamp: new Date()
+      }
+      
+      setMessages(prev => [...prev, assistantMessage])
     } catch (error) {
       console.error('Ask failed', error)
+      // Add error message
+      const errorMessage: ConversationMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: 'Sorry, I encountered an error processing your question. Please try again.',
+        timestamp: new Date()
+      }
+      setMessages(prev => [...prev, errorMessage])
     } finally {
       setAsking(false)
     }
   }
 
+  async function handleRegenerateSummaries() {
+    try {
+      setRegenerating(true)
+      setRegenerateProgress({ current: 0, total: 0 })
+      
+      const res = await fetch('/api/interviews/reparse-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      
+      const data = await res.json()
+      
+      if (data.updated) {
+        setRegenerateProgress({ current: data.updated, total: data.total })
+        // Refresh meetings
+        await fetchMeetings()
+      }
+    } catch (error) {
+      console.error('Regenerate failed', error)
+    } finally {
+      setRegenerating(false)
+    }
+  }
+
+  function clearConversation() {
+    setMessages([])
+    setAiQuestion('')
+  }
+
+  // Get unique values for filters
+  const positions = Array.from(new Set(meetings.map(m => m.position).filter(Boolean))).sort()
+  const interviewers = Array.from(new Set(meetings.map(m => m.interviewer).filter(Boolean))).sort()
+  const candidates = Array.from(new Set(meetings.map(m => m.candidate_name).filter(Boolean))).sort()
+
+  // Apply filters to meetings
+  const filteredMeetings = meetings
+    .filter(meeting => {
+      // Meeting type filter
+      if (selectedMeetingType !== 'all' && meeting.meeting_type !== selectedMeetingType) return false
+      
+      // Date range filter
+      if (dateRange !== 'all') {
+        const meetingDate = new Date(meeting.meeting_date || meeting.created_at)
+        const now = new Date()
+        
+        if (dateRange === '7days') {
+          const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+          if (meetingDate < weekAgo) return false
+        } else if (dateRange === '30days') {
+          const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+          if (meetingDate < monthAgo) return false
+        } else if (dateRange === '3months') {
+          const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
+          if (meetingDate < threeMonthsAgo) return false
+        }
+      }
+      
+      // Position filter
+      if (selectedPosition !== 'all' && meeting.position !== selectedPosition) return false
+      
+      // Interviewer filter
+      if (selectedInterviewer !== 'all' && meeting.interviewer !== selectedInterviewer) return false
+      
+      // Candidate filter
+      if (selectedCandidate !== 'all' && meeting.candidate_name !== selectedCandidate) return false
+      
+      return true
+    })
+    .sort((a, b) => {
+      // Sort
+      if (sortBy === 'date-desc') {
+        return new Date(b.meeting_date || b.created_at).getTime() - new Date(a.meeting_date || a.created_at).getTime()
+      } else if (sortBy === 'date-asc') {
+        return new Date(a.meeting_date || a.created_at).getTime() - new Date(b.meeting_date || b.created_at).getTime()
+      } else if (sortBy === 'name-asc') {
+        return (a.candidate_name || '').localeCompare(b.candidate_name || '')
+      } else if (sortBy === 'name-desc') {
+        return (b.candidate_name || '').localeCompare(a.candidate_name || '')
+      }
+      return 0
+    })
+
+  // Check if any filters are active
+  const hasActiveFilters = dateRange !== 'all' || selectedPosition !== 'all' || selectedInterviewer !== 'all' || selectedCandidate !== 'all' || sortBy !== 'date-desc'
+  
+  // Clear all filters
+  function clearFilters() {
+    setDateRange('all')
+    setSelectedPosition('all')
+    setSelectedInterviewer('all')
+    setSelectedCandidate('all')
+    setSortBy('date-desc')
+  }
+
   return (
-    <div className="min-h-screen bg-background p-6 md:p-12">
-      <div className="max-w-6xl mx-auto space-y-8">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h1 className="text-4xl font-display font-bold text-foreground">Interview History</h1>
-            <p className="text-muted-foreground mt-2">Search past interviews or ask AI for insights.</p>
-          </div>
-          <div className="flex gap-2">
-            <Dialog open={importOpen} onOpenChange={setImportOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" className="gap-2">
-                  <CloudDownload className="h-4 w-4" />
-                  Import from Drive
+    <div className="min-h-screen bg-background">
+      {/* Filters Sidebar */}
+      <div 
+        className={cn(
+          "fixed inset-0 bg-background/60 backdrop-blur-sm z-50 transition-opacity duration-300",
+          filtersOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        )}
+        onClick={() => setFiltersOpen(false)}
+      >
+        <div 
+          className={cn(
+            "fixed right-0 top-0 h-full w-full sm:w-[400px] bg-card/60 backdrop-blur-md border-l border-border/40 shadow-xl transition-transform duration-300 ease-in-out",
+            filtersOpen ? "translate-x-0" : "translate-x-full"
+          )}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex flex-col h-full">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-border/40">
+              <div>
+                <h2 className="text-2xl font-normal text-foreground">Filters</h2>
+                <p className="text-sm text-muted-foreground mt-1 font-light">Refine your meeting search</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setFiltersOpen(false)}
+                className="h-8 w-8 p-0 hover:bg-muted/50"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Filters Content */}
+            <ScrollArea className="flex-1 p-6">
+              <div className="space-y-6">
+                {/* Date Range */}
+                <div className="space-y-3">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                    <Calendar className="h-3.5 w-3.5" />
+                    Date Range
+                  </label>
+                  <Select value={dateRange} onValueChange={setDateRange}>
+                    <SelectTrigger className="w-full h-11 bg-background/50 border-border/60">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Time</SelectItem>
+                      <SelectItem value="7days">Last 7 Days</SelectItem>
+                      <SelectItem value="30days">Last 30 Days</SelectItem>
+                      <SelectItem value="3months">Last 3 Months</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Separator className="opacity-50" />
+
+                {/* Position */}
+                <div className="space-y-3">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                    <FileText className="h-3.5 w-3.5" />
+                    Position
+                  </label>
+                  <Select value={selectedPosition} onValueChange={setSelectedPosition}>
+                    <SelectTrigger className="w-full h-11 bg-background/50 border-border/60">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Positions</SelectItem>
+                      {positions.map(position => (
+                        <SelectItem key={position} value={position}>
+                          {position}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Separator className="opacity-50" />
+
+                {/* Interviewer */}
+                <div className="space-y-3">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                    <User className="h-3.5 w-3.5" />
+                    Interviewer
+                  </label>
+                  <Select value={selectedInterviewer} onValueChange={setSelectedInterviewer}>
+                    <SelectTrigger className="w-full h-11 bg-background/50 border-border/60">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Interviewers</SelectItem>
+                      {interviewers.map(interviewer => (
+                        <SelectItem key={interviewer} value={interviewer}>
+                          {interviewer}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Separator className="opacity-50" />
+
+                {/* Candidate */}
+                <div className="space-y-3">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                    <User className="h-3.5 w-3.5" />
+                    Participant
+                  </label>
+                  <Select value={selectedCandidate} onValueChange={setSelectedCandidate}>
+                    <SelectTrigger className="w-full h-11 bg-background/50 border-border/60">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Participants</SelectItem>
+                      {candidates.map(candidate => (
+                        <SelectItem key={candidate} value={candidate}>
+                          {candidate}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Separator className="opacity-50" />
+
+                {/* Sort */}
+                <div className="space-y-3">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Sort By
+                  </label>
+                  <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger className="w-full h-11 bg-background/50 border-border/60">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="date-desc">Date (Newest First)</SelectItem>
+                      <SelectItem value="date-asc">Date (Oldest First)</SelectItem>
+                      <SelectItem value="name-asc">Name (A-Z)</SelectItem>
+                      <SelectItem value="name-desc">Name (Z-A)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </ScrollArea>
+
+            {/* Footer */}
+            <div className="p-6 border-t border-border/40 space-y-3 bg-card/20">
+              {hasActiveFilters && (
+                <Button
+                  variant="outline"
+                  className="w-full h-11 border-border/60 hover:bg-muted/50"
+                  onClick={clearFilters}
+                >
+                  Clear All Filters
                 </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                  <DialogTitle>Import Meeting Transcripts</DialogTitle>
-                  <DialogDescription>
-                    Select a Google Drive folder containing your transcripts. We'll analyze and index them automatically.
-                  </DialogDescription>
-                </DialogHeader>
-                
-                {!importing && importResults.length === 0 && (
-                  <div className="py-4 space-y-4">
-                    {foldersLoading && !folderSearchLoading ? (
-                      <div className="flex items-center justify-center py-4">
-                        <Spinner variant="infinite" className="text-primary" />
-                        <span className="ml-2 text-sm text-muted-foreground">Loading folders...</span>
-                      </div>
-                    ) : foldersError ? (
-                      <div className="text-sm text-destructive py-4">
-                        Error: {foldersError}
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                          Select Folder
-                        </label>
-                        <Popover open={folderOpen} onOpenChange={setFolderOpen}>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              role="combobox"
-                              aria-expanded={folderOpen}
-                              className="w-full justify-between"
-                            >
-                              {selectedFolder
-                                ? folders.find((folder) => folder.id === selectedFolder)?.name
-                                : "Select folder..."}
-                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-[400px] p-0">
-                            <div className="p-2 border-b border-border/50">
-                              <div className="flex items-center gap-2 px-2">
-                                <Search className="h-4 w-4 text-muted-foreground shrink-0" />
-                                <Input
-                                  placeholder="Search Drive folders..."
-                                  value={folderSearch}
-                                  onChange={(e) => setFolderSearch(e.target.value)}
-                                  className="h-8 border-0 focus-visible:ring-0 p-0 text-sm"
-                                />
-                                {folderSearchLoading && <Spinner size={16} />}
-                              </div>
-                            </div>
-                            <ScrollArea className="h-[200px]">
-                              {folders.length === 0 ? (
-                                <div className="p-4 text-sm text-muted-foreground text-center">
-                                  No folders found.
+              )}
+              <Button
+                className="w-full h-11 rounded-full"
+                onClick={() => setFiltersOpen(false)}
+              >
+                Apply Filters ({filteredMeetings.length})
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-[1600px] mx-auto px-6 py-8 md:py-12">
+        {/* Header with Navigation */}
+        <div className="mb-10">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <div>
+              <p className="text-xs font-medium tracking-[0.2em] text-muted-foreground uppercase mb-3">Meeting Library</p>
+              <h1 className="text-5xl font-normal tracking-tight text-foreground mb-4">
+                History
+              </h1>
+              <p className="text-muted-foreground font-light text-lg">
+                Browse your meetings or ask AI for insights across all conversations
+              </p>
+            </div>
+            {activeTab !== 'ask' && (
+            <div className="flex gap-8 items-center">
+              {/* Background Import Indicator */}
+              {importing && !importOpen && (
+                <button
+                  onClick={() => setImportOpen(true)}
+                  className="flex items-center gap-3 px-4 py-2 rounded-full border border-border/60 bg-card/40 hover:bg-card/60 transition-all group"
+                >
+                  <div className="relative flex items-center justify-center">
+                    <div className="h-4 w-4 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
+                  </div>
+                  <div className="flex flex-col items-start">
+                    <span className="text-xs font-medium text-foreground">Importing in background</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {importProgress.current} / {importProgress.total}
+                    </span>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                </button>
+              )}
+              
+              <SetupGuideDialog />
+              <Dialog open={importOpen} onOpenChange={(open) => {
+                // Allow closing dialog even while importing
+                setImportOpen(open)
+                // Reset complete state when opening
+                if (open && importComplete) {
+                  setImportComplete(false)
+                  setImportResults([])
+                }
+              }}>
+                <DialogTrigger asChild>
+                  <Button variant="default" className="gap-2">
+                    <CloudDownload className="h-4 w-4" />
+                    Import from Drive
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[480px]">
+                  <DialogHeader>
+                    <DialogTitle>Import Meeting Transcripts</DialogTitle>
+                    <DialogDescription>
+                      Select a Google Drive folder containing your transcripts. We'll analyze and index them automatically.
+                    </DialogDescription>
+                  </DialogHeader>
+                  
+                  {!importing && importResults.length === 0 && (
+                    <div className="py-4 space-y-4">
+                      {foldersLoading && !folderSearchLoading ? (
+                        <div className="flex items-center justify-center py-8">
+                          <Spinner className="text-primary" />
+                          <span className="ml-2 text-sm text-muted-foreground">Loading folders...</span>
+                        </div>
+                      ) : foldersError ? (
+                        <div className="text-sm text-destructive py-4 px-3 bg-destructive/10 rounded-lg">
+                          {foldersError}
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <label className="text-sm font-medium leading-none">
+                            Select Folder
+                          </label>
+                          <Popover open={folderOpen} onOpenChange={setFolderOpen}>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                aria-expanded={folderOpen}
+                                className="w-full justify-between h-11"
+                              >
+                                {selectedFolder
+                                  ? folders.find((folder) => folder.id === selectedFolder)?.name
+                                  : "Select folder..."}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[440px] p-0">
+                              <div className="p-3 border-b border-border">
+                                <div className="flex items-center gap-2 px-2 bg-muted/50 rounded-lg">
+                                  <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+                                  <Input
+                                    placeholder="Search Drive folders..."
+                                    value={folderSearch}
+                                    onChange={(e) => setFolderSearch(e.target.value)}
+                                    className="h-9 border-0 bg-transparent focus-visible:ring-0 p-0 text-sm shadow-none"
+                                  />
+                                  {folderSearchLoading && <Spinner size={16} />}
                                 </div>
-                              ) : (
-                                <div className="p-1">
-                                  {folders.map((folder) => (
-                                    <div
-                                      key={folder.id}
-                                      className={cn(
-                                        "flex items-center gap-2 px-2 py-2.5 rounded-md cursor-pointer transition-colors",
-                                        "hover:bg-muted/50",
-                                        selectedFolder === folder.id && "bg-muted"
-                                      )}
-                                      onClick={() => {
-                                        setSelectedFolder(folder.id)
-                                        setFolderOpen(false)
-                                      }}
-                                    >
-                                      <Check
+                              </div>
+                              <div className="h-[300px] overflow-y-auto" onPointerDown={(e) => e.stopPropagation()}>
+                                {folders.length === 0 ? (
+                                  <div className="p-8 text-sm text-muted-foreground text-center">
+                                    No folders found.
+                                  </div>
+                                ) : (
+                                  <div className="p-2">
+                                    {folders.map((folder) => (
+                                      <div
+                                        key={folder.id}
                                         className={cn(
-                                          "mr-2 h-4 w-4 text-primary",
-                                          selectedFolder === folder.id ? "opacity-100" : "opacity-0"
+                                          "flex items-start gap-3 px-3 py-3 rounded-lg cursor-pointer transition-colors",
+                                          "hover:bg-accent",
+                                          selectedFolder === folder.id && "bg-accent"
                                         )}
-                                      />
-                                      <span className="truncate">{folder.name}</span>
-                                    </div>
-                                  ))}
+                                        onClick={() => {
+                                          setSelectedFolder(folder.id)
+                                          setFolderOpen(false)
+                                        }}
+                                      >
+                                        <Check
+                                          className={cn(
+                                            "mt-0.5 h-4 w-4 text-primary shrink-0",
+                                            selectedFolder === folder.id ? "opacity-100" : "opacity-0"
+                                          )}
+                                        />
+                                        <div className="flex flex-col min-w-0 flex-1 gap-1">
+                                          <div className="flex items-center gap-2">
+                                            <span className="font-medium text-sm">{folder.name}</span>
+                                            {folder.shared && (
+                                              <Badge variant="outline" className="text-[10px] h-5 px-1.5">Shared</Badge>
+                                            )}
+                                          </div>
+                                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                            {folder.owners?.[0]?.displayName && (
+                                              <span>{folder.owners[0].displayName}</span>
+                                            )}
+                                            {folder.modifiedTime && (
+                                              <span>{new Date(folder.modifiedTime).toLocaleDateString()}</span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                          <p className="text-xs text-muted-foreground">
+                            We recommend selecting your <strong>"Meet Recordings"</strong> folder.
+                          </p>
+                        </div>
+                      )}
+
+                      {/* File Preview */}
+                      {selectedFolder && (
+                        <div className="rounded-lg border bg-muted/30 p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <FileText className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm font-medium">
+                                {previewStats.total > 0 ? `${previewStats.total} files` : 'Files'}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              {!previewLoading && previewStats.total > 0 && (
+                                <div className="flex items-center gap-2 text-xs">
+                                  <span className="text-primary font-medium">{previewStats.newCount} new</span>
+                                  <span className="text-muted-foreground">•</span>
+                                  <span className="text-muted-foreground">{previewStats.importedCount} imported</span>
                                 </div>
                               )}
-                            </ScrollArea>
-                          </PopoverContent>
-                        </Popover>
-                        <p className="text-xs text-muted-foreground">
-                          We recommend selecting your <strong>"Meet Recordings"</strong> folder.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
+                              {previewLoading && <Spinner size={14} />}
+                            </div>
+                          </div>
+                          <div className="space-y-1.5 max-h-[220px] overflow-y-auto" onPointerDown={(e) => e.stopPropagation()}>
+                            {previewLoading && previewFiles.length === 0 ? (
+                              <div className="text-xs text-muted-foreground text-center py-6">Loading files...</div>
+                            ) : previewFiles.length === 0 ? (
+                              <div className="text-xs text-muted-foreground text-center py-6">No Google Docs found in this folder.</div>
+                            ) : (
+                              /* Sort: new files first, then imported */
+                              [...previewFiles]
+                                .sort((a, b) => (a.alreadyImported === b.alreadyImported ? 0 : a.alreadyImported ? 1 : -1))
+                                .map((file) => (
+                                <div 
+                                  key={file.id} 
+                                  className={cn(
+                                    "flex items-center justify-between gap-3 p-2.5 rounded-lg border transition-colors",
+                                    file.alreadyImported 
+                                      ? "bg-muted/30 border-border/30 opacity-60" 
+                                      : "bg-card border-border/50 hover:border-border"
+                                  )}
+                                >
+                                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                                    {file.alreadyImported && (
+                                      <Check className="h-3.5 w-3.5 text-primary shrink-0" />
+                                    )}
+                                    <span className={cn(
+                                      "text-sm leading-relaxed break-words",
+                                      file.alreadyImported && "text-muted-foreground"
+                                    )}>
+                                      {file.name}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    {file.alreadyImported && (
+                                      <Badge variant="secondary" className="text-[10px] h-5 px-1.5">Imported</Badge>
+                                    )}
+                                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                      {file.modifiedTime ? new Date(file.modifiedTime).toLocaleDateString('en-US', { 
+                                        month: 'short', 
+                                        day: 'numeric'
+                                      }) : ''}
+                                    </span>
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                 {importing && (
-                  <div className="py-8 flex flex-col items-center justify-center gap-4">
-                    <Spinner size={32} />
-                    <p className="text-sm text-muted-foreground">Importing and analyzing...</p>
+                  <div className="py-8 flex flex-col items-center justify-center gap-6">
+                    <div className="w-full space-y-4">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Importing transcripts...</span>
+                        <span className="font-medium text-foreground">
+                          {importProgress.current} / {importProgress.total}
+                        </span>
+                      </div>
+                      <Progress 
+                        value={importProgress.total > 0 ? (importProgress.current / importProgress.total) * 100 : 0} 
+                        className="h-2.5"
+                      />
+                      <div className="space-y-1">
+                        {importProgress.fileName && (
+                          <p className="text-xs text-muted-foreground truncate">
+                            Processing: <span className="text-foreground">{importProgress.fileName}</span>
+                          </p>
+                        )}
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-muted-foreground">
+                            Generating AI embeddings for each transcript
+                          </p>
+                          {estimatedTimeRemaining && importProgress.current > 0 && (
+                            <p className="text-xs font-medium text-primary">
+                              {estimatedTimeRemaining}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
 
-                {importResults.length > 0 && (
-                  <ScrollArea className="h-[200px] w-full rounded-md border p-4">
-                    <div className="space-y-2">
-                      {importResults.map((res, i) => (
-                        <div key={i} className="flex justify-between text-sm">
-                          <span className="truncate max-w-[200px]">{res.name}</span>
-                          <Badge variant={res.status === 'imported' ? 'default' : 'secondary'}>
-                            {res.status}
-                          </Badge>
+                  {(importResults.length > 0 || importComplete) && (
+                    <div className="space-y-4">
+                      {importComplete && (
+                        <div className="flex items-center gap-2 p-3 rounded-lg bg-peach/10 border border-peach/20">
+                          <div className="h-5 w-5 rounded-full bg-peach flex items-center justify-center flex-shrink-0">
+                            <Check className="h-3 w-3 text-background" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-foreground">Import completed successfully!</p>
+                            <p className="text-xs text-muted-foreground">
+                              Processed {importProgress.current} files
+                            </p>
+                          </div>
                         </div>
-                      ))}
+                      )}
+                      
+                      {importResults.length > 0 && (
+                        <ScrollArea className="h-[200px] w-full rounded-lg border p-4">
+                          <div className="space-y-2">
+                            {importResults.map((res, i) => (
+                              <div key={i} className="flex justify-between items-center text-sm py-2">
+                                <span className="truncate max-w-[280px]">{res.name}</span>
+                                <Badge variant={res.status === 'imported' ? 'success' : 'secondary'}>
+                                  {res.status}
+                                </Badge>
+                              </div>
+                            ))}
+                          </div>
+                        </ScrollArea>
+                      )}
                     </div>
-                  </ScrollArea>
-                )}
-
-                <DialogFooter>
-                  {!importing && importResults.length === 0 && (
-                    <Button onClick={handleImport} disabled={!selectedFolder}>
-                      Start Import
-                    </Button>
                   )}
-                  {importResults.length > 0 && (
-                    <Button onClick={() => setImportOpen(false)}>Done</Button>
-                  )}
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
 
-            <Button variant="outline" asChild>
-              <Link href="/feedback">
-                ← Back to Feedback
-              </Link>
-            </Button>
+                  <DialogFooter className="gap-2">
+                    {!importing && importResults.length === 0 && !importComplete && (
+                      <Button 
+                        onClick={handleImport} 
+                        disabled={!selectedFolder || previewStats.newCount === 0} 
+                        className="w-full sm:w-auto"
+                      >
+                        {previewStats.newCount > 0 
+                          ? `Import ${previewStats.newCount} New File${previewStats.newCount !== 1 ? 's' : ''}`
+                          : previewStats.total > 0 
+                            ? 'All Files Already Imported'
+                            : 'Start Import'
+                        }
+                      </Button>
+                    )}
+                    {importing && (
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setImportOpen(false)} 
+                        className="w-full sm:w-auto"
+                      >
+                        Run in Background
+                      </Button>
+                    )}
+                    {(importResults.length > 0 || importComplete) && !importing && (
+                      <Button onClick={() => {
+                        setImportOpen(false)
+                        setImportResults([])
+                        setImportComplete(false)
+                      }} className="w-full sm:w-auto">Done</Button>
+                    )}
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+            </div>
+            )}
           </div>
         </div>
 
-        {/* Uncategorized Candidates Alert */}
-        {/* {uncategorizedCandidates.length > 0 && (
-          <Card className="border-amber-200 bg-amber-50/50">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-lg text-amber-800">
-                    Uncategorized Candidates
-                  </CardTitle>
-                  <CardDescription className="text-amber-700">
-                    {uncategorizedCandidates.length} candidate{uncategorizedCandidates.length > 1 ? 's' : ''} without a job assignment in Lever
-                  </CardDescription>
-                </div>
-                <Badge variant="outline" className="border-amber-300 text-amber-700">
-                  Needs Review
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="flex flex-wrap gap-2">
-                {uncategorizedCandidates.slice(0, 10).map((candidate) => (
-                  <a
-                    key={candidate.id}
-                    href={`https://hire.lever.co/candidates/${candidate.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 px-2 py-1 bg-white border border-amber-200 rounded text-sm hover:bg-amber-100 transition-colors"
-                  >
-                    <span className="font-medium text-foreground">{candidate.name}</span>
-                    <span className="text-xs text-muted-foreground">• {candidate.stage}</span>
-                  </a>
-                ))}
-                {uncategorizedCandidates.length > 10 && (
-                  <span className="inline-flex items-center px-2 py-1 text-sm text-amber-700">
-                    +{uncategorizedCandidates.length - 10} more
-                  </span>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )} */}
+        {/* Tabs Navigation */}
+        <div className="flex gap-1 mb-6 p-1 bg-muted/50 rounded-lg w-fit">
+          <button
+            onClick={() => setActiveTab('meetings')}
+            className={cn(
+              "relative px-4 py-2 text-sm font-medium rounded-md transition-all duration-300 ease-smooth flex items-center gap-2",
+              activeTab === 'meetings'
+                ? "bg-card/60 text-foreground shadow-md"
+                : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+            )}
+          >
+            <FileText className={cn("h-4 w-4 transition-transform duration-200", activeTab === 'meetings' && "scale-110")} />
+            Meetings
+            <Badge variant="secondary" className={cn("ml-1 text-xs transition-all duration-200", activeTab === 'meetings' && "bg-primary/10")}>{totalCount}</Badge>
+          </button>
+          <button
+            onClick={() => setActiveTab('ask')}
+            className={cn(
+              "relative px-4 py-2 text-sm font-medium rounded-md transition-all duration-300 ease-smooth flex items-center gap-2",
+              activeTab === 'ask'
+                ? "bg-card/60 text-foreground shadow-md"
+                : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+            )}
+          >
+            <MagicWandIcon size={16} className={cn("transition-transform duration-200", activeTab === 'ask' && "scale-110")} />
+            Ask AI
+            {totalCount > 0 && <Badge variant="secondary" className={cn("ml-1 text-xs transition-all duration-200", activeTab === 'ask' && "bg-primary/10")}>{totalCount}</Badge>}
+          </button>
+        </div>
 
-        {/* Search Bar */}
-        <Card>
-          <CardContent className="p-6">
-            <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1">
-                <Input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder={searchMode === 'list' ? "Search transcripts..." : "Ask a question about your candidates..."}
-                  className="w-full"
-                />
-              </div>
-              <Select 
-                value={searchMode} 
-                onValueChange={(value) => setSearchMode(value as 'list' | 'ask')}
-              >
-                <SelectTrigger className="w-full md:w-[200px]">
-                  <SelectValue placeholder="Search Mode" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="list">Search Interviews</SelectItem>
-                  <SelectItem value="ask">Ask AI</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button 
-                type="submit"
-                disabled={loading || asking}
-                className="w-full md:w-auto"
-              >
-                {asking ? 'Thinking...' : 'Go'}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-
-        {/* AI Answer Section */}
-        {searchMode === 'ask' && answer && (
-          <Card className="bg-primary/5 border-primary/20">
-            <CardHeader>
-              <CardTitle className="text-primary">AI Insights</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="prose max-w-none text-foreground whitespace-pre-wrap leading-relaxed">
-                {answer}
-              </div>
-              
-              {sources.length > 0 && (
-                <>
-                  <Separator className="my-6 bg-primary/20" />
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-3">Sources:</p>
-                    <div className="flex gap-2 flex-wrap">
-                      {sources.map(source => (
-                        <Badge key={source.id} variant="outline" className="bg-background text-foreground hover:bg-background">
-                          {source.candidateName} • {new Date(source.meetingDate).toLocaleDateString()}
-                        </Badge>
+        {/* Ask AI Tab Content */}
+        {activeTab === 'ask' && (
+          <>
+            {/* Scrollable Conversation Area - uses viewport height minus header/tabs */}
+            <div 
+              className="animate-fade-in overflow-y-auto pb-32" 
+              style={{ height: 'calc(100vh - 200px)' }}
+            >
+              <div className="max-w-3xl mx-auto px-4">
+                {/* Empty State */}
+                {messages.length === 0 && !asking ? (
+                  <div className="flex flex-col items-center justify-center text-center py-24 min-h-[50vh]">
+                    <div className="mb-6 h-16 w-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/10 animate-float">
+                      <MagicWandIcon size={28} className="text-primary" />
+                    </div>
+                    <h3 className="text-2xl font-semibold text-foreground mb-3 animate-fade-in" style={{ animationDelay: '100ms' }}>Ask AI about your candidates</h3>
+                    <p className="text-muted-foreground max-w-md mb-6 animate-fade-in" style={{ animationDelay: '200ms' }}>
+                      Get instant insights from all your interviews.
+                    </p>
+                    <div className="flex flex-wrap gap-2 justify-center animate-fade-in" style={{ animationDelay: '300ms' }}>
+                      {[
+                        "Compare the top candidates",
+                        "Who has the most experience?"
+                      ].map((suggestion) => (
+                        <button
+                          key={suggestion}
+                          onClick={() => setAiQuestion(suggestion)}
+                          className="px-4 py-2 text-sm text-muted-foreground bg-card/40 hover:bg-muted border border-border/50 rounded-full transition-all duration-300 hover:border-primary/30 hover:text-foreground hover:scale-105 hover:shadow-md active:scale-95"
+                        >
+                          {suggestion}
+                        </button>
                       ))}
                     </div>
                   </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Interviews List */}
-        {searchMode === 'list' && (
-          <div className="grid gap-6">
-            {loading ? (
-              <div className="text-center py-12 text-muted-foreground">Loading interviews...</div>
-            ) : interviews.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">No interviews found.</div>
-            ) : (
-              interviews.map((interview) => (
-                <Card key={interview.id} className="hover:shadow-md transition-shadow">
-                  <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-                    <div>
-                      <CardTitle className="text-xl font-bold">
-                        {interview.candidate_name || 'Unknown Candidate'}
-                      </CardTitle>
-                      <CardDescription className="mt-1">
-                        {interview.position} • {interview.meeting_title}
-                      </CardDescription>
-                    </div>
-                    {interview.similarity && (
-                      <Badge variant="secondary" className="bg-green-100 text-green-800 hover:bg-green-100">
-                        {Math.round(interview.similarity * 100)}% match
-                      </Badge>
+                ) : (
+                  <div className="space-y-6 py-6">
+                    {/* Render all messages */}
+                    {messages.map((message, index) => (
+                      message.role === 'user' ? (
+                        <Message key={message.id} from="user" className={index === messages.length - 1 || index === messages.length - 2 ? "animate-fade-in-left" : ""}>
+                          <MessageContent>
+                            <p className="text-sm">{message.content}</p>
+                          </MessageContent>
+                          <MessageAvatar 
+                            name={session?.user?.name || "You"} 
+                            src={session?.user?.image || undefined}
+                            className="bg-muted" 
+                          />
+                        </Message>
+                      ) : (
+                        <Message key={message.id} from="assistant" className={index === messages.length - 1 ? "animate-fade-in-right" : ""}>
+                          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center flex-shrink-0 border border-primary/10 transition-all duration-300 hover:scale-110">
+                            <MagicWandIcon size={14} className="text-primary" />
+                          </div>
+                          <div className="flex-1 space-y-4">
+                            <MessageContent>
+                              <Response>{message.content}</Response>
+                            </MessageContent>
+                            
+                            {message.sources && message.sources.length > 0 && (
+                              <div className="flex gap-2 flex-wrap items-center">
+                                <span className="text-xs text-muted-foreground">Based on interviews with:</span>
+                                {message.sources.map(source => (
+                                  <Badge key={source.id} variant="secondary" className="text-xs">
+                                    {source.candidateName}
+                                  </Badge>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </Message>
+                      )
+                    ))}
+                    
+                    {/* Loading indicator for new response */}
+                    {asking && (
+                      <Message from="assistant" className="animate-fade-in-right">
+                        <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center flex-shrink-0 border border-primary/10 animate-glow-pulse">
+                          <MagicWandIcon size={14} className="text-primary animate-pulse" />
+                        </div>
+                        <MessageContent variant="flat">
+                          <div className="flex items-center gap-3 text-muted-foreground py-2">
+                            <Spinner size={16} />
+                            <span className="text-sm">Analyzing {totalCount} meetings...</span>
+                          </div>
+                        </MessageContent>
+                      </Message>
                     )}
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-xs text-muted-foreground mb-4">
-                      {new Date(interview.created_at).toLocaleDateString()}
+                    
+                    {/* Clear conversation button */}
+                    {messages.length > 0 && !asking && (
+                      <div className="flex justify-center pt-4">
+                        <button
+                          onClick={clearConversation}
+                          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          <RefreshCw className="h-3.5 w-3.5" />
+                          Start new conversation
+                        </button>
+                      </div>
+                    )}
+                    
+                    {/* Scroll anchor */}
+                    <div ref={conversationEndRef} />
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+        
+        {/* Input Area - Fixed at bottom, OUTSIDE the animated container */}
+        {activeTab === 'ask' && (
+          <div className="fixed bottom-0 left-0 right-0 z-40 px-4 pb-6 pt-8" style={{ background: 'linear-gradient(to top, hsl(var(--background)) 70%, transparent)' }}>
+            <div className="max-w-2xl mx-auto">
+              <div className="relative group">
+                {/* Main input container - subtle, integrated styling */}
+                <div className="relative bg-card/60 backdrop-blur-md border border-border/30 rounded-xl shadow-lg transition-all duration-300 group-focus-within:border-primary/30 group-focus-within:shadow-xl overflow-hidden">
+                  <form onSubmit={handleAskQuestion} className="flex items-end gap-2">
+                    {/* Voice recorder */}
+                    <div className="flex items-center pl-3 pb-2.5">
+                      <VoiceRecorder 
+                        onTranscriptionComplete={(text) => setAiQuestion(prev => prev ? `${prev} ${text}` : text)}
+                        onRecordingChange={setIsRecording}
+                      />
                     </div>
-                    <div className="bg-muted/50 p-4 rounded-md">
-                      <p className="text-sm font-mono text-muted-foreground line-clamp-3">
-                        {interview.transcript}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
+                    
+                    {!isRecording && (
+                      <>
+                        {/* Text input */}
+                        <div className="flex-1 py-1.5">
+                          <Textarea
+                            value={aiQuestion}
+                            onChange={(e) => {
+                              setAiQuestion(e.target.value)
+                              e.target.style.height = 'auto'
+                              e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px'
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault()
+                                if (aiQuestion.trim() && !asking) {
+                                  handleAskQuestion(e as any)
+                                }
+                              }
+                            }}
+                            placeholder={messages.length > 0 ? "Ask follow-up..." : "Ask a question about your meetings..."}
+                            className="min-h-[44px] max-h-[160px] py-2.5 px-4 border-0 bg-input focus-visible:ring-0 focus-visible:ring-offset-0 resize-none overflow-y-auto text-[15px] placeholder:text-muted-foreground/50"
+                            rows={1}
+                          />
+                        </div>
+                        
+                        {/* Send button */}
+                        <div className="flex items-center pr-2.5 pb-2.5">
+                          <button 
+                            type="submit"
+                            disabled={asking || !aiQuestion.trim()}
+                            className={cn(
+                              "h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-all duration-200",
+                              aiQuestion.trim() 
+                                ? "text-primary hover:bg-primary/10" 
+                                : "text-muted-foreground/30"
+                            )}
+                          >
+                            <Send className={cn(
+                              "h-4 w-4 transition-transform duration-200",
+                              aiQuestion.trim() && "-rotate-45"
+                            )} />
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </form>
+                </div>
+              </div>
+            </div>
           </div>
         )}
+
+        {/* Meetings Tab Content */}
+        {activeTab === 'meetings' && (
+          <div className="animate-fade-in">
+            {/* Quick Stats Bar */}
+            {!loading && meetings.length > 0 && (
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
+                <div className="border border-border/60 bg-card/30 rounded-xl p-6 flex flex-col justify-between h-40 hover:bg-card/50 transition-colors relative group">
+               
+                  <div>
+                    <p className="text-4xl font-normal text-foreground tracking-tight group-hover:text-primary transition-colors duration-300">
+                      {hasActiveFilters ? filteredMeetings.length : totalCount}
+                    </p>
+                    <p className="text-sm font-medium text-muted-foreground mt-2 uppercase tracking-wide text-xs">
+                      {hasActiveFilters ? 'Filtered Meetings' : 'Total Meetings'}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="border border-border/60 bg-card/30 rounded-xl p-6 flex flex-col justify-between h-40 hover:bg-card/50 transition-colors relative group">
+            
+                  <div>
+                    <p className="text-4xl font-normal text-foreground tracking-tight group-hover:text-primary transition-colors duration-300">
+                      {new Set(filteredMeetings.map(i => i.candidate_name)).size}
+                    </p>
+                    <p className="text-sm font-medium text-muted-foreground mt-2 uppercase tracking-wide text-xs">Participants</p>
+                  </div>
+                </div>
+
+                <div className="border border-border/60 bg-card/30 rounded-xl p-6 flex flex-col justify-between h-40 hover:bg-card/50 transition-colors relative group">
+                 
+                  <div>
+                    <p className="text-4xl font-normal text-foreground tracking-tight group-hover:text-primary transition-colors duration-300">
+                      {filteredMeetings.filter((i: Meeting) => {
+                        const date = new Date(i.meeting_date || i.created_at)
+                        const weekAgo = new Date()
+                        weekAgo.setDate(weekAgo.getDate() - 7)
+                        return date > weekAgo
+                      }).length}
+                    </p>
+                    <p className="text-sm font-medium text-muted-foreground mt-2 uppercase tracking-wide text-xs">This Week</p>
+                  </div>
+                </div>
+
+                <div className="border border-border/60 bg-card/30 rounded-xl p-6 flex flex-col justify-between h-40 hover:bg-card/50 transition-colors relative group">
+            
+                  <div>
+                    <p className="text-4xl font-normal text-foreground tracking-tight group-hover:text-primary transition-colors duration-300">
+                      {new Set(filteredMeetings.map((i: Meeting) => i.position).filter(Boolean)).size}
+                    </p>
+                    <p className="text-sm font-medium text-muted-foreground mt-2 uppercase tracking-wide text-xs">Positions</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Search and Toolbar */}
+            <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm pb-4 pt-2 mb-2 border-b border-border/40">
+              <div className="flex flex-col gap-4">
+                {/* Top Row: Search and Actions */}
+                <div className="flex flex-col sm:flex-row gap-4 justify-between items-center">
+                  <div className="relative w-full sm:max-w-md group">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
+                    <Input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search by name, position, or keywords..."
+                      className="pl-11 pr-4 h-12 bg-input border-transparent rounded-full transition-all focus:bg-background focus:shadow-sm focus:border-primary/30 text-base"
+                    />
+                    {searchQuery && (
+                      <button 
+                        type="button"
+                        onClick={() => { setSearchQuery(''); fetchMeetings(); }}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setFiltersOpen(true)}
+                      className={cn(
+                        "rounded-full h-10 px-4 border-border/60 hover:bg-secondary/30 hover:border-border gap-2",
+                        hasActiveFilters && "bg-primary/10 border-primary/30 text-primary hover:text-primary"
+                      )}
+                    >
+                      <SlidersHorizontal className="h-4 w-4" />
+                      <span className="sr-only sm:not-sr-only">Filters</span>
+                      {hasActiveFilters && <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">On</Badge>}
+                    </Button>
+                     <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowRegenerateConfirm(true)}
+                      disabled={regenerating}
+                      className="rounded-full h-10 px-4 border-border/60 hover:bg-secondary/30 hover:border-border text-muted-foreground hover:text-foreground gap-2 ml-auto sm:ml-0"
+                    >
+                      <RefreshCw className={cn("h-4 w-4", regenerating && "animate-spin")} />
+                      <span className="sr-only sm:not-sr-only">{regenerating ? "Regenerating..." : "Refresh"}</span>
+                    </Button>
+                    
+                    <div className="h-6 w-px bg-border/40 mx-1 hidden sm:block" />
+                    
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground whitespace-nowrap hidden sm:flex">
+                      <span>Sorted by</span>
+                      <span className="font-medium text-foreground">
+                        {sortBy === 'date-desc' && 'Most Recent'}
+                        {sortBy === 'date-asc' && 'Oldest First'}
+                        {sortBy === 'name-asc' && 'Name (A-Z)'}
+                        {sortBy === 'name-desc' && 'Name (Z-A)'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Meeting Type Filters */}
+                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                  <button
+                    onClick={() => setSelectedMeetingType('all')}
+                    className={cn(
+                      "px-4 py-1.5 text-xs uppercase tracking-wider rounded-full transition-all font-medium whitespace-nowrap",
+                      selectedMeetingType === 'all'
+                        ? "bg-peach text-foreground"
+                        : "bg-card/40 text-muted-foreground hover:bg-card/60 hover:text-foreground border border-border/40"
+                    )}
+                  >
+                    All ({hasActiveFilters ? filteredMeetings.length : totalCount})
+                  </button>
+                  {['Interview', 'Client Debrief', 'Sales Meeting', 'Status Update', 'Team Sync', '1-on-1', 'Client Call', 'Other'].map(type => {
+                    const count = meetings
+                      .filter(meeting => {
+                        // Apply all filters except meeting type
+                        if (dateRange !== 'all') {
+                          const meetingDate = new Date(meeting.meeting_date || meeting.created_at)
+                          const now = new Date()
+                          
+                          if (dateRange === '7days') {
+                            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+                            if (meetingDate < weekAgo) return false
+                          } else if (dateRange === '30days') {
+                            const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+                            if (meetingDate < monthAgo) return false
+                          } else if (dateRange === '3months') {
+                            const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
+                            if (meetingDate < threeMonthsAgo) return false
+                          }
+                        }
+                        
+                        if (selectedPosition !== 'all' && meeting.position !== selectedPosition) return false
+                        if (selectedInterviewer !== 'all' && meeting.interviewer !== selectedInterviewer) return false
+                        if (selectedCandidate !== 'all' && meeting.candidate_name !== selectedCandidate) return false
+                        
+                        return meeting.meeting_type === type
+                      }).length
+                    if (count === 0) return null
+                    return (
+                      <button
+                        key={type}
+                        onClick={() => setSelectedMeetingType(type)}
+                        className={cn(
+                          "px-4 py-1.5 text-xs uppercase tracking-wider rounded-full transition-all font-medium whitespace-nowrap",
+                          selectedMeetingType === type
+                            ? "bg-peach text-foreground"
+                            : "bg-card/40 text-muted-foreground hover:bg-card/60 hover:text-foreground border border-border/40"
+                        )}
+                      >
+                        {type} ({count})
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Section Header (Hidden if sticky toolbar is used, or keep for spacing) */}
+            <div className="h-4" />
+
+            {/* Interviews List */}
+            <div className="flex flex-col gap-4">
+            {loading ? (
+              /* Skeleton Loading State */
+              [1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="border border-border/40 rounded-xl p-6 bg-card/40 h-[200px] flex flex-col justify-between animate-pulse">
+                   <div className="flex justify-between items-start mb-4">
+                      <div className="flex items-center gap-3 w-1/2">
+                         <Skeleton className="h-6 w-48 rounded-full" />
+                         <Skeleton className="h-5 w-24 rounded-full opacity-60" />
+                      </div>
+                      <Skeleton className="h-4 w-24 rounded-full opacity-50" />
+                   </div>
+                   
+                   <div className="flex gap-4 items-start flex-1">
+                      <Skeleton className="h-10 w-10 rounded-full flex-shrink-0" />
+                      <div className="space-y-3 flex-1 pt-1">
+                         <Skeleton className="h-4 w-full rounded-full opacity-60" />
+                         <Skeleton className="h-4 w-3/4 rounded-full opacity-60" />
+                      </div>
+                   </div>
+                   
+                   <div className="flex justify-between items-center mt-4">
+                      <div className="flex gap-2">
+                         <Skeleton className="h-5 w-24 rounded-full opacity-50" />
+                         <Skeleton className="h-5 w-20 rounded-full opacity-50" />
+                      </div>
+                      <Skeleton className="h-6 w-6 rounded-full opacity-30" />
+                   </div>
+                </div>
+              ))
+            ) : meetings.length === 0 ? (
+              <div className="col-span-full">
+                <Card className="py-20 border-dashed border-2 bg-card/30">
+                  <div className="text-center">
+                    <div className="h-20 w-20 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-6">
+                      <FileText className="h-10 w-10 text-muted-foreground/50" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-foreground mb-2">No meetings yet</h3>
+                    <p className="text-muted-foreground max-w-sm mx-auto mb-6">
+                      Import your meeting transcripts from Google Drive to start building your meeting library.
+                    </p>
+                    <Button onClick={() => setImportOpen(true)} className="gap-2">
+                      <CloudDownload className="h-4 w-4" />
+                      Import from Drive
+                    </Button>
+                  </div>
+                </Card>
+              </div>
+            ) : (
+              <>
+              {filteredMeetings.map((meeting, index) => (
+                <div 
+                  key={meeting.id} 
+                  className="group relative border border-border/60 rounded-xl p-6 bg-card/40 hover:bg-card/60 transition-all duration-300 hover:shadow-sm cursor-pointer"
+                  style={{ animationDelay: `${index * 50}ms` }}
+                  onClick={() => router.push(`/history/${meeting.id}`)}
+                >
+                  <div className="flex flex-col gap-4">
+                    {/* Header: Name, Date, Meta */}
+                    <div className="flex justify-between items-start">
+                       <div className="flex items-center gap-3 flex-wrap">
+                          <h3 className="text-xl font-medium text-foreground leading-tight group-hover:text-primary transition-colors duration-200">
+                             {meeting.candidate_name || 'Unknown Participant'}
+                          </h3>
+                          {meeting.position && (
+                            <span className="text-sm text-muted-foreground font-light px-2.5 py-0.5 border border-border/40 rounded-full bg-background/50">
+                               {meeting.position}
+                            </span>
+                          )}
+                       </div>
+
+                       <div className="text-right shrink-0">
+                         <time className="text-xs text-muted-foreground block mb-0.5">
+                            {(() => {
+                                const date = new Date(meeting.meeting_date || meeting.created_at)
+                                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                            })()}
+                         </time>
+                       </div>
+                    </div>
+
+                    {/* Content Row */}
+                    <div className="flex gap-4 items-start">
+                       {/* Avatar */}
+                      <div className="h-10 w-10 rounded-full bg-peach/20 text-foreground flex items-center justify-center shrink-0 border border-peach/10 mt-0.5">
+                        <span className="text-xs font-semibold text-foreground/80">
+                          {(meeting.candidate_name || 'U').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                        </span>
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        {/* Summary */}
+                        {meeting.summary && 
+                           !meeting.summary.startsWith('Interview conversation between') && 
+                           meeting.summary !== 'Imported from Drive' && (
+                            <p className="text-sm text-muted-foreground/80 leading-relaxed line-clamp-2 mb-3 font-light">
+                              {meeting.summary}
+                            </p>
+                        )}
+                        
+                        {/* Tags & Footer */}
+                        <div className="flex items-center justify-between pt-1">
+                           <div className="flex flex-wrap gap-3 items-center">
+                              {meeting.meeting_type && (
+                                 <Badge variant="pill" className="text-[10px] uppercase tracking-wider px-2.5 py-0.5 bg-peach/30 text-foreground border border-peach/20 h-5 font-medium">
+                                   {meeting.meeting_type}
+                                 </Badge>
+                              )}
+                              {meeting.interviewer && meeting.interviewer !== 'Unknown' && (
+                                  <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">
+                                    BY {meeting.interviewer.split(' ')[0]}
+                                  </span>
+                               )}
+                              {meeting.meeting_title && meeting.meeting_title !== 'Interview' && meeting.meeting_title !== meeting.meeting_type && (
+                                 <Badge variant="pill-outline" className="text-[10px] uppercase tracking-wider px-2 py-0.5 bg-transparent border-border/40 text-muted-foreground h-5 font-normal">
+                                   {meeting.meeting_title}
+                                 </Badge>
+                              )}
+                              {meeting.similarity && (
+                                  <Badge variant="secondary" className="text-[10px] uppercase tracking-wider px-2 py-0.5 bg-secondary/50 text-foreground/70 h-5 font-normal">
+                                    {Math.round(meeting.similarity * 100)}% Match
+                                  </Badge>
+                              )}
+                           </div>
+                           
+                           <div className="h-6 w-6 rounded-full border border-border/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0">
+                              <ChevronRight className="h-3 w-3 text-foreground/50" />
+                           </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              
+              {/* Infinite Scroll Trigger */}
+              {hasMore && !loading && (
+                <div ref={loadMoreRef} className="py-8 flex justify-center">
+                  {loadingMore ? (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Spinner size={16} />
+                      <span className="text-sm">Loading more meetings...</span>
+                    </div>
+                  ) : (
+                    <div className="h-4" />
+                  )}
+                </div>
+              )}
+              </>
+            )}
+            </div>
+          </div>
+        )}
+
       </div>
+      
+      {/* Confirm Dialog for Regenerating Summaries */}
+      <ConfirmDialog
+        open={showRegenerateConfirm}
+        onOpenChange={setShowRegenerateConfirm}
+        title="Regenerate All Summaries?"
+        description="This will re-analyze all meetings using AI to generate new summaries, categories, and metadata. This process may take a few minutes."
+        confirmLabel="Regenerate"
+        cancelLabel="Cancel"
+        onConfirm={handleRegenerateSummaries}
+        loading={regenerating}
+      />
     </div>
   )
 }

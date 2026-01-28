@@ -1,45 +1,58 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import {
+  Waveform,
+  MicrophoneWaveform,
+  LiveMicrophoneWaveform,
+  ScrollingWaveform,
+  StaticWaveform,
+  AudioScrubber,
+  RecordingWaveform,
+} from '@/components/ui/waveform'
 import { Mic, Square, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface VoiceRecorderProps {
   onTranscriptionComplete: (text: string) => void
+  onRecordingChange?: (isRecording: boolean) => void
 }
 
-export function VoiceRecorder({ onTranscriptionComplete }: VoiceRecorderProps) {
+export function VoiceRecorder({ onTranscriptionComplete, onRecordingChange }: VoiceRecorderProps) {
   const [isRecording, setIsRecording] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
+  
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
   
-  // Visualization refs
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const animationFrameRef = useRef<number>()
-  const audioContextRef = useRef<AudioContext | null>(null)
-  const analyserRef = useRef<AnalyserNode | null>(null)
-  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null)
+  // Ref to hold the stream so we can access it in useEffect without re-creating functions
+  const streamRef = useRef<MediaStream | null>(null)
+
+  // Cleanup on unmount - stop any active media streams to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop())
+        streamRef.current = null
+      }
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop()
+      }
+    }
+  }, [])
+
+  // Visualization refs (old implementation commented out)
+  // const canvasRef = useRef<HTMLCanvasElement>(null)
+  // const animationFrameRef = useRef<number>()
+  // const audioContextRef = useRef<AudioContext | null>(null)
+  // const analyserRef = useRef<AnalyserNode | null>(null)
+  // const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null)
 
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      streamRef.current = stream
       
-      // Setup Audio Context for visualization
-      const AudioContextClass = (window.AudioContext || (window as any).webkitAudioContext)
-      const audioContext = new AudioContextClass()
-      audioContextRef.current = audioContext
-      const analyser = audioContext.createAnalyser()
-      analyserRef.current = analyser
-      analyser.fftSize = 64 // Lower fftSize for fewer, chunkier bars
-      
-      const source = audioContext.createMediaStreamSource(stream)
-      sourceRef.current = source
-      source.connect(analyser)
-      
-      // Start visualizer loop
-      visualize()
-
       mediaRecorderRef.current = new MediaRecorder(stream)
       chunksRef.current = []
 
@@ -53,95 +66,110 @@ export function VoiceRecorder({ onTranscriptionComplete }: VoiceRecorderProps) {
         const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' })
         setIsProcessing(true)
         
-        // Cleanup visualization
-        if (animationFrameRef.current) {
-            cancelAnimationFrame(animationFrameRef.current)
-        }
-        if (audioContextRef.current) {
-            audioContextRef.current.close()
-        }
-
         await transcribeAudio(audioBlob)
         setIsProcessing(false)
         stream.getTracks().forEach(track => track.stop())
+        streamRef.current = null
       }
 
       mediaRecorderRef.current.start()
       setIsRecording(true)
+      onRecordingChange?.(true)
     } catch (error) {
       console.error('Error accessing microphone:', error)
       alert('Could not access microphone. Please allow microphone permissions.')
     }
   }
 
-  const visualize = () => {
-    const canvas = canvasRef.current
-    const analyser = analyserRef.current
-    if (!canvas || !analyser) return
-
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    const bufferLength = analyser.frequencyBinCount
-    const dataArray = new Uint8Array(bufferLength)
-
-    const draw = () => {
-      animationFrameRef.current = requestAnimationFrame(draw)
-      analyser.getByteFrequencyData(dataArray)
-
-      const width = canvas.width
-      const height = canvas.height
+  // Effect to handle visualization startup after state change + render
+  // useEffect(() => {
+  //   if (isRecording && streamRef.current && canvasRef.current) {
+  //     // Initialize Audio Context
+  //     const AudioContextClass = (window.AudioContext || (window as any).webkitAudioContext)
+  //     const audioContext = new AudioContextClass()
+  //     audioContextRef.current = audioContext
       
-      ctx.clearRect(0, 0, width, height)
-
-      // Get primary color from CSS variable if possible, or fallback
-      const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#000'
-      // Since we can't easily parse HSL in canvas fillStyle without conversion if it's just numbers, 
-      // let's try to use the raw value if it's a color, otherwise fallback to a known dark/light compatible color.
-      // Usually --primary is HSL numbers "222.2 47.4% 11.2%". 
-      // Safest is to use `hsl(...)` string construction:
-      ctx.fillStyle = `hsl(${primaryColor})`
-      if (!ctx.fillStyle || ctx.fillStyle === '#000000') {
-         // Fallback if variable didn't work
-         ctx.fillStyle = '#f97316' // Orange-ish
-      }
-
-      const barWidth = (width / bufferLength) * 2
-      let barHeight
-      let x = 0
-
-      for (let i = 0; i < bufferLength; i++) {
-        barHeight = (dataArray[i] / 255) * height
-        // Draw centered bars
-        const y = (height - barHeight) / 2
-        
-        // Rounded bars
-        roundRect(ctx, x, y, barWidth - 1, barHeight, 2)
-        ctx.fill()
-        
-        x += barWidth
-      }
-    }
-    draw()
-  }
-  
-  // Helper for rounded rect in canvas
-  function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
-    if (w < 2 * r) r = w / 2;
-    if (h < 2 * r) r = h / 2;
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.arcTo(x + w, y, x + w, y + h, r);
-    ctx.arcTo(x + w, y + h, x, y + h, r);
-    ctx.arcTo(x, y + h, x, y, r);
-    ctx.arcTo(x, y, x + w, y, r);
-    ctx.closePath();
-  }
+  //     const analyser = audioContext.createAnalyser()
+  //     analyserRef.current = analyser
+  //     analyser.fftSize = 2048
+      
+  //     const source = audioContext.createMediaStreamSource(streamRef.current)
+  //     sourceRef.current = source
+  //     source.connect(analyser)
+      
+  //     // Start loop
+  //     const visualize = () => {
+  //       const canvas = canvasRef.current
+  //       const analyser = analyserRef.current
+  //       if (!canvas || !analyser) return
+    
+  //       const ctx = canvas.getContext('2d')
+  //       if (!ctx) return
+    
+  //       const bufferLength = analyser.frequencyBinCount
+  //       const dataArray = new Uint8Array(bufferLength)
+    
+  //       const draw = () => {
+  //         animationFrameRef.current = requestAnimationFrame(draw)
+  //         analyser.getByteTimeDomainData(dataArray)
+    
+  //         const width = canvas.width
+  //         const height = canvas.height
+          
+  //         ctx.clearRect(0, 0, width, height)
+    
+  //         // Get primary color
+  //         const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#000'
+          
+  //         ctx.lineWidth = 2
+  //         ctx.strokeStyle = `hsl(${primaryColor})`
+  //         if (!ctx.strokeStyle || ctx.strokeStyle === '#000000') {
+  //            ctx.strokeStyle = '#f97316' 
+  //         }
+    
+  //         ctx.beginPath()
+    
+  //         const sliceWidth = width * 1.0 / bufferLength
+  //         let x = 0
+    
+  //         for (let i = 0; i < bufferLength; i++) {
+  //           const v = dataArray[i] / 128.0
+  //           const y = v * height / 2
+    
+  //           if (i === 0) {
+  //             ctx.moveTo(x, y)
+  //           } else {
+  //             ctx.lineTo(x, y)
+  //           }
+    
+  //           x += sliceWidth
+  //         }
+    
+  //         ctx.lineTo(canvas.width, canvas.height / 2)
+  //         ctx.stroke()
+  //       }
+  //       draw()
+  //     }
+      
+  //     visualize()
+  //   }
+    
+  //   // Cleanup on unmount or when recording stops
+  //   return () => {
+  //       if (animationFrameRef.current) {
+  //           cancelAnimationFrame(animationFrameRef.current)
+  //       }
+  //       if (audioContextRef.current) {
+  //           audioContextRef.current.close()
+  //       }
+  //   }
+  // }, [isRecording])
 
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop()
       setIsRecording(false)
+      onRecordingChange?.(false)
     }
   }
 
@@ -187,12 +215,16 @@ export function VoiceRecorder({ onTranscriptionComplete }: VoiceRecorderProps) {
       </Button>
       
       {isRecording && (
-        <canvas 
-          ref={canvasRef} 
-          width={100} 
-          height={24} 
-          className="rounded opacity-80"
-        />
+        <div className="w-[200px] h-8 flex items-center">
+          <MicrophoneWaveform 
+            active={isRecording}
+            height={32}
+            barWidth={2}
+            barGap={1}
+            barRadius={2}
+            className="w-full text-foreground"
+          />
+        </div>
       )}
     </div>
   )

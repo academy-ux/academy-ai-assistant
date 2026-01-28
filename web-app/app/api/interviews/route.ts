@@ -1,17 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { paginationSchema, validateSearchParams, errorResponse } from '@/lib/validation'
 
 // GET: List recent interviews
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams
-    const limit = parseInt(searchParams.get('limit') || '20')
-    const offset = parseInt(searchParams.get('offset') || '0')
+    const { data: params, error: validationError } = validateSearchParams(
+      request.nextUrl.searchParams,
+      paginationSchema
+    )
+    
+    if (validationError) return validationError
+    
+    const { limit, offset } = params
 
     const { data, error, count } = await supabase
       .from('interviews')
       .select('*', { count: 'exact' })
-      .order('created_at', { ascending: false })
+      .order('meeting_date', { ascending: false })
       .range(offset, offset + limit - 1)
 
     if (error) throw error
@@ -22,8 +28,7 @@ export async function GET(request: NextRequest) {
       limit,
       offset
     })
-  } catch (error: any) {
-    console.error('Error fetching interviews:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch (error) {
+    return errorResponse(error, 'Error fetching interviews')
   }
 }

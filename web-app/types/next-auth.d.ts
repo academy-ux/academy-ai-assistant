@@ -2,7 +2,8 @@ import 'next-auth'
 
 declare module 'next-auth' {
   interface Session {
-    accessToken?: string
+    // Note: accessToken is intentionally NOT exposed to client for security
+    error?: string
   }
 }
 
@@ -11,5 +12,6 @@ declare module 'next-auth/jwt' {
     accessToken?: string
     refreshToken?: string
     expiresAt?: number
+    error?: string
   }
 }

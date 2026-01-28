@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 import { google } from 'googleapis'
+import { z } from 'zod'
+import { validateSearchParams, errorResponse } from '@/lib/validation'
+
+const transcriptQuerySchema = z.object({
+  title: z.string().max(200).optional(),
+  code: z.string().max(50).regex(/^[a-zA-Z0-9\-]*$/, 'Invalid meeting code format').optional(),
+}).refine(data => data.title || data.code, {
+  message: 'Either title or code is required'
+})
 
 export async function GET(req: NextRequest) {
   try {
@@ -9,13 +18,14 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const searchParams = req.nextUrl.searchParams
-    const title = searchParams.get('title')
-    const code = searchParams.get('code')
+    // Validate query params
+    const { data: params, error: validationError } = validateSearchParams(
+      req.nextUrl.searchParams,
+      transcriptQuerySchema
+    )
+    if (validationError) return validationError
 
-    if (!title && !code) {
-      return NextResponse.json({ error: 'Missing title or code' }, { status: 400 })
-    }
+    const { title, code } = params
 
     const auth = new google.auth.OAuth2()
     auth.setCredentials({ access_token: token.accessToken as string })
@@ -24,11 +34,14 @@ export async function GET(req: NextRequest) {
 
     let query = "mimeType = 'application/vnd.google-apps.document' and trashed = false"
     
-    // Construct search query
-    // Google Meet transcripts usually contain the meeting code or title
+    // Construct search query - inputs are validated
     const conditions = []
     if (code) conditions.push(`name contains '${code}'`)
-    if (title) conditions.push(`name contains '${title}'`)
+    if (title) {
+      // Escape single quotes in title
+      const escapedTitle = title.replace(/'/g, "\\'")
+      conditions.push(`name contains '${escapedTitle}'`)
+    }
     
     if (conditions.length > 0) {
       query += ` and (${conditions.join(' or ')})`
@@ -61,8 +74,7 @@ export async function GET(req: NextRequest) {
       fileId: file.id
     })
 
-  } catch (error: any) {
-    console.error('Transcript fetch error:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch (error) {
+    return errorResponse(error, 'Transcript fetch error')
   }
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { generateEmbedding } from '@/lib/embeddings'
+import { leverSubmitSchema, validateBody, errorResponse } from '@/lib/validation'
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,12 +12,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Lever API not configured' }, { status: 500 })
     }
 
-    const body = await request.json()
+    const { data: body, error: validationError } = await validateBody(request, leverSubmitSchema)
+    if (validationError) return validationError
+
     const { 
       opportunityId, 
       templateId, 
       feedback,
-      // Extra fields for Supabase
       transcript,
       meetingTitle,
       meetingCode,
@@ -24,33 +26,29 @@ export async function POST(request: NextRequest) {
       position
     } = body
 
-    if (!opportunityId || !templateId || !feedback) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
-    }
-
     // Format feedback text
     const feedbackText = `
 Rating: ${feedback.rating}
 
 Strengths:
-${feedback.strengths}
+${feedback.strengths || 'Not provided'}
 
 Concerns:
-${feedback.concerns}
+${feedback.concerns || 'Not provided'}
 
 Technical Skills:
-${feedback.technicalSkills}
+${feedback.technicalSkills || 'Not provided'}
 
 Cultural Fit:
-${feedback.culturalFit}
+${feedback.culturalFit || 'Not provided'}
 
 Recommendation:
-${feedback.recommendation}
+${feedback.recommendation || 'Not provided'}
     `.trim()
 
     // 1. Submit to Lever
     const response = await fetch(
-      `https://api.lever.co/v1/opportunities/${opportunityId}/feedback?perform_as=${leverUserId}`,
+      `https://api.lever.co/v1/opportunities/${encodeURIComponent(opportunityId)}/feedback?perform_as=${encodeURIComponent(leverUserId)}`,
       {
         method: 'POST',
         headers: {
@@ -67,15 +65,15 @@ ${feedback.recommendation}
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
-      throw new Error(`Lever API error: ${response.status} - ${JSON.stringify(errorData)}`)
+      console.error('Lever API error:', response.status, errorData)
+      throw new Error(`Lever API error: ${response.status}`)
     }
 
     const data = await response.json()
 
-    // 2. Save to Supabase (Fire and forget, or await? Await is safer for now)
+    // 2. Save to Supabase
     if (transcript) {
       try {
-        // Generate embedding
         const embedding = await generateEmbedding(transcript)
 
         const { error: dbError } = await supabase
@@ -89,7 +87,7 @@ ${feedback.recommendation}
             position: position,
             transcript: transcript,
             rating: feedback.rating,
-            summary: feedback.recommendation, // Use recommendation as summary for now
+            summary: feedback.recommendation,
             embedding: embedding
           })
 
@@ -104,11 +102,7 @@ ${feedback.recommendation}
 
     return NextResponse.json({ success: true, data })
 
-  } catch (error: any) {
-    console.error('Lever submit error:', error)
-    return NextResponse.json({
-      error: 'Failed to submit feedback',
-      message: error.message
-    }, { status: 500 })
+  } catch (error) {
+    return errorResponse(error, 'Lever submit error')
   }
 }

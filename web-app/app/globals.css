@@ -4,85 +4,103 @@
 
 @layer base {
   :root {
-    /* Academy UX "Sage & Stone" Palette */
+    /* Academy Brand Colors */
+    --charcoal: #272727;
+    --even-darker-olive: #a4a794;
+    --darker-olive: #b5b8a9;
+    --medium-dark-olive: #c5c9b8;
+    --medium-olive: #cdd0c3;
+    --light-olive: #d9dbd2;
+    --even-lighter-olive: #e3e5de;
+    --darkest-green: #8f917f;
+    --grey: #8a8a8a;
+    --dim-grey: #575757;
+    --pale-goldenrod: #e6fea5;
+    --peach: 24 66% 76%;
     
-    /* Background: More neutral/putty/stone, less green */
-    --background: 45 10% 92%;  /* Warm stone */
-    --foreground: 0 0% 10%;    /* Sharper black */
+    /* Background: Even lighter olive */
+    --background: 77 12% 88%;
+    --foreground: 0 0% 15%;
 
-    /* Cards: Slightly lighter/transparent to blend */
-    --card: 45 10% 92%; 
-    --card-foreground: 0 0% 10%;
+    /* Cards: White */
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 15%;
 
-    --popover: 45 10% 92%;
-    --popover-foreground: 0 0% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 15%;
 
-    /* Primary: Peach (New Highlight) */
-    --primary: 25 57% 73%; /* #e2b494 */
-    --primary-foreground: 20 14% 4%; /* Dark text on light peach */
+    /* Primary: Darkest green/olive */
+    --primary: 67 8% 53%;
+    --primary-foreground: 0 0% 100%;
 
-    --peach: #e2b494; /* Defining variable for usage */
+    /* Secondary: Light olive */
+    --secondary: 78 10% 84%;
+    --secondary-foreground: 0 0% 15%;
 
-    /* Secondary: Darker Sage or Stone */
-    --secondary: 100 5% 80%;
-    --secondary-foreground: 24 9.8% 10%;
+    /* Muted: Medium olive */
+    --muted: 75 11% 79%;
+    --muted-foreground: 0 0% 34%;
 
-    --muted: 100 5% 80%;
-    --muted-foreground: 150 2% 40%;
+    /* Accent: Peach for highlights (M3) */
+    --accent: 24 66% 76%;
+    --accent-foreground: 0 0% 15%;
 
-    --accent: 25 57% 73%;
-    --accent-foreground: 20 14% 4%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 60 9.1% 97.8%;
+    /* Border: Darker olive */
+    --border: 72 7% 69%;
+    --input: 72 7% 69%;
+    --ring: 67 8% 53%;
 
-    --border: 150 2% 70%; /* Subtle dark border */
-    --input: 150 2% 70%;
-    --ring: 25 57% 73%;
-
-    --radius: 0rem; /* Sharper corners like the site */
+    /* Modern rounded corners - M3 Base (Card radius) */
+    --radius: 0.75rem;
     
-    /* Use Neue Haas for everything */
-    --font-display: "neue-haas-grotesk-display", sans-serif;
+    /* Typography - Newhouse Grotesque from Adobe Fonts */
+    --font-sans: "neue-haas-grotesk-display", "SF Pro Display", system-ui, sans-serif;
   }
 
-  /* Force Neue Haas everywhere */
   body {
-    font-family: "neue-haas-grotesk-text", sans-serif;
+    font-family: var(--font-sans);
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: "neue-haas-grotesk-display", sans-serif;
+    font-family: var(--font-sans);
+    letter-spacing: -0.02em;
   }
 
   .dark {
-    --background: 150 5% 10%;
-    --foreground: 100 8% 88%;
+    /* Dark mode using charcoal base */
+    --background: 0 0% 15%;
+    --foreground: 77 12% 88%;
 
-    --card: 150 5% 12%;
-    --card-foreground: 100 8% 88%;
+    --card: 0 0% 18%;
+    --card-foreground: 77 12% 88%;
 
-    --popover: 150 5% 12%;
-    --popover-foreground: 100 8% 88%;
+    --popover: 0 0% 18%;
+    --popover-foreground: 77 12% 88%;
 
-    --primary: 25 57% 73%;
-    --primary-foreground: 20 14% 4%;
+    --primary: 78 10% 84%;
+    --primary-foreground: 0 0% 15%;
 
-    --secondary: 150 5% 15%;
-    --secondary-foreground: 100 8% 88%;
+    --secondary: 0 0% 22%;
+    --secondary-foreground: 77 12% 88%;
 
-    --muted: 150 5% 15%;
-    --muted-foreground: 100 5% 60%;
+    --muted: 0 0% 22%;
+    --muted-foreground: 0 0% 54%;
 
-    --accent: 150 5% 15%;
-    --accent-foreground: 100 8% 88%;
+    --accent: 24 66% 76%;
+    --accent-foreground: 0 0% 15%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 100 8% 88%;
+    --destructive: 0 62% 40%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 150 5% 20%;
-    --input: 150 5% 20%;
-    --ring: 25 57% 73%;
+    --border: 0 0% 25%;
+    --input: 0 0% 25%;
+    --ring: 78 10% 84%;
   }
 }
 
@@ -96,44 +114,83 @@
 }
 
 @layer components {
+  /* Modern link button style */
   .link-primary {
-    grid-column-gap: 0px;
-    grid-row-gap: 0px;
-    background-color: var(--peach);
-    opacity: 1;
-    cursor: pointer;
-    object-fit: fill;
-    border: 1px solid #e2b494;
-    border-radius: 4px;
-    flex-direction: row;
-    flex: 0 auto;
-    grid-template-rows: auto auto;
-    grid-template-columns: 1fr 1fr;
-    grid-auto-columns: 1fr;
-    justify-content: flex-start;
-    align-items: center;
-    padding: .1em .5em;
-    text-decoration: none;
-    transition: all 1s cubic-bezier(.165, .84, .44, 1);
-    display: flex;
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg;
+    @apply bg-primary text-primary-foreground;
+    @apply border border-primary/20;
+    @apply transition-all duration-200 ease-out;
+    @apply hover:brightness-105 hover:shadow-sm;
+    @apply active:scale-[0.98];
   }
-  
-  .link-primary:hover {
-    filter: brightness(0.95);
+
+  /* Subtle glass effect for cards */
+  .glass-card {
+    @apply bg-card/80 backdrop-blur-sm;
+    @apply border border-border/60;
+    @apply shadow-sm;
+  }
+
+  /* Interactive card hover */
+  .card-interactive {
+    @apply transition-all duration-200 ease-out;
+    @apply hover:shadow-md hover:border-border;
+    @apply hover:-translate-y-0.5;
+  }
+
+  /* Smooth focus ring */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-ring/30 focus:ring-offset-2 focus:ring-offset-background;
   }
 }
 
-/* Custom Utilities for Academy Style */
+/* Typography utilities */
 .font-display {
-  font-family: "neue-haas-grotesk-display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family: var(--font-display);
   font-weight: 500;
+  letter-spacing: -0.02em;
 }
 
 .font-grotesk {
-  font-family: "neue-haas-grotesk-display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family: var(--font-display);
   font-weight: 500;
 }
 
 .font-sans {
-  font-family: "neue-haas-grotesk-text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family: var(--font-sans);
+}
+
+/* Smooth scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Selection styling */
+::selection {
+  background: hsl(var(--primary) / 0.3);
+  color: hsl(var(--foreground));
+}
+
+/* Hide scrollbar utility */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }

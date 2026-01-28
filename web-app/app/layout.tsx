@@ -1,10 +1,8 @@
 import './globals.css'
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
 import { Providers } from './providers'
 import { Navbar } from '@/components/navbar'
-
-const inter = Inter({ subsets: ['latin'], variable: '--font-sans' })
+import { AppErrorBoundary } from '@/components/app-error-boundary'
 
 export const metadata: Metadata = {
   title: 'Academy Interview Assistant',
@@ -21,14 +19,16 @@ export default function RootLayout({
       <head>
         <link rel="stylesheet" href="https://use.typekit.net/piz1fwl.css" />
       </head>
-      <body className={`${inter.variable} font-sans bg-background text-foreground antialiased`}>
+      <body className="font-sans bg-background text-foreground antialiased">
         <Providers>
-          <div className="min-h-screen flex flex-col">
-            <Navbar />
-            <main className="flex-1">
-              {children}
-            </main>
-          </div>
+          <AppErrorBoundary>
+            <div className="min-h-screen flex flex-col">
+              <Navbar />
+              <main className="flex-1">
+                {children}
+              </main>
+            </div>
+          </AppErrorBoundary>
         </Providers>
       </body>
     </html>

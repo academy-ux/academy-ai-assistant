@@ -1,14 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { generateEmbedding } from '@/lib/embeddings'
+import { searchQuerySchema, validateBody, errorResponse } from '@/lib/validation'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
   try {
-    const { query, searchType = 'hybrid', limit = 20 } = await request.json()
+    // Rate limit search endpoints
+    const { success, response: rateLimitResponse } = await checkRateLimit(request, 'search')
+    if (!success && rateLimitResponse) return rateLimitResponse
 
-    if (!query) {
-      return NextResponse.json({ error: 'Query is required' }, { status: 400 })
-    }
+    const { data: body, error: validationError } = await validateBody(request, searchQuerySchema)
+    if (validationError) return validationError
+
+    const { query, searchType, limit } = body
 
     let results: any[] = []
 
@@ -17,24 +22,19 @@ export async function POST(request: NextRequest) {
       const queryEmbedding = await generateEmbedding(query)
 
       // Semantic search using vector similarity
-      // Note: match_interviews function must exist in Supabase
       const { data: semanticResults, error: semanticError } = await supabase
         .rpc('match_interviews', {
           query_embedding: queryEmbedding,
-          match_threshold: 0.5, // Adjust threshold as needed
+          match_threshold: 0.5,
           match_count: limit
         })
 
       if (semanticError) throw semanticError
       results = semanticResults || []
     } 
-    
-    // If we wanted to add keyword search or hybrid logic, we could do it here
-    // For now, we'll stick to the semantic results from the vector store
 
     return NextResponse.json({ results })
-  } catch (error: any) {
-    console.error('Error searching interviews:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch (error) {
+    return errorResponse(error, 'Error searching interviews')
   }
 }

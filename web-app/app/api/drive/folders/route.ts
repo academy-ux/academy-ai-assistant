@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 import { google } from 'googleapis'
+import { driveQuerySchema, validateSearchParams, errorResponse } from '@/lib/validation'
 
 export async function GET(req: NextRequest) {
   try {
     const token = await getToken({ req })
-    const url = new URL(req.url)
-    const query = url.searchParams.get('q') || ''
     
     if (!token) {
       return NextResponse.json({ error: 'Not authenticated. Please sign in again.' }, { status: 401 })
@@ -18,23 +17,33 @@ export async function GET(req: NextRequest) {
       }, { status: 401 })
     }
 
+    // Validate query parameter
+    const { data: params, error: validationError } = validateSearchParams(
+      req.nextUrl.searchParams,
+      driveQuerySchema
+    )
+    if (validationError) return validationError
+
+    const query = params.q
+
     const auth = new google.auth.OAuth2()
     auth.setCredentials({ access_token: token.accessToken as string })
     const drive = google.drive({ version: 'v3', auth })
 
-    // Build query
-    // Always filter for folders and not trashed
+    // Build query - query is already validated to be alphanumeric
     let q = "mimeType = 'application/vnd.google-apps.folder' and trashed = false"
     
     if (query) {
-      // If user is searching, look for name contains
-      q += ` and name contains '${query.replace(/'/g, "\\'")}'`
+      // Safe to use since we validated it only contains alphanumeric chars
+      q += ` and name contains '${query}'`
     }
+
+    const fields = 'files(id, name, createdTime, modifiedTime, owners(displayName, emailAddress), shared)'
 
     const response = await drive.files.list({
       q: q,
-      fields: 'files(id, name, createdTime)',
-      orderBy: 'folder,name', // Folders first (redundant since we only fetch folders), then name
+      fields: fields,
+      orderBy: 'folder,modifiedTime desc',
       pageSize: 50,
     })
 
@@ -47,27 +56,25 @@ export async function GET(req: NextRequest) {
         const meetFolder = folders.splice(meetIndex, 1)[0]
         folders.unshift(meetFolder)
       } else {
-        // If not found in the first 50, try to search for it specifically
         try {
           const meetRes = await drive.files.list({
             q: "name = 'Meet Recordings' and mimeType = 'application/vnd.google-apps.folder' and trashed = false",
-            fields: 'files(id, name, createdTime)',
+            fields: fields,
           })
           if (meetRes.data.files && meetRes.data.files.length > 0) {
-             folders.unshift(meetRes.data.files[0])
+             meetRes.data.files.sort((a, b) => {
+               return (new Date(b.modifiedTime || 0).getTime()) - (new Date(a.modifiedTime || 0).getTime())
+             })
+             folders.unshift(...meetRes.data.files)
           }
         } catch (e) {
           // Ignore error if specific search fails
-          console.log('Could not find Meet Recordings folder explicitly')
         }
       }
     }
 
-    console.log(`Drive folders found (${query ? 'search' : 'default'}):`, folders.length)
     return NextResponse.json({ folders })
   } catch (error: any) {
-    console.error('Drive folders error:', error)
-    
     // Check for specific Google API errors
     if (error.code === 401 || error.message?.includes('invalid_grant')) {
       return NextResponse.json({ 
@@ -81,6 +88,6 @@ export async function GET(req: NextRequest) {
       }, { status: 403 })
     }
     
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return errorResponse(error, 'Drive folders error')
   }
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { errorResponse } from '@/lib/validation'
 
 export async function GET() {
   try {
@@ -23,13 +24,12 @@ export async function GET() {
 
     if (postingsResponse.ok) {
       const postingsData = await postingsResponse.json()
-      console.log('Active Lever postings found:', postingsData.data?.length || 0)
       
       // Use actual job postings if available (already filtered to published)
       for (const posting of postingsData.data || []) {
         postings.push({
           id: posting.id,
-          text: posting.text, // This is the job title
+          text: posting.text,
           team: posting.categories?.team || '',
           location: posting.categories?.location || '',
           state: posting.state,
@@ -74,18 +74,13 @@ export async function GET() {
     }
 
     // Fallback: No postings found, return empty with message
-    console.log('No job postings found in Lever')
     return NextResponse.json({ 
       success: true, 
       postings: [],
       message: 'No job postings found. Create postings in Lever first.'
     })
 
-  } catch (error: any) {
-    console.error('Lever postings error:', error)
-    return NextResponse.json({
-      error: 'Failed to load postings',
-      message: error.message
-    }, { status: 500 })
+  } catch (error) {
+    return errorResponse(error, 'Lever postings error')
   }
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { errorResponse } from '@/lib/validation'
 
 export async function GET() {
   try {
@@ -9,10 +10,6 @@ export async function GET() {
       return NextResponse.json({ error: 'Lever API key not configured' }, { status: 500 })
     }
 
-    console.log('Fetching feedback templates from Lever...')
-
-    // Revert to correct snake_case endpoint: feedback_templates
-    // Removed ?include=fields because it might be restricting the response fields
     const response = await fetch(
       'https://api.lever.co/v1/feedback_templates',
       {
@@ -25,17 +22,15 @@ export async function GET() {
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.error('Lever API error:', response.status, errorText)
-      throw new Error(`Lever API error: ${response.status} - ${errorText}`)
+      console.error('Lever API error:', response.status)
+      throw new Error(`Lever API error: ${response.status}`)
     }
 
     const data = await response.json()
-    console.log('Lever feedback_templates raw response:', JSON.stringify(data).slice(0, 500))
-    console.log('Total templates from Lever:', data.data?.length || 0)
 
     // Transform data for frontend, filtering out any with undefined name
     const templates = (data.data || [])
-      .filter((template: any) => template.text) // Only include templates with a name
+      .filter((template: any) => template.text)
       .map((template: any) => ({
         id: template.id,
         name: template.text || 'Unnamed Template',
@@ -50,20 +45,9 @@ export async function GET() {
         })),
       }))
 
-    console.log('Processed templates count:', templates.length)
-    if (templates.length > 0) {
-      console.log('First template:', templates[0].name)
-    }
-
     return NextResponse.json({ success: true, templates })
 
-  } catch (error: any) {
-    console.error('Lever templates error:', error)
-    return NextResponse.json({
-      success: false,
-      error: 'Failed to load templates',
-      message: error.message,
-      templates: [] // Return empty array so frontend doesn't crash
-    }, { status: 500 })
+  } catch (error) {
+    return errorResponse(error, 'Lever templates error')
   }
 }
