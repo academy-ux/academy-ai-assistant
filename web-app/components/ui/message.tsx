@@ -41,8 +41,8 @@ const MessageContent = React.forwardRef<HTMLDivElement, MessageContentProps>(
           "max-w-[85%] rounded-2xl",
           variant === "contained" && [
             "px-4 py-3",
-            "group-data-[from=user]:bg-primary group-data-[from=user]:text-primary-foreground group-data-[from=user]:rounded-tr-sm",
-            "group-data-[from=assistant]:bg-muted/50 group-data-[from=assistant]:border group-data-[from=assistant]:border-border/50 group-data-[from=assistant]:rounded-tl-sm",
+            "group-data-[from=user]:bg-peach group-data-[from=user]:text-foreground group-data-[from=user]:rounded-tr-sm",
+            "group-data-[from=assistant]:bg-card/40 group-data-[from=assistant]:border group-data-[from=assistant]:border-border/40 group-data-[from=assistant]:rounded-tl-sm group-data-[from=assistant]:backdrop-blur-sm",
           ],
           variant === "flat" && [
             "group-data-[from=assistant]:bg-transparent",

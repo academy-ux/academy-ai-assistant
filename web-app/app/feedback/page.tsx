@@ -129,6 +129,13 @@ function FeedbackContent() {
 
   async function fetchTranscript() {
     try {
+      // Don't attempt to fetch if we don't have any search parameters
+      if (!meetingTitle && !meetingCode) {
+        setTranscriptError('No meeting title or code provided')
+        setTranscriptLoading(false)
+        return
+      }
+
       const params = new URLSearchParams()
       if (meetingTitle) params.set('title', meetingTitle)
       if (meetingCode) params.set('code', meetingCode)
@@ -298,12 +305,14 @@ function FeedbackContent() {
     const candidate = candidates.find(c => c.id === selectedCandidate)
 
     try {
+      // Map dynamic answers to the expected backend format
       const formattedFeedback = {
-         answers: Object.entries(dynamicAnswers).map(([key, value]) => ({
-            text: key,
-            value: value
-         })),
-         raw: dynamicAnswers
+        rating: dynamicAnswers['Rating'] || '',
+        strengths: dynamicAnswers['Strengths'] || '',
+        concerns: dynamicAnswers['Concerns'] || '',
+        technicalSkills: dynamicAnswers['Technical Skills'] || '',
+        culturalFit: dynamicAnswers['Cultural Fit'] || '',
+        recommendation: dynamicAnswers['Recommendation'] || '',
       }
 
       const res = await fetch('/api/lever/submit', {

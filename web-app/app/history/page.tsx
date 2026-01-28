@@ -20,6 +20,7 @@ import { MagicWandIcon } from '@/components/icons/magic-wand'
 import { VoiceRecorder } from '@/components/voice-recorder'
 import { Message, MessageContent, MessageAvatar } from '@/components/ui/message'
 import { Response } from '@/components/ui/response'
+import { ShimmeringText } from '@/components/ui/shimmering-text'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
@@ -499,9 +500,9 @@ export default function HistoryPage() {
   }
 
   // Get unique values for filters
-  const positions = Array.from(new Set(meetings.map(m => m.position).filter(Boolean))).sort()
-  const interviewers = Array.from(new Set(meetings.map(m => m.interviewer).filter(Boolean))).sort()
-  const candidates = Array.from(new Set(meetings.map(m => m.candidate_name).filter(Boolean))).sort()
+  const positions = Array.from(new Set(meetings.map(m => m.position).filter((p): p is string => Boolean(p)))).sort()
+  const interviewers = Array.from(new Set(meetings.map(m => m.interviewer).filter((i): i is string => Boolean(i)))).sort()
+  const candidates = Array.from(new Set(meetings.map(m => m.candidate_name).filter((c): c is string => Boolean(c)))).sort()
 
   // Apply filters to meetings
   const filteredMeetings = meetings
@@ -1173,13 +1174,15 @@ export default function HistoryPage() {
                     {/* Loading indicator for new response */}
                     {asking && (
                       <Message from="assistant" className="animate-fade-in-right">
-                        <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center flex-shrink-0 border border-primary/10 animate-glow-pulse">
+                        <div className="h-8 w-8 rounded-full bg-peach/20 flex items-center justify-center flex-shrink-0 border border-peach/30 animate-glow-pulse">
                           <MagicWandIcon size={14} className="text-primary animate-pulse" />
                         </div>
                         <MessageContent variant="flat">
-                          <div className="flex items-center gap-3 text-muted-foreground py-2">
-                            <Spinner size={16} />
-                            <span className="text-sm">Analyzing {totalCount} meetings...</span>
+                          <div className="flex items-center gap-3 py-2">
+                            <ShimmeringText 
+                              text="Analyzing your meetings..." 
+                              className="text-sm text-muted-foreground"
+                            />
                           </div>
                         </MessageContent>
                       </Message>
@@ -1249,21 +1252,24 @@ export default function HistoryPage() {
                         </div>
                         
                         {/* Send button */}
-                        <div className="flex items-center pr-2.5 pb-2.5">
+                        <div className="flex items-center justify-center pr-2.5 pb-2.5">
                           <button 
                             type="submit"
                             disabled={asking || !aiQuestion.trim()}
                             className={cn(
-                              "h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-all duration-200",
+                              "h-9 w-9 rounded-xl inline-flex items-center justify-center flex-shrink-0 transition-all duration-200",
                               aiQuestion.trim() 
-                                ? "text-primary hover:bg-primary/10" 
+                                ? "bg-peach text-foreground hover:bg-peach/80" 
                                 : "text-muted-foreground/30"
                             )}
                           >
-                            <Send className={cn(
-                              "h-4 w-4 transition-transform duration-200",
-                              aiQuestion.trim() && "-rotate-45"
-                            )} />
+                            <Send 
+                              className={cn(
+                                "h-[18px] w-[18px] transition-transform duration-200",
+                                aiQuestion.trim() && "-rotate-45 translate-y-[2px]"
+                              )}
+                              strokeWidth={2}
+                            />
                           </button>
                         </div>
                       </>
