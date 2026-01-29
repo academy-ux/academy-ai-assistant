@@ -334,8 +334,10 @@ panel.innerHTML = `
     }
     
     .academy-auth-status.not-authenticated {
-      background: linear-gradient(to bottom, hsl(0, 60%, 94%), hsl(0, 55%, 90%));
-      border-top-color: hsl(0, 50%, 75%);
+      background: rgba(239, 68, 68, 0.75);
+      backdrop-filter: blur(15px);
+      -webkit-backdrop-filter: blur(15px);
+      border-top-color: rgba(239, 68, 68, 0.5);
     }
     
     .academy-auth-icon {
@@ -364,7 +366,8 @@ panel.innerHTML = `
     }
     
     .academy-auth-status.not-authenticated .academy-auth-label {
-      color: #dc2626;
+      color: #ffffff;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
     }
     
     .academy-auth-user {
@@ -374,6 +377,11 @@ panel.innerHTML = `
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+    
+    .academy-auth-status.not-authenticated .academy-auth-user {
+      color: rgba(255, 255, 255, 0.95);
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
     }
     
     .academy-auth-button {
@@ -562,13 +570,13 @@ function updateAuthStatus(authData) {
     container.className = 'academy-auth-status not-authenticated';
     container.innerHTML = `
       <svg class="academy-auth-icon" viewBox="0 0 16 16" fill="none">
-        <circle cx="8" cy="8" r="7" stroke="#ef4444" stroke-width="2"/>
-        <path d="M8 4V9" stroke="#ef4444" stroke-width="2" stroke-linecap="round"/>
-        <circle cx="8" cy="11.5" r="0.5" fill="#ef4444" stroke="#ef4444"/>
+        <circle cx="8" cy="8" r="7" stroke="white" stroke-width="2"/>
+        <path d="M8 4V9" stroke="white" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="8" cy="11.5" r="0.5" fill="white" stroke="white"/>
       </svg>
       <div class="academy-auth-info">
         <div class="academy-auth-label">Not Logged In</div>
-        <div class="academy-auth-user" style="font-size: 10px; color: #8a8a8a;">Transcripts won't be saved</div>
+        <div class="academy-auth-user">Transcripts won't be saved</div>
       </div>
       <a href="https://academy-ai-assistant.vercel.app/" target="_blank" class="academy-auth-button">
         Login

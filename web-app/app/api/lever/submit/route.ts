@@ -46,6 +46,9 @@ export async function POST(request: NextRequest) {
       fieldValuesCount: Array.isArray(fieldValues) ? fieldValues.length : null,
       fieldValueIdsPreview: Array.isArray(fieldValues) ? fieldValues.slice(0, 8).map((fv: any) => fv?.id).filter(Boolean) : null,
     })
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/e9fe012d-75cb-4528-8bd7-ab7d06b4d4db',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'submit/route.ts:49',message:'fieldValues with question marks',data:{questionMarkFields:Array.isArray(fieldValues)?fieldValues.filter((fv:any)=>fv?.value==='?').map((fv:any)=>fv?.id):[],allFieldValues:Array.isArray(fieldValues)?fieldValues.map((fv:any)=>({id:fv?.id,valuePreview:typeof fv?.value==='string'?fv.value.slice(0,30):fv?.value})):null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
 
     const response = await fetch(
       `https://api.lever.co/v1/opportunities/${encodeURIComponent(opportunityId)}/feedback?perform_as=${encodeURIComponent(leverUserId)}`,
@@ -72,12 +75,20 @@ export async function POST(request: NextRequest) {
           ])
 
           const templateData = (templateRes as any)?.data
-          const templateFields = Array.isArray(templateData?.fields) ? templateData.fields : []
+          // #region agent log
+          fetch('http://127.0.0.1:7244/ingest/e9fe012d-75cb-4528-8bd7-ab7d06b4d4db',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'submit/route.ts:75',message:'templateRes structure',data:{hasData:!!templateData,dataKeys:templateData?Object.keys(templateData):null,hasNestedData:!!(templateData as any)?.data,nestedDataKeys:(templateData as any)?.data?Object.keys((templateData as any).data):null,fieldsAtRoot:Array.isArray(templateData?.fields),fieldsNested:Array.isArray((templateData as any)?.data?.fields)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+          // #endregion
+          // Fix: Lever wraps response in { data: { ... } }, so fields are at data.data.fields
+          const actualTemplateData = templateData?.data || templateData
+          const templateFields = Array.isArray(actualTemplateData?.fields) ? actualTemplateData.fields : []
           const templateFieldIds = templateFields.map((f: any) => f?.id).filter(Boolean)
           const requiredFieldIds = templateFields.filter((f: any) => !!f?.required || String(f?.type || '').toLowerCase() === 'score-system').map((f: any) => f?.id).filter(Boolean)
           const submittedIds = Array.isArray(fieldValues) ? fieldValues.map((fv: any) => fv?.id).filter(Boolean) : []
           const missingRequired = requiredFieldIds.filter((id: any) => !submittedIds.includes(id))
           const unknownSubmitted = submittedIds.filter((id: any) => templateFieldIds.length > 0 && !templateFieldIds.includes(id))
+          // #region agent log
+          fetch('http://127.0.0.1:7244/ingest/e9fe012d-75cb-4528-8bd7-ab7d06b4d4db',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'submit/route.ts:85',message:'template fields analysis',data:{templateFieldCount:templateFields.length,templateFieldIds,requiredFieldIds,submittedIds,missingRequired,unknownSubmitted,scoreFields:templateFields.filter((f:any)=>f?.type==='score-system').map((f:any)=>({id:f.id,text:f.text,options:f.options}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,C'})}).catch(()=>{});
+          // #endregion
 
           diagnostics = {
             performAsUser: { id: leverUserId, ok: userRes.ok, status: userRes.status },
