@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
     baseParams.append('expand', 'contact')
     baseParams.append('expand', 'stage')
     baseParams.append('expand', 'applications')
+    baseParams.append('confidentiality', 'all') // Get both confidential AND non-confidential
 
     if (postingId && postingId !== '__uncategorized__') {
       baseParams.append('posting_id', postingId)
