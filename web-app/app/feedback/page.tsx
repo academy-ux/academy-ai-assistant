@@ -891,12 +891,17 @@ function FeedbackContent() {
       }
 
       const nextFieldErrors: Record<string, string> = {}
+      const isOptionField = (f: TemplateField) => {
+        const t = String(f.type || '').toLowerCase()
+        return t === 'score-system' || t === 'score' || t === 'dropdown' || t === 'multiple-choice' || t === 'yes-no'
+      }
       for (const f of currentTemplate.fields) {
         if (!f.required) continue
         const v = dynamicAnswers[f.text]
         const isBlank =
           v === undefined ||
           v === null ||
+          (v === '?' && isOptionField(f)) ||
           (typeof v === 'string' && v.trim() === '') ||
           (Array.isArray(v) && v.length === 0)
         if (isBlank) nextFieldErrors[f.text] = 'Required'
@@ -912,6 +917,9 @@ function FeedbackContent() {
         if (raw === undefined || raw === null) return null
         if (typeof raw === 'string' && raw.trim() === '') return null
 
+        // Lever option-based fields must match one of the option texts; "?" isn't valid there.
+        if (raw === '?' && isOptionField(f)) return null
+
         if (f.type === 'multiple-select') {
           if (Array.isArray(raw)) return raw
           if (typeof raw === 'string') {
@@ -926,10 +934,17 @@ function FeedbackContent() {
         return raw
       }
 
-      const fieldValues = currentTemplate.fields.map((f) => ({
-        id: f.id,
-        value: toLeverValue(f, dynamicAnswers[f.text]),
-      }))
+      const fieldValues = currentTemplate.fields
+        .map((f) => {
+          const value = toLeverValue(f, dynamicAnswers[f.text])
+          return { id: f.id, value }
+        })
+        .filter((fv) => {
+          if (fv.value === null || fv.value === undefined) return false
+          if (typeof fv.value === 'string' && fv.value.trim() === '') return false
+          if (Array.isArray(fv.value) && fv.value.length === 0) return false
+          return true
+        })
 
       // Keep the legacy summary fields for Supabase indexing/summary
       const ratingField = currentTemplate.fields.find((f) => f.type === 'score-system' || f.text.toLowerCase().includes('rating'))

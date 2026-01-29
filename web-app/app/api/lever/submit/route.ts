@@ -64,6 +64,7 @@ export async function POST(request: NextRequest) {
         {
           success: false,
           error: leverCode ? `${leverCode}: ${leverMessage}` : leverMessage,
+          details: errorData || errorText,
         },
         { status: response.status }
       )
