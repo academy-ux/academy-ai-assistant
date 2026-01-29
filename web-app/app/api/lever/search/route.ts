@@ -47,32 +47,53 @@ export async function GET(request: NextRequest) {
 
     const searchQuery = params.q.toLowerCase().trim()
 
-    // Fetch opportunities with contact info and applications
-    // Include ALL pipeline stages (active, archived, etc.) and increase limit
-    const leverParams = new URLSearchParams()
-    leverParams.append('limit', '500') // Increase to 500 to catch more candidates
-    leverParams.append('expand', 'contact')
-    leverParams.append('expand', 'stage')
-    leverParams.append('expand', 'applications')
-    // Don't filter by stage - get all opportunities including archived
-    // leverParams.append('archived', 'false') - Don't add this!
+    // Fetch ALL opportunities with pagination
+    // Include active AND archived to find candidates in any state
+    const allOpportunities: any[] = []
+    let hasMore = true
+    let offset: string | null = null
+    let pageCount = 0
+    const MAX_PAGES = 10 // Safety limit: 10 pages × 500 = 5000 opportunities max
 
-    const response = await fetch(
-      `https://api.lever.co/v1/opportunities?${leverParams.toString()}`,
-      {
-        headers: {
-          'Authorization': `Basic ${Buffer.from(leverKey + ':').toString('base64')}`,
-          'Content-Type': 'application/json',
-        },
+    console.log('[Lever Search] Starting search for:', searchQuery)
+
+    while (hasMore && pageCount < MAX_PAGES) {
+      const leverParams = new URLSearchParams()
+      leverParams.append('limit', '500')
+      leverParams.append('expand', 'contact')
+      leverParams.append('expand', 'stage')
+      leverParams.append('expand', 'applications')
+      if (offset) {
+        leverParams.append('offset', offset)
       }
-    )
 
-    if (!response.ok) {
-      throw new Error(`Lever API error: ${response.status}`)
+      const response = await fetch(
+        `https://api.lever.co/v1/opportunities?${leverParams.toString()}`,
+        {
+          headers: {
+            'Authorization': `Basic ${Buffer.from(leverKey + ':').toString('base64')}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error(`Lever API error: ${response.status}`)
+      }
+
+      const data = await response.json()
+      const pageOpps = data.data || []
+      allOpportunities.push(...pageOpps)
+      
+      pageCount++
+      hasMore = data.hasNext || false
+      offset = data.next || null
+      
+      console.log(`[Lever Search] Page ${pageCount}: Got ${pageOpps.length} opportunities (total: ${allOpportunities.length}, hasMore: ${hasMore})`)
     }
 
-    const data = await response.json()
-    const opportunities = data.data || []
+    console.log(`[Lever Search] Fetched ${allOpportunities.length} total opportunities across ${pageCount} pages`)
+    const opportunities = allOpportunities
 
     // Search by name (fuzzy match with multiple strategies)
     const matches = opportunities.filter((opp: any) => {
@@ -99,6 +120,14 @@ export async function GET(request: NextRequest) {
       
       return false
     })
+
+    console.log(`[Lever Search] Found ${matches.length} matches for query: "${searchQuery}"`)
+    if (matches.length > 0) {
+      console.log('[Lever Search] First 3 matches:', matches.slice(0, 3).map((m: any) => m.name))
+    } else {
+      // Log some sample names to help debug
+      console.log('[Lever Search] No matches. Sample names from DB:', opportunities.slice(0, 10).map((o: any) => o.name))
+    }
 
     // Transform matches to include useful info
     const candidates = matches.map((opp: any) => {
