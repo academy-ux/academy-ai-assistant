@@ -95,33 +95,37 @@ function addTestButton() {
   addButton();
 }
 
-// Check if user is logged into the web app
+// Check if user is logged into the web app (via background script)
 async function checkAuthStatus() {
   try {
     console.log('[Academy] Checking authentication status...');
     
-    const API_BASE = 'https://academy-ai-assistant.vercel.app';
-    const response = await fetch(`${API_BASE}/api/auth/check`, {
-      credentials: 'include', // Include cookies for session
-      headers: {
-        'Content-Type': 'application/json',
-      },
+    // Check if extension context is valid
+    if (!chrome || !chrome.runtime || !chrome.runtime.sendMessage) {
+      console.error('[Academy] Extension context lost - cannot check auth');
+      authStatus = { authenticated: false, user: null };
+      updateAuthStatusInPanel();
+      return;
+    }
+    
+    // Ask background script (it can access cookies properly)
+    chrome.runtime.sendMessage({ action: 'checkAuthStatus' }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.error('[Academy] Error checking auth:', chrome.runtime.lastError);
+        authStatus = { authenticated: false, user: null };
+        updateAuthStatusInPanel();
+        return;
+      }
+      
+      authStatus = response;
+      console.log('[Academy] Auth status:', authStatus.authenticated ? 'Logged in' : 'Not logged in');
+      if (authStatus.user) {
+        console.log('[Academy] User:', authStatus.user.name || authStatus.user.email);
+      }
+      
+      // Update auth status in panel if it exists
+      updateAuthStatusInPanel();
     });
-
-    if (!response.ok) {
-      throw new Error(`Auth check failed: ${response.status}`);
-    }
-
-    const data = await response.json();
-    authStatus = data;
-    
-    console.log('[Academy] Auth status:', authStatus.authenticated ? 'Logged in' : 'Not logged in');
-    if (authStatus.user) {
-      console.log('[Academy] User:', authStatus.user.name || authStatus.user.email);
-    }
-    
-    // Update auth status in panel if it exists
-    updateAuthStatusInPanel();
   } catch (error) {
     console.error('[Academy] Failed to check auth status:', error);
     authStatus = { authenticated: false, user: null };
@@ -923,7 +927,7 @@ function showCandidatePanel(candidate) {
       
       .academy-auth-label {
         font-size: 12px;
-        font-weight: 700;
+        font-weight: 400;
         text-transform: uppercase;
         letter-spacing: 0.5px;
         text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);

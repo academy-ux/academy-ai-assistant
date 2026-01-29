@@ -281,6 +281,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       .catch(error => sendResponse({ success: false, error: error.message }))
     return true
   }
+  
+  if (request.action === 'checkAuthStatus') {
+    checkLoginStatus()
+      .then(result => sendResponse(result))
+      .catch(error => sendResponse({ success: false, authenticated: false, error: error.message }))
+    return true
+  }
 })
 
 async function handleMeetingJoined(tabId) {
