@@ -295,7 +295,7 @@ export async function POST(request: NextRequest) {
         // Prefer updating the existing transcript row (meetingCode is the interview id from the UI).
         if (meetingCode) {
           console.log('[Lever submit] Attempting Supabase update for interview:', meetingCode)
-          const { data: updatedRows, error: updateError } = await (supabase as any)
+          const { data: updatedRows, error: updateError } = await supabase
             .from('interviews')
             .update({
               candidate_id: opportunityId,
@@ -324,7 +324,7 @@ export async function POST(request: NextRequest) {
         // Fallback for older flows: create a record if we couldn't update.
         if (!dbStatus.updated) {
           console.log('[Lever submit] Attempting Supabase insert')
-          const { error: dbError } = await (supabase as any)
+          const { error: dbError } = await supabase
             .from('interviews')
             .insert({
               meeting_code: meetingCode,

@@ -1,10 +1,14 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import { Database } from '@/types/supabase'
+
+// Type-safe Supabase client
+export type TypedSupabaseClient = SupabaseClient<Database>
 
 // Lazy initialization to avoid build-time errors when env vars aren't available
-let _supabase: SupabaseClient | null = null
-let _supabaseAnon: SupabaseClient | null = null
+let _supabase: TypedSupabaseClient | null = null
+let _supabaseAnon: TypedSupabaseClient | null = null
 
-function getSupabaseClient(): SupabaseClient {
+function getSupabaseClient(): TypedSupabaseClient {
   if (_supabase) return _supabase
   
   const supabaseUrl = process.env.SUPABASE_URL
@@ -17,7 +21,7 @@ function getSupabaseClient(): SupabaseClient {
     throw new Error('SUPABASE_SERVICE_KEY environment variable is required')
   }
   
-  _supabase = createClient(supabaseUrl, serviceKey, {
+  _supabase = createClient<Database>(supabaseUrl, serviceKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
@@ -27,7 +31,7 @@ function getSupabaseClient(): SupabaseClient {
   return _supabase
 }
 
-function getSupabaseAnonClient(): SupabaseClient | null {
+function getSupabaseAnonClient(): TypedSupabaseClient | null {
   if (_supabaseAnon) return _supabaseAnon
   
   const supabaseUrl = process.env.SUPABASE_URL
@@ -35,7 +39,7 @@ function getSupabaseAnonClient(): SupabaseClient | null {
   
   if (!supabaseUrl || !anonKey) return null
   
-  _supabaseAnon = createClient(supabaseUrl, anonKey, {
+  _supabaseAnon = createClient<Database>(supabaseUrl, anonKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
@@ -46,36 +50,20 @@ function getSupabaseAnonClient(): SupabaseClient | null {
 }
 
 // Export getters that lazily initialize the clients
-export const supabase: SupabaseClient = new Proxy({} as SupabaseClient, {
+export const supabase: TypedSupabaseClient = new Proxy({} as TypedSupabaseClient, {
   get(_, prop) {
     return (getSupabaseClient() as any)[prop]
   }
 })
 
-export const supabaseAnon: SupabaseClient | null = new Proxy({} as SupabaseClient, {
+export const supabaseAnon: TypedSupabaseClient | null = new Proxy({} as TypedSupabaseClient, {
   get(_, prop) {
     const client = getSupabaseAnonClient()
     return client ? (client as any)[prop] : null
   }
 })
 
-export interface Interview {
-  id: string
-  created_at: string
-  updated_at?: string
-  meeting_code: string | null
-  meeting_title: string | null
-  meeting_date: string | null
-  candidate_id: string | null
-  candidate_name: string | null
-  candidate_email: string | null
-  position: string | null
-  interviewer: string | null
-  transcript: string
-  transcript_file_name: string | null
-  rating: string | null
-  summary: string | null
-  embedding?: number[]
-}
-
-export type InterviewInsert = Omit<Interview, 'id' | 'created_at' | 'updated_at'>
+// Re-export the database types for convenience
+export type Interview = Database['public']['Tables']['interviews']['Row']
+export type InterviewInsert = Database['public']['Tables']['interviews']['Insert']
+export type InterviewUpdate = Database['public']['Tables']['interviews']['Update']
