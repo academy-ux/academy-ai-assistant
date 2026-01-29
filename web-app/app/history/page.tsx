@@ -930,7 +930,7 @@ export default function HistoryPage() {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
             <div>
               <p className="text-xs font-medium tracking-[0.2em] text-muted-foreground uppercase mb-2 md:mb-3">Meeting Library</p>
-              <h1 className="text-3xl md:text-5xl font-normal tracking-tight text-foreground mb-3 md:mb-4">
+              <h1 className="text-2xl md:text-2xl font-normal tracking-tight text-foreground mb-3 md:mb-4">
                 History
               </h1>
               <p className="text-muted-foreground font-light text-base md:text-lg">
@@ -1629,7 +1629,7 @@ export default function HistoryPage() {
           <div className="animate-fade-in">
             {/* Quick Stats Bar */}
             {!loading && meetings.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5 mb-8 md:mb-12">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 md:mb-12">
                 <div className="border border-border/40 bg-gradient-to-br from-card/40 to-card/20 rounded-2xl p-5 md:p-7 flex flex-col justify-between h-32 md:h-44 hover:bg-card/50 hover:border-border/60 hover:shadow-lg transition-all duration-300 relative group">
                   <div className="space-y-2 md:space-y-3">
                     <p className="text-4xl md:text-5xl font-semibold text-foreground tracking-tight group-hover:text-primary transition-colors duration-300">
@@ -1691,7 +1691,7 @@ export default function HistoryPage() {
             <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm pb-4 pt-2 mb-2 border-b border-border/40">
               <div className="flex flex-col gap-4">
                 {/* Top Row: Search and Actions */}
-                <div className="flex flex-col sm:flex-row gap-4 justify-between items-center">
+                <div className="flex flex-col sm:flex-row gap-6 justify-between items-center">
                   <div className="relative w-full sm:max-w-md group">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
                     <Input
@@ -1826,7 +1826,7 @@ export default function HistoryPage() {
             <div className="h-4" />
 
             {/* Interviews List */}
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-6">
             {loading ? (
               /* Skeleton Loading State */
               [1, 2, 3, 4, 5].map((i) => (

@@ -323,7 +323,7 @@ export default function InterviewDetailPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-6xl mx-auto px-6 py-8">
+      <div className="max-w-[1600px] mx-auto px-6 py-8">
         {/* Header */}
         <div className="mb-8">
           <button 
@@ -340,7 +340,7 @@ export default function InterviewDetailPage() {
             Back to History
           </button>
           
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
             <div className="flex items-start gap-4 min-w-0">
               <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-full bg-peach/20 flex items-center justify-center flex-shrink-0 border border-peach/30 shadow-sm ring-1 ring-foreground/5">
                 <span className="text-lg font-semibold text-foreground/80">

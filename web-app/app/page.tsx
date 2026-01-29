@@ -29,14 +29,14 @@ function HomeContent() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-6 bg-background overflow-hidden relative">
+    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] bg-background overflow-hidden relative">
       {/* Background Ambience */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
          <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-peach/10 blur-[120px]" />
          <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-primary/10 blur-[120px]" />
       </div>
 
-      <div className="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center relative z-10">
+      <div className="w-full max-w-[1600px] mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center relative z-10">
         <div className="space-y-10 flex flex-col items-start text-left">
           {/* Badge */}
           <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full border border-primary/20 bg-primary/5 backdrop-blur-md animate-fade-in-down" style={{ animationDelay: '100ms' }}>

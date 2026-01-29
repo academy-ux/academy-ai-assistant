@@ -1129,11 +1129,11 @@ function FeedbackContent() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-[1800px] mx-auto px-6 py-6 md:py-8">
+      <div className="max-w-[1600px] mx-auto px-6 py-6 md:py-8">
         {/* Header */}
         <div className="mb-6">
           <p className="text-xs font-medium tracking-[0.2em] text-muted-foreground uppercase mb-3">Feedback Assessment</p>
-          <h1 className="text-2xl md:text-5xl font-normal tracking-tight text-foreground mb-2">
+          <h1 className="text-2xl md:text-2xl font-normal tracking-tight text-foreground mb-2">
             Evaluation
           </h1>
           <p className="text-muted-foreground font-light text-sm">
@@ -1396,7 +1396,7 @@ function FeedbackContent() {
                
                <div className="flex-1 overflow-y-auto p-5 space-y-6">
                   {/* Selection Flow */}
-                  <div className="grid gap-4">
+                  <div className="grid gap-6">
                      {/* Step 1: Select Opportunity */}
                      <div className="space-y-2">
                         <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">

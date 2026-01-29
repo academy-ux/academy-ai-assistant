@@ -20,7 +20,7 @@ export function Navbar() {
 
   return (
     <nav className="border-b border-border/50 bg-card/20 backdrop-blur-md supports-[backdrop-filter]:bg-card/60 sticky top-0 z-50">
-      <div className="container flex h-16 max-w-[1600px] items-center justify-between px-6 mx-auto">
+      <div className="flex h-16 max-w-[1600px] items-center justify-between px-6 mx-auto w-full">
         <Link href="/" className="flex items-center gap-4 group">
           <Image 
             src="/academy-logo-2024-v1.svg" 
