@@ -329,8 +329,10 @@ panel.innerHTML = `
     }
     
     .academy-auth-status.authenticated {
-      background: linear-gradient(to bottom, hsl(140, 50%, 92%), hsl(140, 45%, 88%));
-      border-top-color: hsl(140, 40%, 75%);
+      background: rgba(220, 252, 231, 0.65);
+      backdrop-filter: blur(15px);
+      -webkit-backdrop-filter: blur(15px);
+      border-top-color: rgba(34, 197, 94, 0.4);
     }
     
     .academy-auth-status.not-authenticated {
