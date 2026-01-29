@@ -7,7 +7,7 @@ export async function GET(
 ) {
   const id = params.id
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('interviews')
     .select('id, meeting_title, candidate_id, candidate_name, submitted_at, updated_at, created_at')
     .eq('id', id)

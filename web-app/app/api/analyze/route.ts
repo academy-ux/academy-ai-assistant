@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
       model: 'gemini-2.5-flash',
       generationConfig: {
         responseMimeType: "application/json",
+        maxOutputTokens: 8192, // Increase token limit to prevent truncation
       }
     })
 
@@ -71,12 +72,13 @@ CRITICAL Guidelines by Field Type:
 - YES/NO questions: Answer with ONLY "yes", "no", or "?" - never provide explanations or details
 - SCORE questions (1-4): Answer with ONLY the number: 1, 2, 3, or 4
 - RATING/DROPDOWN questions: Pick ONE option that best matches the transcript
-- TEXT questions: Provide detailed answers citing specific examples
+- TEXT questions: Provide CONCISE answers (2-4 sentences max) with key points from the transcript
 
 General Guidelines:
 - The keys inside "answers" MUST match the question text exactly, including punctuation/casing.
 - Be objective and base answers strictly on information in the transcript.
 - If you cannot determine the answer from the transcript, use "?".
+- Keep all text answers BRIEF and FOCUSED - avoid lengthy explanations.
 - NEVER include timestamps or time ranges in your answers (e.g. no "(17:13-17:16)").`
     } else {
        // Default Legacy Prompt
@@ -91,34 +93,85 @@ ${transcript}
 Analyze this interview and provide structured feedback in this exact JSON format:
 {
   "rating": "one of: 4 - Strong Hire, 3 - Hire, 2 - No Hire, 1 - Strong No Hire",
-  "strengths": "2-3 sentences about key strengths demonstrated",
-  "concerns": "2-3 sentences about concerns or areas for improvement",
-  "technicalSkills": "List of technical skills, tools, or frameworks mentioned",
-  "culturalFit": "Brief assessment of cultural fit and soft skills",
-  "recommendation": "Clear recommendation on next steps",
+  "strengths": "2-3 CONCISE sentences about key strengths demonstrated",
+  "concerns": "2-3 CONCISE sentences about concerns or areas for improvement",
+  "technicalSkills": "Comma-separated list of technical skills, tools, or frameworks mentioned",
+  "culturalFit": "1-2 BRIEF sentences on cultural fit and soft skills",
+  "recommendation": "1-2 sentences with clear recommendation on next steps",
   "keyQuotes": ["notable quote 1", "notable quote 2", "notable quote 3"],
   "candidateName": "extracted candidate name if mentioned, or null",
   "answers": null
 }
 
-Be objective. Focus on specific examples from the conversation.`
+Be objective and CONCISE. Keep responses brief and focused. No lengthy explanations.`
     }
 
     const result = await model.generateContent(prompt)
     const response = await result.response
     const text = response.text()
 
+    // Helper function to attempt repairing truncated JSON
+    const repairTruncatedJSON = (jsonStr: string): string => {
+      let repaired = jsonStr.trim()
+      
+      // Count opening and closing braces/brackets
+      const openBraces = (repaired.match(/\{/g) || []).length
+      const closeBraces = (repaired.match(/\}/g) || []).length
+      const openBrackets = (repaired.match(/\[/g) || []).length
+      const closeBrackets = (repaired.match(/\]/g) || []).length
+      
+      // If string appears truncated (ends mid-value), try to close it properly
+      if (openBraces > closeBraces || openBrackets > closeBrackets) {
+        console.log('[Analyze API] Detected truncated JSON, attempting repair...')
+        
+        // If ends with incomplete string value, close it
+        if (!repaired.endsWith('"') && !repaired.endsWith(',') && !repaired.endsWith('}')) {
+          repaired += '"'
+        }
+        
+        // Close any unclosed brackets
+        for (let i = 0; i < (openBrackets - closeBrackets); i++) {
+          repaired += ']'
+        }
+        
+        // Close any unclosed braces
+        for (let i = 0; i < (openBraces - closeBraces); i++) {
+          repaired += '}'
+        }
+      }
+      
+      return repaired
+    }
+
     // Parse JSON from response
     let analysis
     try {
       analysis = JSON.parse(text)
     } catch (e) {
-      // Try to extract JSON if parsing fails
+      console.error('[Analyze API] Failed to parse JSON response:', e)
+      console.error('[Analyze API] Raw response text:', text.substring(0, 2000))
+      
+      // Try to extract and repair JSON if parsing fails
       const jsonMatch = text.match(/\{[\s\S]*\}/)
       if (jsonMatch) {
-        analysis = JSON.parse(jsonMatch[0])
+        try {
+          // First try parsing as-is
+          analysis = JSON.parse(jsonMatch[0])
+          console.log('[Analyze API] Successfully parsed JSON from extracted match')
+        } catch (e2) {
+          // Try repairing truncated JSON
+          try {
+            const repaired = repairTruncatedJSON(jsonMatch[0])
+            analysis = JSON.parse(repaired)
+            console.log('[Analyze API] Successfully parsed repaired JSON')
+          } catch (e3) {
+            console.error('[Analyze API] Failed to parse even after repair:', e3)
+            console.error('[Analyze API] Extracted JSON:', jsonMatch[0].substring(0, 2000))
+            throw new Error(`Failed to parse AI response as JSON. The AI response may be too long or malformed. Please try with a shorter transcript or simpler template.`)
+          }
+        }
       } else {
-        throw new Error('Failed to parse analysis response')
+        throw new Error('Failed to parse analysis response - no JSON found in response')
       }
     }
 

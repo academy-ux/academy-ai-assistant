@@ -1970,23 +1970,23 @@ export default function HistoryPage() {
               [1, 2, 3, 4, 5].map((i) => (
                 <div key={i} className="border border-border/40 rounded-2xl p-5 md:p-8 bg-card/40 animate-pulse">
                    <div className="flex flex-col sm:flex-row gap-4 md:gap-5">
-                      {/* Avatar Skeleton */}
-                      <div className="flex items-center gap-3 sm:block">
-                        <Skeleton className="h-12 w-12 md:h-14 md:w-14 rounded-2xl flex-shrink-0" />
-                        <div className="sm:hidden flex-1 space-y-2">
-                           <Skeleton className="h-5 w-32 rounded-full" />
-                           <Skeleton className="h-3 w-20 rounded-full opacity-60" />
+                      {/* Left: Avatar and Name Skeleton */}
+                      <div className="flex flex-col gap-2 sm:gap-3">
+                        {/* Avatar and Name Horizontal */}
+                        <div className="flex items-center gap-3">
+                          <Skeleton className="h-12 w-12 md:h-14 md:w-14 rounded-2xl flex-shrink-0" />
+                          <Skeleton className="h-5 w-32 rounded-full" />
                         </div>
+                        {/* Role Tag Skeleton */}
+                        <Skeleton className="h-5 w-24 rounded-full opacity-60" />
+                        {/* Mobile Date Skeleton */}
+                        <Skeleton className="sm:hidden h-3 w-20 rounded-full opacity-60" />
                       </div>
 
                       <div className="flex-1 min-w-0 space-y-4">
-                         {/* Header Row Skeleton */}
+                         {/* Header Row Skeleton - Just date on desktop */}
                          <div className="hidden sm:flex items-start justify-between gap-4">
-                            <div className="flex items-center gap-3">
-                               <Skeleton className="h-6 w-48 rounded-full" />
-                               <Skeleton className="h-5 w-24 rounded-full opacity-60" />
-                            </div>
-                            <Skeleton className="h-4 w-24 rounded-full opacity-50" />
+                            <Skeleton className="h-4 w-24 rounded-full opacity-50 ml-auto" />
                          </div>
 
                          {/* Summary Skeleton */}
@@ -2038,7 +2038,7 @@ export default function HistoryPage() {
                   style={{ animationDelay: `${index * 50}ms` }}
                   onClick={() => router.push(`/history/${meeting.id}`)}
                 >
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-start gap-4">
                     {/* Checkbox */}
                     <button
                       onClick={(e) => {
@@ -2046,7 +2046,7 @@ export default function HistoryPage() {
                         toggleMeetingSelection(meeting.id)
                       }}
                       className={cn(
-                        "h-6 w-6 rounded-md border-2 flex items-center justify-center transition-all duration-200 shrink-0",
+                        "h-6 w-6 mt-4 rounded-md border-2 flex items-center justify-center transition-all duration-200 shrink-0",
                         selectedMeetings.has(meeting.id)
                           ? "bg-primary border-primary text-primary-foreground"
                           : "border-border/60 hover:border-primary/50 bg-background/50"
@@ -2057,70 +2057,31 @@ export default function HistoryPage() {
                       )}
                     </button>
 
-                    <div className="flex flex-col sm:flex-row gap-4 md:gap-5 flex-1">
-                      {/* Left: Avatar */}
-                      <div className="flex items-center gap-3 sm:items-start sm:gap-3">
-                        {/* Avatar */}
-                        <div className="h-12 w-12 md:h-14 md:w-14 rounded-2xl bg-gradient-to-br from-peach/30 to-peach/10 flex items-center justify-center shrink-0 border border-peach/20 shadow-sm">
-                          <span className="text-sm md:text-base font-semibold text-foreground tracking-tight">
-                            {(meeting.candidate_name || 'U').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
-                          </span>
-                        </div>
-                        {/* Mobile Name Display (visible only on small screens next to avatar) */}
-                        <div className="sm:hidden flex-1">
-                          <h3 className="text-lg font-normal text-foreground leading-tight group-hover:text-primary transition-colors duration-200">
-                              {meeting.candidate_name || 'Unknown Participant'}
-                          </h3>
-                           <time className="text-xs font-medium text-muted-foreground">
-                              {(() => {
-                              const date = new Date(meeting.meeting_date || meeting.created_at)
-                              const today = new Date()
-                              const yesterday = new Date(today)
-                              yesterday.setDate(yesterday.getDate() - 1)
-                              
-                              if (date.toDateString() === today.toDateString()) return 'Today'
-                              if (date.toDateString() === yesterday.toDateString()) return 'Yesterday'
-                              return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined })
-                              })()}
-                          </time>
-                        </div>
-                      </div>
-  
-                      {/* Right: Content */}
-                    <div className="flex-1 min-w-0">
-                      {/* Header Row */}
-                      <div className="flex items-start justify-between gap-4 mb-2">
-                        <div className="flex items-baseline gap-3 flex-wrap">
-                          <h3 className="hidden sm:block text-xl font-normal text-foreground leading-tight group-hover:text-primary transition-colors duration-200">
+                    <div className="flex flex-col flex-1">
+                      {/* Top Row: Avatar, Name, and Date */}
+                      <div className="flex items-center justify-between gap-3 mb-2 sm:mb-3">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          {/* Avatar */}
+                          <div className="h-12 w-12 md:h-14 md:w-14 rounded-2xl bg-gradient-to-br from-peach/30 to-peach/10 flex items-center justify-center shrink-0 border border-peach/20 shadow-sm">
+                            <span className="text-sm md:text-base font-semibold text-foreground tracking-tight">
+                              {(meeting.candidate_name || 'U').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                            </span>
+                          </div>
+                          {/* Name */}
+                          <h3 className="text-lg sm:text-xl font-normal text-foreground leading-tight group-hover:text-primary transition-colors duration-200 truncate">
                             {meeting.candidate_name || 'Unknown Participant'}
                           </h3>
-                          {meeting.position && (
-                            <span className="text-xs md:text-sm text-muted-foreground font-medium px-2.5 py-0.5 md:px-3 md:py-1 border border-border/50 rounded-full bg-muted/30">
-                              {(() => {
-                                const { role, company } = formatRoleAndCompany(meeting.position)
-                                return company ? `${role} • ${company}` : role
-                              })()}
-                            </span>
-                          )}
                         </div>
-
-                        {/* Date - More prominent (hidden on mobile as shown next to avatar) */}
-                        <time className="hidden sm:block text-sm font-medium text-muted-foreground whitespace-nowrap">
+                        {/* Date - Always visible on the right */}
+                        <time className="text-xs sm:text-sm font-medium text-muted-foreground whitespace-nowrap shrink-0">
                           {(() => {
                             const date = new Date(meeting.meeting_date || meeting.created_at)
                             const today = new Date()
                             const yesterday = new Date(today)
                             yesterday.setDate(yesterday.getDate() - 1)
                             
-                            // Check if date is today
-                            if (date.toDateString() === today.toDateString()) {
-                              return 'Today'
-                            }
-                            // Check if date is yesterday
-                            if (date.toDateString() === yesterday.toDateString()) {
-                              return 'Yesterday'
-                            }
-                            // Otherwise show formatted date
+                            if (date.toDateString() === today.toDateString()) return 'Today'
+                            if (date.toDateString() === yesterday.toDateString()) return 'Yesterday'
                             return date.toLocaleDateString('en-US', { 
                               month: 'short', 
                               day: 'numeric',
@@ -2129,7 +2090,21 @@ export default function HistoryPage() {
                           })()}
                         </time>
                       </div>
-
+                      
+                      {/* Role Tag Below */}
+                      {meeting.position && (
+                        <div className="mb-3">
+                          <span className="text-xs md:text-sm text-muted-foreground font-medium px-2.5 py-0.5 md:px-3 md:py-1 border border-border/50 rounded-full bg-muted/30 w-fit">
+                            {(() => {
+                              const { role, company } = formatRoleAndCompany(meeting.position)
+                              return company ? `${role} • ${company}` : role
+                            })()}
+                          </span>
+                        </div>
+                      )}
+ 
+                      {/* Content */}
+                    <div className="flex-1 min-w-0">
                       {/* Summary */}
                       {meeting.summary && 
                         !meeting.summary.startsWith('Interview conversation between') && 

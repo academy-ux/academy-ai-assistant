@@ -195,6 +195,17 @@ function FeedbackContent() {
       }
     >
   >(new Map())
+  // Store form state per interview+template combination so switching templates preserves data
+  const templateStateRef = useRef<
+    Map<
+      string, // key: `${interviewId}:${templateId}`
+      {
+        dynamicAnswers: Record<string, any>
+        aiGeneratedFields: Record<string, boolean>
+        analysis: Analysis | null
+      }
+    >
+  >(new Map())
   const activeAnalyzeAbortRef = useRef<AbortController | null>(null)
   const analyzeRunIdRef = useRef(0)
 
@@ -480,6 +491,7 @@ function FeedbackContent() {
     setError('')
     setSubmitSuccess(false)
     setSubmitDbStatus(null)
+    // Clear current state - will be restored from templateStateRef if exists for this interview+template
     setAnalysis(null)
     setDynamicAnswers({})
     setAiGeneratedFields({})
@@ -498,10 +510,34 @@ function FeedbackContent() {
     if (selectedTemplate) {
       const template = templates.find(t => t.id === selectedTemplate) || null
       setCurrentTemplate(template)
-      setDynamicAnswers({})
-      setAiGeneratedFields({})
-      setAnalysis(null)
-      lastAutoAnalyzeKeyRef.current = null
+      
+      // If we have an interview+template combination, try to restore saved state
+      if (selectedInterview?.id && selectedTemplate) {
+        const stateKey = `${selectedInterview.id}:${selectedTemplate}`
+        const savedState = templateStateRef.current.get(stateKey)
+        
+        if (savedState) {
+          // Restore saved state for this template
+          console.log('[Template switch] Restoring saved state for:', stateKey)
+          setDynamicAnswers(savedState.dynamicAnswers)
+          setAiGeneratedFields(savedState.aiGeneratedFields)
+          setAnalysis(savedState.analysis)
+        } else {
+          // New template for this interview - start fresh
+          console.log('[Template switch] Starting fresh for:', stateKey)
+          setDynamicAnswers({})
+          setAiGeneratedFields({})
+          setAnalysis(null)
+          lastAutoAnalyzeKeyRef.current = null
+        }
+      } else {
+        // No interview selected - clear everything
+        setDynamicAnswers({})
+        setAiGeneratedFields({})
+        setAnalysis(null)
+        lastAutoAnalyzeKeyRef.current = null
+      }
+      
       // Cancel any in-flight analysis so the new template can analyze immediately.
       try {
         activeAnalyzeAbortRef.current?.abort()
@@ -513,7 +549,19 @@ function FeedbackContent() {
       fetch('http://127.0.0.1:7244/ingest/e9fe012d-75cb-4528-8bd7-ab7d06b4d4db',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run3',hypothesisId:'F',location:'web-app/app/feedback/page.tsx:selectedTemplate->currentTemplateEffect',message:'Set currentTemplate from selectedTemplate',data:{selectedTemplateId:selectedTemplate,selectedTemplateName:templates.find(t=>t.id===selectedTemplate)?.name||null,foundTemplateId:template?.id||null,foundTemplateName:template?.name||null,foundIsOld:/\\bold\\b/i.test(String(template?.name||'').toLowerCase()),templatesCount:templates.length},timestamp:Date.now()})}).catch(()=>{});
       // #endregion
     }
-  }, [selectedTemplate, templates])
+  }, [selectedTemplate, templates, selectedInterview])
+
+  // Auto-save current form state when it changes
+  useEffect(() => {
+    if (selectedInterview?.id && selectedTemplate) {
+      const stateKey = `${selectedInterview.id}:${selectedTemplate}`
+      templateStateRef.current.set(stateKey, {
+        dynamicAnswers,
+        aiGeneratedFields,
+        analysis
+      })
+    }
+  }, [dynamicAnswers, aiGeneratedFields, analysis, selectedInterview, selectedTemplate])
 
   function normalizeQuestionKey(s: string) {
     return s
@@ -546,8 +594,10 @@ function FeedbackContent() {
     const filledKeys: string[] = []
 
     const fieldKeyByNormalized = new Map<string, string>()
+    const fieldTypeByKey = new Map<string, string>()
     for (const f of template.fields) {
       fieldKeyByNormalized.set(normalizeQuestionKey(f.text), f.text)
+      fieldTypeByKey.set(f.text, String(f.type || '').toLowerCase())
     }
 
     for (const [k, v] of Object.entries(incoming)) {
@@ -556,7 +606,32 @@ function FeedbackContent() {
       const existing = (next as any)[mappedKey]
       const isEmpty = existing === undefined || existing === null || String(existing).trim() === ''
       if (isEmpty) {
-        ;(next as any)[mappedKey] = v
+        // Normalize values based on field type for button matching
+        const fieldType = fieldTypeByKey.get(mappedKey)
+        let normalizedValue = v
+        
+        if (fieldType === 'score') {
+          // Score fields expect '1', '2', '3', or '4'
+          if (typeof v === 'number') {
+            normalizedValue = String(v)
+          } else if (typeof v === 'string') {
+            const lower = v.toLowerCase().trim()
+            // Handle AI returning yes/no for score fields
+            if (lower === 'yes') normalizedValue = '4'  // Map yes to highest score
+            else if (lower === 'no') normalizedValue = '1'  // Map no to lowest score
+            else normalizedValue = v.trim()
+          }
+        } else if (fieldType === 'yes-no') {
+          // Ensure yes-no fields have lowercase values
+          if (typeof v === 'string') {
+            const lower = v.toLowerCase().trim()
+            if (lower === 'yes' || lower === 'no') normalizedValue = lower
+            else normalizedValue = v.trim()
+          }
+        }
+        
+        console.log('[mergeIncomingAnswers]', { key: mappedKey, type: fieldType, original: v, normalized: normalizedValue })
+        ;(next as any)[mappedKey] = normalizedValue
         filledKeys.push(mappedKey)
       }
     }
@@ -581,12 +656,24 @@ function FeedbackContent() {
     if (!currentTemplate) return
 
     const key = `${selectedInterview.id}:${currentTemplate.id}`
+    
+    // Check if we've already auto-analyzed this combination
     if (lastAutoAnalyzeKeyRef.current === key) return
+    
+    // Check if we have a cached result for this combination
+    const cacheKey = buildAnalysisCacheKey(selectedInterview.id, currentTemplate.id, transcript)
+    const cached = analysisCacheRef.current.get(cacheKey)
+    if (cached) {
+      console.log('[Auto-analyze] Skipping - already have cached analysis for this interview+template')
+      lastAutoAnalyzeKeyRef.current = key
+      return
+    }
 
-    // Don't gate on `analysisLoading` here; `analyzeTranscript` will abort any in-flight run.
+    // Only auto-analyze if we don't have results yet
+    console.log('[Auto-analyze] Triggering analysis for:', key)
     analyzeTranscript(transcript, currentTemplate)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedInterview?.id, transcript, currentTemplate?.id, selectedTemplate])
+  }, [selectedInterview?.id, transcript, currentTemplate?.id])
 
   async function analyzeTranscript(text: string, templateOverride?: Template | null) {
     console.log('[analyzeTranscript] Called with:', { 
@@ -731,9 +818,11 @@ function FeedbackContent() {
 
         if (incoming) {
           console.log('[analyzeTranscript] Processing incoming answers:', Object.keys(incoming).length, 'answers')
+          console.log('[analyzeTranscript] Incoming values:', incoming)
           if (effectiveTemplate) {
             const { next, filledKeys } = mergeIncomingAnswers(dynamicAnswers, incoming, effectiveTemplate)
             console.log('[analyzeTranscript] Merged answers, filled', filledKeys.length, 'fields:', filledKeys)
+            console.log('[analyzeTranscript] Final dynamicAnswers:', next)
             setDynamicAnswers(next)
             if (filledKeys.length > 0) {
               setAiGeneratedFields(prevFlags => {
@@ -746,11 +835,6 @@ function FeedbackContent() {
         } else {
           console.log('[analyzeTranscript] No incoming answers to process')
 
-          // Cache for this transcript+template so we don't re-analyze again.
-          if (cacheKey) {
-            analysisCacheRef.current.set(cacheKey, { analysis: data.analysis, incomingAnswers: incoming })
-          }
-
           // Back-compat fallback for older analyzer responses
           setDynamicAnswers(prev => ({
             ...prev,
@@ -761,6 +845,12 @@ function FeedbackContent() {
             ...(prev['Cultural Fit'] ? {} : { "Cultural Fit": data.analysis.culturalFit }),
             ...(prev['Recommendation'] ? {} : { "Recommendation": data.analysis.recommendation }),
           }))
+        }
+
+        // Cache for this transcript+template so we don't re-analyze again.
+        if (cacheKey) {
+          console.log('[analyzeTranscript] Caching analysis result')
+          analysisCacheRef.current.set(cacheKey, { analysis: data.analysis, incomingAnswers: incoming })
         }
 
         if (candidateNameFromApi) {
@@ -1804,8 +1894,13 @@ function FeedbackContent() {
                                         <div className="flex gap-1.5">
                                           <Button
                                             type="button"
-                                            variant={dynamicAnswers[field.text] === '1' ? 'default' : 'outline'}
-                                            className={`flex-1 h-11 ${dynamicAnswers[field.text] === '1' ? 'bg-destructive hover:bg-destructive/90 text-destructive-foreground' : ''}`}
+                                            variant="outline"
+                                            className="flex-1 h-11"
+                                            style={dynamicAnswers[field.text] === '1' ? {
+                                              backgroundColor: 'hsl(var(--destructive))',
+                                              color: 'hsl(var(--destructive-foreground))',
+                                              borderColor: 'hsl(var(--destructive))'
+                                            } : undefined}
                                             onClick={() => {
                                               setDynamicAnswers({ ...dynamicAnswers, [field.text]: '1' })
                                               setAiGeneratedFields(prev => ({ ...prev, [field.text]: false }))
@@ -1819,8 +1914,13 @@ function FeedbackContent() {
                                           </Button>
                                           <Button
                                             type="button"
-                                            variant={dynamicAnswers[field.text] === '2' ? 'default' : 'outline'}
-                                            className={`flex-1 h-11 ${dynamicAnswers[field.text] === '2' ? 'bg-orange-500 hover:bg-orange-600 text-white' : ''}`}
+                                            variant="outline"
+                                            className="flex-1 h-11"
+                                            style={dynamicAnswers[field.text] === '2' ? {
+                                              backgroundColor: '#f97316',
+                                              color: 'white',
+                                              borderColor: '#f97316'
+                                            } : undefined}
                                             onClick={() => {
                                               setDynamicAnswers({ ...dynamicAnswers, [field.text]: '2' })
                                               setAiGeneratedFields(prev => ({ ...prev, [field.text]: false }))
@@ -1833,8 +1933,13 @@ function FeedbackContent() {
                                           </Button>
                                           <Button
                                             type="button"
-                                            variant={dynamicAnswers[field.text] === '3' ? 'default' : 'outline'}
-                                            className={`flex-1 h-11 ${dynamicAnswers[field.text] === '3' ? 'bg-success hover:bg-success/90 text-success-foreground' : ''}`}
+                                            variant="outline"
+                                            className="flex-1 h-11"
+                                            style={dynamicAnswers[field.text] === '3' ? {
+                                              backgroundColor: 'hsl(var(--success))',
+                                              color: 'hsl(var(--success-foreground))',
+                                              borderColor: 'hsl(var(--success))'
+                                            } : undefined}
                                             onClick={() => {
                                               setDynamicAnswers({ ...dynamicAnswers, [field.text]: '3' })
                                               setAiGeneratedFields(prev => ({ ...prev, [field.text]: false }))
@@ -1847,8 +1952,13 @@ function FeedbackContent() {
                                           </Button>
                                           <Button
                                             type="button"
-                                            variant={dynamicAnswers[field.text] === '4' ? 'default' : 'outline'}
-                                            className={`flex-1 h-11 ${dynamicAnswers[field.text] === '4' ? 'bg-success hover:bg-success/90 text-success-foreground' : ''}`}
+                                            variant="outline"
+                                            className="flex-1 h-11"
+                                            style={dynamicAnswers[field.text] === '4' ? {
+                                              backgroundColor: 'hsl(var(--success))',
+                                              color: 'hsl(var(--success-foreground))',
+                                              borderColor: 'hsl(var(--success))'
+                                            } : undefined}
                                             onClick={() => {
                                               setDynamicAnswers({ ...dynamicAnswers, [field.text]: '4' })
                                               setAiGeneratedFields(prev => ({ ...prev, [field.text]: false }))
@@ -1886,8 +1996,13 @@ function FeedbackContent() {
                                         <div className="flex gap-2">
                                           <Button
                                             type="button"
-                                            variant={dynamicAnswers[field.text] === 'yes' ? 'default' : 'outline'}
-                                            className={`flex-1 h-11 gap-2 ${dynamicAnswers[field.text] === 'yes' ? 'bg-success hover:bg-success/90 text-success-foreground' : ''}`}
+                                            variant="outline"
+                                            className="flex-1 h-11 gap-2"
+                                            style={dynamicAnswers[field.text] === 'yes' ? {
+                                              backgroundColor: 'hsl(var(--success))',
+                                              color: 'hsl(var(--success-foreground))',
+                                              borderColor: 'hsl(var(--success))'
+                                            } : undefined}
                                             onClick={() => {
                                               setDynamicAnswers({ ...dynamicAnswers, [field.text]: 'yes' })
                                               setAiGeneratedFields(prev => ({ ...prev, [field.text]: false }))
@@ -1899,8 +2014,13 @@ function FeedbackContent() {
                                           </Button>
                                           <Button
                                             type="button"
-                                            variant={dynamicAnswers[field.text] === 'no' ? 'default' : 'outline'}
-                                            className={`flex-1 h-11 gap-2 ${dynamicAnswers[field.text] === 'no' ? 'bg-destructive hover:bg-destructive/90 text-destructive-foreground' : ''}`}
+                                            variant="outline"
+                                            className="flex-1 h-11 gap-2"
+                                            style={dynamicAnswers[field.text] === 'no' ? {
+                                              backgroundColor: 'hsl(var(--destructive))',
+                                              color: 'hsl(var(--destructive-foreground))',
+                                              borderColor: 'hsl(var(--destructive))'
+                                            } : undefined}
                                             onClick={() => {
                                               setDynamicAnswers({ ...dynamicAnswers, [field.text]: 'no' })
                                               setAiGeneratedFields(prev => ({ ...prev, [field.text]: false }))
