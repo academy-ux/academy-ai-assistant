@@ -46,9 +46,27 @@ export async function POST(request: NextRequest) {
     )
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      console.error('Lever API error:', response.status, errorData)
-      throw new Error(`Lever API error: ${response.status}`)
+      const errorData = await response.json().catch(() => null)
+      const errorText = errorData ? null : await response.text().catch(() => null)
+      console.error('Lever API error:', response.status, errorData || errorText)
+
+      const leverMessage =
+        (errorData && typeof errorData === 'object' && 'message' in errorData && typeof (errorData as any).message === 'string')
+          ? (errorData as any).message
+          : (errorText || `Lever API error: ${response.status}`)
+
+      const leverCode =
+        (errorData && typeof errorData === 'object' && 'code' in errorData && typeof (errorData as any).code === 'string')
+          ? (errorData as any).code
+          : undefined
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: leverCode ? `${leverCode}: ${leverMessage}` : leverMessage,
+        },
+        { status: response.status }
+      )
     }
 
     const data = await response.json()

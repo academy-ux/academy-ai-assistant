@@ -230,6 +230,7 @@ function FeedbackContent() {
   const [candidateOpen, setCandidateOpen] = useState(false)
   
   const [dynamicAnswers, setDynamicAnswers] = useState<Record<string, any>>({})
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [aiGeneratedFields, setAiGeneratedFields] = useState<Record<string, boolean>>({})
 
   const [submitting, setSubmitting] = useState(false)
@@ -879,6 +880,7 @@ function FeedbackContent() {
 
     setSubmitting(true)
     setError('')
+    setFieldErrors({})
 
     const candidate = candidates.find(c => c.id === selectedCandidate)
 
@@ -888,9 +890,45 @@ function FeedbackContent() {
         return
       }
 
+      const nextFieldErrors: Record<string, string> = {}
+      for (const f of currentTemplate.fields) {
+        if (!f.required) continue
+        const v = dynamicAnswers[f.text]
+        const isBlank =
+          v === undefined ||
+          v === null ||
+          (typeof v === 'string' && v.trim() === '') ||
+          (Array.isArray(v) && v.length === 0)
+        if (isBlank) nextFieldErrors[f.text] = 'Required'
+      }
+
+      if (Object.keys(nextFieldErrors).length > 0) {
+        setFieldErrors(nextFieldErrors)
+        setError('Please fill the highlighted required fields.')
+        return
+      }
+
+      const toLeverValue = (f: TemplateField, raw: any) => {
+        if (raw === undefined || raw === null) return null
+        if (typeof raw === 'string' && raw.trim() === '') return null
+
+        if (f.type === 'multiple-select') {
+          if (Array.isArray(raw)) return raw
+          if (typeof raw === 'string') {
+            const parts = raw
+              .split(/[\n,]+/)
+              .map(s => s.trim())
+              .filter(Boolean)
+            return parts.length > 0 ? parts : null
+          }
+        }
+
+        return raw
+      }
+
       const fieldValues = currentTemplate.fields.map((f) => ({
         id: f.id,
-        value: dynamicAnswers[f.text] ?? null,
+        value: toLeverValue(f, dynamicAnswers[f.text]),
       }))
 
       // Keep the legacy summary fields for Supabase indexing/summary
@@ -1495,6 +1533,9 @@ function FeedbackContent() {
                                     {field.description && (
                                        <p className="text-xs text-muted-foreground">{field.description}</p>
                                     )}
+                                    {fieldErrors[field.text] && (
+                                      <p className="text-xs text-destructive">{fieldErrors[field.text]}</p>
+                                    )}
                                     
                                     {(field.type === 'score-system' || field.text.toLowerCase().includes('rating')) ? (
                                        <Select 
@@ -1502,9 +1543,15 @@ function FeedbackContent() {
                                           onValueChange={(val) => {
                                             setDynamicAnswers({ ...dynamicAnswers, [field.text]: val })
                                             setAiGeneratedFields(prev => ({ ...prev, [field.text]: false }))
+                                            setFieldErrors(prev => {
+                                              if (!prev[field.text]) return prev
+                                              const next = { ...prev }
+                                              delete next[field.text]
+                                              return next
+                                            })
                                           }}
                                        >
-                                          <SelectTrigger className="h-11">
+                                          <SelectTrigger className={`h-11 ${fieldErrors[field.text] ? 'border-destructive focus:ring-destructive/30' : ''}`}>
                                              <SelectValue placeholder="Select rating..." />
                                           </SelectTrigger>
                                           <SelectContent>
@@ -1516,12 +1563,18 @@ function FeedbackContent() {
                                           </SelectContent>
                                        </Select>
                                     ) : (
-                                      <div className="flex flex-col rounded-lg border border-input bg-input shadow-sm transition-all duration-200 focus-within:ring-2 focus-within:ring-ring/30 focus-within:border-ring/50 resize-y overflow-hidden">
+                                      <div className={`flex flex-col rounded-lg border bg-input shadow-sm transition-all duration-200 focus-within:ring-2 focus-within:ring-ring/30 focus-within:border-ring/50 resize-y overflow-hidden ${fieldErrors[field.text] ? 'border-destructive focus-within:ring-destructive/30' : 'border-input'}`}>
                                         <Textarea 
                                           value={dynamicAnswers[field.text] || ''}
                                           onChange={(e) => {
                                             setDynamicAnswers({ ...dynamicAnswers, [field.text]: e.target.value })
                                             setAiGeneratedFields(prev => ({ ...prev, [field.text]: false }))
+                                            setFieldErrors(prev => {
+                                              if (!prev[field.text]) return prev
+                                              const next = { ...prev }
+                                              delete next[field.text]
+                                              return next
+                                            })
                                           }}
                                           rows={field.type === 'textarea' ? 4 : 3}
                                           className="min-h-[146px] w-full resize-none border-0 bg-transparent px-3 py-2.5 shadow-none focus:ring-0 focus-visible:ring-0 focus:border-0 focus-visible:ring-offset-0 active:ring-0 active:border-0"
