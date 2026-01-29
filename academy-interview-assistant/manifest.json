@@ -1,12 +1,13 @@
 {
   "manifest_version": 3,
   "name": "Academy Interview Assistant",
-  "version": "3.3.0",
+  "version": "3.4.0",
   "description": "Auto-opens feedback form after Google Meet interviews",
   "permissions": [
     "tabs",
     "storage",
-    "notifications"
+    "notifications",
+    "cookies"
   ],
   "host_permissions": [
     "https://meet.google.com/*",

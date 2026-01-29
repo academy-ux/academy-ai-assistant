@@ -14,6 +14,8 @@ let meetingCode = '';
 let candidateInfoPanel = null;
 let detectedParticipants = new Set();
 let currentCandidate = null;
+let authStatus = null; // Stores { authenticated: boolean, user: { name, email, image } }
+let authStatusBadge = null;
 
 // Initialize
 function init() {
@@ -24,6 +26,9 @@ function init() {
   } else {
     startMonitoring();
   }
+  
+  // Check authentication status
+  checkAuthStatus();
   
   // Add test button in development/testing
   addTestButton();
@@ -89,6 +94,164 @@ function addTestButton() {
     }
   };
   addButton();
+}
+
+// Check if user is logged into the web app
+async function checkAuthStatus() {
+  try {
+    console.log('[Academy] Checking authentication status...');
+    
+    const API_BASE = 'https://academy-ai-assistant.vercel.app';
+    const response = await fetch(`${API_BASE}/api/auth/check`, {
+      credentials: 'include', // Include cookies for session
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Auth check failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    authStatus = data;
+    
+    console.log('[Academy] Auth status:', authStatus.authenticated ? 'Logged in' : 'Not logged in');
+    if (authStatus.user) {
+      console.log('[Academy] User:', authStatus.user.name || authStatus.user.email);
+    }
+    
+    // Show auth badge
+    showAuthBadge();
+  } catch (error) {
+    console.error('[Academy] Failed to check auth status:', error);
+    authStatus = { authenticated: false, user: null };
+    showAuthBadge();
+  }
+}
+
+// Show authentication status badge
+function showAuthBadge() {
+  // Remove existing badge if any
+  if (authStatusBadge) {
+    authStatusBadge.remove();
+    authStatusBadge = null;
+  }
+
+  const badge = document.createElement('div');
+  badge.id = 'academy-auth-badge';
+  authStatusBadge = badge;
+
+  const isAuthenticated = authStatus?.authenticated === true;
+  const user = authStatus?.user;
+
+  if (isAuthenticated && user) {
+    // Logged in - show green badge with user info
+    badge.style.cssText = `
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 99999;
+      padding: 10px 14px;
+      background: rgba(34, 197, 94, 0.95);
+      color: white;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease-out;
+      cursor: default;
+    `;
+
+    badge.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="8" cy="8" r="8" fill="white"/>
+        <path d="M5 8L7 10L11 6" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span style="max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+        ${user.name || user.email || 'Logged in'}
+      </span>
+    `;
+
+    badge.title = `Logged in as ${user.name || user.email}\nTranscripts will be saved automatically`;
+  } else {
+    // Not logged in - show warning badge with login button
+    badge.style.cssText = `
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 99999;
+      padding: 12px 16px;
+      background: rgba(239, 68, 68, 0.95);
+      color: white;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: all 0.2s ease-out;
+    `;
+
+    badge.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="8" cy="8" r="7" stroke="white" stroke-width="2"/>
+          <path d="M8 4V9" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="8" cy="11.5" r="0.5" fill="white" stroke="white"/>
+        </svg>
+        <span>Not logged in</span>
+      </div>
+      <button id="academy-login-btn" style="
+        padding: 6px 12px;
+        background: white;
+        color: #ef4444;
+        border: none;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+      ">
+        Login to Save Transcripts
+      </button>
+    `;
+
+    badge.title = 'Login required to automatically save interview transcripts';
+
+    // Add login button click handler
+    setTimeout(() => {
+      const loginBtn = document.getElementById('academy-login-btn');
+      if (loginBtn) {
+        loginBtn.addEventListener('mouseenter', () => {
+          loginBtn.style.background = '#fee2e2';
+        });
+        loginBtn.addEventListener('mouseleave', () => {
+          loginBtn.style.background = 'white';
+        });
+        loginBtn.addEventListener('click', () => {
+          window.open('https://academy-ai-assistant.vercel.app/', '_blank');
+        });
+      }
+    }, 100);
+  }
+
+  // Wait for body to be available
+  const addBadge = () => {
+    if (document.body) {
+      document.body.appendChild(badge);
+      console.log('[Academy] Auth badge displayed');
+    } else {
+      setTimeout(addBadge, 100);
+    }
+  };
+  addBadge();
 }
 
 // Show test candidate with real data from Lever

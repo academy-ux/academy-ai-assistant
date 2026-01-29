@@ -19,6 +19,11 @@ export default withAuth(
           return true
         }
         
+        // Allow auth check endpoint for Chrome extension
+        if (req.nextUrl.pathname === '/api/auth/check') {
+          return true
+        }
+        
         // Require authentication for all other protected routes
         return !!token
       },
