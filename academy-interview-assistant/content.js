@@ -112,21 +112,24 @@ async function showTestCandidate() {
   showCandidatePanel(loadingCandidate);
   
   // Search specifically for Towsiful (partial name match)
+  console.log('[Academy Content] Requesting search for Towsiful...');
   chrome.runtime.sendMessage({
     action: 'searchCandidate',
     name: 'Towsiful'
   }, (response) => {
+    console.log('[Academy Content] Got response:', response);
+    
     if (chrome.runtime.lastError) {
-      console.error('[Academy] Error fetching candidate:', chrome.runtime.lastError);
+      console.error('[Academy Content] Runtime error:', chrome.runtime.lastError);
       
       // Show error state
       const errorCandidate = {
         id: 'error',
-        name: 'Error',
+        name: 'Connection Error',
         email: '',
-        headline: 'Could not fetch candidate from Lever',
+        headline: chrome.runtime.lastError.message || 'Could not connect to background script',
         location: '',
-        position: 'Make sure you are logged into Academy',
+        position: 'Try reloading the extension',
         stage: 'Error',
         links: {},
         leverUrl: '#'
@@ -139,21 +142,22 @@ async function showTestCandidate() {
     
     if (response && response.success && response.candidates && response.candidates.length > 0) {
       const candidate = response.candidates[0];
-      console.log('[Academy] Found Towsiful:', candidate.name);
+      console.log('[Academy Content] ✅ Found candidate:', candidate.name);
       removeCandidatePanel();
       showCandidatePanel(candidate);
     } else {
-      console.log('[Academy] Towsiful not found:', response);
+      console.log('[Academy Content] ❌ No candidates found. Response:', response);
       
-      // Show not found state
+      // Show not found state with more details
+      const errorMsg = response?.error || 'Not found in Lever'
       const noCandidate = {
         id: 'none',
-        name: 'Candidate Not Found',
+        name: 'Towsiful Not Found',
         email: '',
-        headline: 'Could not find Towsiful in Lever',
+        headline: errorMsg,
         location: '',
-        position: 'Make sure you are logged into Academy and the candidate exists',
-        stage: 'Not Found',
+        position: 'Check: 1) Logged into Academy? 2) Candidate exists in Lever? 3) Extension settings correct?',
+        stage: 'Debug',
         links: {},
         leverUrl: 'https://hire.lever.co/'
       };

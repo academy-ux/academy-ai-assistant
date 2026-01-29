@@ -96,9 +96,15 @@ async function searchCandidate(name) {
   
   const webAppUrl = await getWebAppUrl()
   
+  console.log('[Academy] 🔍 Searching for:', name)
+  console.log('[Academy] 🌐 Using URL:', webAppUrl)
+  
   try {
+    const searchUrl = `${webAppUrl}/api/lever/search?q=${encodeURIComponent(name)}`
+    console.log('[Academy] 📡 Full URL:', searchUrl)
+    
     const response = await fetch(
-      `${webAppUrl}/api/lever/search?q=${encodeURIComponent(name)}`,
+      searchUrl,
       {
         method: 'GET',
         credentials: 'include',
@@ -106,20 +112,29 @@ async function searchCandidate(name) {
       }
     )
     
+    console.log('[Academy] 📥 Response status:', response.status)
+    
     if (!response.ok) {
-      console.log('[Academy] Lever search failed:', response.status)
-      return { success: false, error: 'Search failed' }
+      console.error('[Academy] ❌ Lever search failed:', response.status, response.statusText)
+      const errorText = await response.text()
+      console.error('[Academy] Error details:', errorText)
+      return { success: false, error: `Search failed: ${response.status}` }
     }
     
     const data = await response.json()
-    console.log('[Academy] Found candidates:', data.count)
+    console.log('[Academy] ✅ Search response:', data)
+    console.log('[Academy] 📊 Found', data.count, 'candidates')
+    
+    if (data.candidates && data.candidates.length > 0) {
+      console.log('[Academy] 👤 First candidate:', data.candidates[0].name)
+    }
     
     // Cache the result
     candidateCache.set(cacheKey, { data, timestamp: Date.now() })
     
     return data
   } catch (error) {
-    console.error('[Academy] Error searching candidate:', error)
+    console.error('[Academy] 💥 Error searching candidate:', error)
     return { success: false, error: error.message }
   }
 }
