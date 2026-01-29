@@ -13,6 +13,12 @@ export default withAuth(
         if (req.nextUrl.pathname.startsWith('/api/auth')) {
           return true
         }
+        
+        // Allow Lever search endpoint for Chrome extension (CORS-enabled)
+        if (req.nextUrl.pathname === '/api/lever/search') {
+          return true
+        }
+        
         // Require authentication for all other protected routes
         return !!token
       },

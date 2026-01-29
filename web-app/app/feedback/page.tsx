@@ -1133,7 +1133,7 @@ function FeedbackContent() {
         {/* Header */}
         <div className="mb-6">
           <p className="text-xs font-medium tracking-[0.2em] text-muted-foreground uppercase mb-3">Feedback Assessment</p>
-          <h1 className="text-4xl md:text-5xl font-normal tracking-tight text-foreground mb-2">
+          <h1 className="text-2xl md:text-5xl font-normal tracking-tight text-foreground mb-2">
             Evaluation
           </h1>
           <p className="text-muted-foreground font-light text-sm">
