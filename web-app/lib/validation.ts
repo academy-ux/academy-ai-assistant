@@ -42,6 +42,10 @@ export const analyzeSchema = z.object({
 export const leverSubmitSchema = z.object({
   opportunityId: z.string().min(1, 'Opportunity ID is required'),
   templateId: z.string().min(1, 'Template ID is required'),
+  fieldValues: z.array(z.object({
+    id: z.string().min(1),
+    value: z.unknown(),
+  })).min(1, 'At least one field value is required'),
   feedback: z.object({
     rating: z.string(),
     strengths: z.string().max(10000).optional(),

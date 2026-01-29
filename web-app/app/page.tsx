@@ -49,11 +49,11 @@ function HomeContent() {
           
           {/* Headline */}
           <div className="space-y-6 max-w-2xl">
-            <h1 className="font-sans text-6xl md:text-7xl lg:text-8xl font-medium tracking-tighter leading-[0.95] text-foreground animate-fade-in-up" style={{ animationDelay: '200ms' }}>
+            <h1 className="font-sans text-5xl md:text-7xl lg:text-8xl font-medium tracking-tighter leading-[0.95] text-foreground animate-fade-in-up" style={{ animationDelay: '200ms' }}>
               Meeting <br/>
               <span className="text-primary italic font-serif">Intelligence</span>
             </h1>
-            <p className="text-xl md:text-2xl text-muted-foreground font-light leading-relaxed animate-fade-in-up max-w-lg" style={{ animationDelay: '300ms' }}>
+            <p className="text-lg md:text-2xl text-muted-foreground font-light leading-relaxed animate-fade-in-up max-w-lg" style={{ animationDelay: '300ms' }}>
               Automate your notes. Analyze candidate fit. Sync with Lever. <span className="text-foreground font-normal">Seamlessly.</span>
             </p>
           </div>

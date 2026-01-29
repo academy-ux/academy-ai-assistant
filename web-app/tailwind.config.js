@@ -81,7 +81,7 @@ module.exports = {
   		},
   		animation: {
   			shimmer: 'shimmer 3s ease-in-out infinite',
-  			'spin-slow': 'spin-slow 8s linear infinite',
+  			'spin-slow': 'spin-slow 18s linear infinite',
   			'bounce-subtle': 'bounce-subtle 2s ease-in-out infinite',
   			'fade-in': 'fade-in 0.3s ease-out both',
   			'fade-in-up': 'fade-in-up 0.4s ease-out both',
@@ -130,6 +130,14 @@ module.exports = {
 			destructive: {
 				DEFAULT: 'hsl(var(--destructive))',
 				foreground: 'hsl(var(--destructive-foreground))'
+			},
+			success: {
+				DEFAULT: 'hsl(var(--success))',
+				foreground: 'hsl(var(--success-foreground))'
+			},
+			warning: {
+				DEFAULT: 'hsl(var(--warning))',
+				foreground: 'hsl(var(--warning-foreground))'
 			},
 			peach: {
 				DEFAULT: 'hsl(var(--peach))',

@@ -31,3 +31,29 @@ export async function GET(
     return errorResponse(error, 'Error fetching interview')
   }
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    // Validate UUID format
+    const parseResult = uuidSchema.safeParse(params.id)
+    if (!parseResult.success) {
+      return NextResponse.json({ error: 'Invalid interview ID format' }, { status: 400 })
+    }
+
+    const { error } = await supabase
+      .from('interviews')
+      .delete()
+      .eq('id', params.id)
+
+    if (error) {
+      throw error
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    return errorResponse(error, 'Error deleting interview')
+  }
+}

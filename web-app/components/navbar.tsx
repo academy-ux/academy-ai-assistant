@@ -4,6 +4,16 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useSession, signOut } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+
+function initialsFrom(label: string) {
+  const parts = (label || 'U')
+    .trim()
+    .split(/[\s@]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+  return parts.map((p) => p[0]!.toUpperCase()).join('') || 'U'
+}
 
 export function Navbar() {
   const { data: session } = useSession()
@@ -42,9 +52,25 @@ export function Navbar() {
                 Feedback
               </Link>
               <div className="flex items-center gap-3 ml-4 pl-4 border-l border-border/50">
-                <span className="text-xs text-muted-foreground hidden md:inline-block">
-                  {session.user?.email}
-                </span>
+                <div className="hidden md:flex items-center gap-2">
+                  <Avatar className="h-7 w-7 border border-border/40">
+                    <AvatarImage
+                      src={session.user?.image || undefined}
+                      alt={session.user?.name || 'User'}
+                    />
+                    <AvatarFallback className="text-[10px] font-semibold bg-muted/50 text-foreground/70">
+                      {initialsFrom(session.user?.name || session.user?.email || '')}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col leading-tight">
+                    <span className="text-xs font-medium text-foreground/80 max-w-[180px] truncate">
+                      {session.user?.name || 'Account'}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground max-w-[220px] truncate">
+                      {session.user?.email}
+                    </span>
+                  </div>
+                </div>
                 <Button 
                   variant="outline" 
                   size="sm" 

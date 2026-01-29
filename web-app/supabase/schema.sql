@@ -21,9 +21,13 @@ create table if not exists interviews (
   -- Interviewer info
   interviewer text,
 
+  -- Feedback submission tracking (Lever)
+  submitted_at timestamp with time zone,
+
   -- Transcript (required)
   transcript text not null,
   transcript_file_name text,
+  drive_file_id text,
 
   -- Analysis
   rating text check (rating is null or rating in ('1', '2', '3', '4', 'Not Analyzed')),
@@ -78,11 +82,20 @@ create index if not exists idx_interviews_meeting_date
 create index if not exists idx_interviews_created_at 
   on interviews(created_at desc);
 
+create index if not exists idx_interviews_submitted_at
+  on interviews(submitted_at desc nulls last);
+
 create index if not exists idx_interviews_candidate_name 
   on interviews(candidate_name);
 
 create index if not exists idx_interviews_meeting_code 
   on interviews(meeting_code);
+
+create index if not exists idx_interviews_drive_file_id 
+  on interviews(drive_file_id);
+
+create index if not exists idx_interviews_transcript_file_name 
+  on interviews(transcript_file_name);
 
 -- ============================================
 -- Triggers

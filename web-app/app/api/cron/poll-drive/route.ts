@@ -141,12 +141,28 @@ export async function pollFolder(
     
     await Promise.all(batch.map(async (file) => {
       try {
-        // Check if already imported
-        const { data: existing } = await supabase
-          .from('interviews')
-          .select('id')
-          .eq('transcript_file_name', file.name)
-          .single()
+        // Check if already imported (by Drive file ID first, then by file name)
+        let existing = null
+        
+        // First check by Drive file ID (most reliable)
+        if (file.id) {
+          const { data: existingById } = await supabase
+            .from('interviews')
+            .select('id')
+            .eq('drive_file_id', file.id)
+            .maybeSingle()
+          existing = existingById
+        }
+        
+        // If not found by ID, check by file name (for backwards compatibility)
+        if (!existing && file.name) {
+          const { data: existingByName } = await supabase
+            .from('interviews')
+            .select('id')
+            .eq('transcript_file_name', file.name)
+            .maybeSingle()
+          existing = existingByName
+        }
 
         if (existing) {
           skipped++
@@ -174,6 +190,7 @@ export async function pollFolder(
           meeting_date: file.createdTime || new Date().toISOString(),
           transcript: text,
           transcript_file_name: file.name,
+          drive_file_id: file.id,
           embedding: embedding,
           summary: metadata.summary,
           rating: 'Not Analyzed',

@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     const { transcript, meetingTitle, meetingDate, template } = body
 
     const model = genAI.getGenerativeModel({ 
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.5-flash',
       generationConfig: {
         responseMimeType: "application/json",
       }
@@ -36,22 +36,26 @@ Date: ${meetingDate || 'Today'}
 Transcript:
 ${transcript}
 
-Analyze this interview and fill out the following feedback form. 
-Return ONLY a JSON object where the keys match the "question" text exactly and values are your analysis.
+Analyze this interview and fill out the following feedback form.
+
+Return ONLY valid JSON in the following exact shape (no markdown, no extra keys):
+{
+  "candidateName": "string or null",
+  "answers": {
+    "<question text>": "<answer text>",
+    "...": "..."
+  }
+}
 
 Form Fields to Fill:
 ${template.fields.map((f: any) => `- Question: "${f.question}" (${f.description || ''})`).join('\n')}
 
-Example Output Format:
-{
-  "answers": {
-    "${template.fields[0].question}": "Your detailed analysis here...",
-    "${template.fields[1]?.question || 'Additional field'}": "Your answer here..."
-  },
-  "candidateName": "extracted name"
-}
-
-Be objective. Cite specific examples.`
+Guidelines:
+- The keys inside "answers" MUST match the question text exactly, including punctuation/casing.
+- If a question is a rating/score question, keep the answer short and pick a single clear rating (e.g. "4 - Strong Hire").
+- Be objective and cite specific examples from the transcript where possible.
+- If you cannot infer the answer from the transcript, set the value to "?".
+- IMPORTANT: Do NOT include timestamps or time ranges in your answers (e.g. do not write "(17:13-17:16)" or similar).`
     } else {
        // Default Legacy Prompt
        prompt = `You are analyzing an interview transcript for a recruiting team at Academy, a design-led recruiting and staffing business.
@@ -96,7 +100,41 @@ Be objective. Focus on specific examples from the conversation.`
       }
     }
 
-    return NextResponse.json({ success: true, analysis })
+    // Post-process: strip timestamp references if the model included any
+    const stripTimestamps = (s: string) => {
+      // Remove parenthetical timestamp ranges like "(17:13-17:16, 31:47-31:49)"
+      let out = s.replace(
+        /\(\s*\d{1,2}:\d{2}(?:\s*-\s*\d{1,2}:\d{2})?(?:\s*,\s*\d{1,2}:\d{2}(?:\s*-\s*\d{1,2}:\d{2})?)*\s*\)/g,
+        ''
+      )
+      // Remove standalone timestamp ranges like "17:13-17:16"
+      out = out.replace(/\b\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}\b/g, '')
+      // Remove standalone timestamps like "17:13"
+      out = out.replace(/\b\d{1,2}:\d{2}\b/g, '')
+      // Clean up whitespace/punctuation spacing
+      out = out.replace(/\s{2,}/g, ' ').replace(/\s+\./g, '.').replace(/\s+,/g, ',').trim()
+      return out
+    }
+
+    const cleanAnalysis = (obj: any): any => {
+      if (!obj || typeof obj !== 'object') return obj
+      // Clean dynamic template output
+      if (obj.answers && typeof obj.answers === 'object' && !Array.isArray(obj.answers)) {
+        const nextAnswers: Record<string, any> = {}
+        for (const [k, v] of Object.entries(obj.answers)) {
+          nextAnswers[k] = typeof v === 'string' ? stripTimestamps(v) : v
+        }
+        return { ...obj, answers: nextAnswers }
+      }
+      // Clean legacy output fields if present
+      const next: any = { ...obj }
+      for (const key of ['strengths', 'concerns', 'technicalSkills', 'culturalFit', 'recommendation']) {
+        if (typeof next[key] === 'string') next[key] = stripTimestamps(next[key])
+      }
+      return next
+    }
+
+    return NextResponse.json({ success: true, analysis: cleanAnalysis(analysis) })
 
   } catch (error) {
     return errorResponse(error, 'Analysis error')

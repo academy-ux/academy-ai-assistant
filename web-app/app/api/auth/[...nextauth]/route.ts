@@ -1,5 +1,8 @@
-import NextAuth from 'next-auth'
+import NextAuth, { type NextAuthOptions } from 'next-auth'
 import GoogleProvider from 'next-auth/providers/google'
+
+let didLogProfileOnce = false
+let didLogSessionOnce = false
 
 async function refreshAccessToken(token: any) {
   try {
@@ -36,7 +39,7 @@ async function refreshAccessToken(token: any) {
   }
 }
 
-const handler = NextAuth({
+export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   providers: [
     GoogleProvider({
@@ -52,11 +55,24 @@ const handler = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, account }) {
+    async jwt({ token, account, profile, user }) {
       // Initial sign in - persist OAuth tokens
       if (account) {
+        if (!didLogProfileOnce) {
+          didLogProfileOnce = true
+          console.log('[nextauth] sign-in profile picture:', (profile as any)?.picture)
+          console.log('[nextauth] sign-in user image:', (user as any)?.image)
+        }
         return {
           ...token,
+          // Persist basic user fields (NextAuth doesn't do this automatically once we override callbacks)
+          name: (token.name as string) ?? (user as any)?.name ?? (profile as any)?.name,
+          email: (token.email as string) ?? (user as any)?.email ?? (profile as any)?.email,
+          picture:
+            (token as any).picture ??
+            (user as any)?.image ??
+            (profile as any)?.picture ??
+            (profile as any)?.image,
           accessToken: account.access_token,
           refreshToken: account.refresh_token,
           expiresAt: account.expires_at,
@@ -77,6 +93,18 @@ const handler = NextAuth({
     },
     async session({ session, token }) {
       // Only send safe user info to client - DO NOT expose accessToken
+      // Since we override this callback, we must explicitly map basic user fields.
+      if (session.user) {
+        session.user.name = (token.name as string) ?? session.user.name
+        session.user.email = (token.email as string) ?? session.user.email
+        const picture = (token as any).picture ?? (token as any).image
+        session.user.image = (picture as string) ?? session.user.image
+      }
+      if (!didLogSessionOnce) {
+        didLogSessionOnce = true
+        console.log('[nextauth] session user image:', session.user?.image)
+        console.log('[nextauth] token picture:', (token as any)?.picture)
+      }
       if (token.error) {
         // Signal to client that re-authentication is needed
         session.error = token.error as string
@@ -87,6 +115,8 @@ const handler = NextAuth({
   pages: {
     signIn: '/',
   },
-})
+}
+
+const handler = NextAuth(authOptions)
 
 export { handler as GET, handler as POST }

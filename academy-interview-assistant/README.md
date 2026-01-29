@@ -14,8 +14,18 @@ The extension is now installed and will automatically monitor your Google Meet s
 ## How It Works
 
 1. **Join a Google Meet** - The extension detects when you're in a meeting
-2. **Leave the meeting** - Click the "Leave call" button
-3. **Automatic redirect** - A new tab opens with the feedback form at:
+2. **Login check** - The extension verifies you're logged into Academy
+   - If not logged in, a notification appears prompting you to log in
+   - Click the notification to open Academy and sign in
+3. **Candidate info panel** - The extension searches Lever for candidate info
+   - Detects participant names from the meeting
+   - Shows a floating panel with candidate details:
+     - Name, position, and stage
+     - LinkedIn, portfolio, GitHub links
+     - Direct link to Lever profile
+   - Panel is draggable and can be closed
+4. **Leave the meeting** - Click the "Leave call" button
+5. **Automatic redirect** - A new tab opens with the feedback form at:
    ```
    https://academy-ai-assistant.vercel.app/feedback?meeting={code}&title={title}
    ```
@@ -63,4 +73,22 @@ If the extension isn't working:
 
 ## Version
 
-Current version: **3.1.0**
+Current version: **3.3.0**
+
+### Changelog
+
+**3.3.0** - Candidate info panel
+- Detects participant names from Google Meet
+- Searches Lever for candidate information
+- Shows floating panel with LinkedIn, portfolio, GitHub links
+- Direct link to open candidate in Lever
+- Draggable panel UI
+
+**3.2.0** - Login status check
+- Added login verification when joining a meeting
+- Shows notification if not logged into Academy
+- Click notification to open Academy and sign in
+
+**3.1.0** - Initial stable release
+- Auto-detects meeting join and leave
+- Opens feedback form automatically

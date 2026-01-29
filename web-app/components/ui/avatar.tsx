@@ -23,10 +23,14 @@ Avatar.displayName = AvatarPrimitive.Root.displayName
 const AvatarImage = React.forwardRef<
   React.ElementRef<typeof AvatarPrimitive.Image>,
   React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Image>
->(({ className, ...props }, ref) => (
+>(({ className, referrerPolicy, crossOrigin, ...props }, ref) => (
   <AvatarPrimitive.Image
     ref={ref}
     className={cn("aspect-square h-full w-full", className)}
+    // Google profile photos can intermittently 429 when a Referer header is present.
+    // Avoid sending referrer by default; callers can override if needed.
+    referrerPolicy={referrerPolicy ?? "no-referrer"}
+    crossOrigin={crossOrigin ?? "anonymous"}
     {...props}
   />
 ))

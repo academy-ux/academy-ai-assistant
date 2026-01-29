@@ -10,7 +10,8 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Spinner } from '@/components/ui/spinner'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { ArrowLeft, Calendar, User, Send, Search, Copy, Check } from 'lucide-react'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { ArrowLeft, Calendar, User, Send, Search, Copy, Check, ClipboardList } from 'lucide-react'
 import { MagicWandIcon } from '@/components/icons/magic-wand'
 import { VoiceRecorder } from '@/components/voice-recorder'
 import { Message, MessageContent, MessageAvatar } from '@/components/ui/message'
@@ -24,10 +25,13 @@ interface Interview {
   interviewer?: string
   position: string
   meeting_title: string
+  meeting_type?: string | null
   meeting_date?: string
   summary?: string
   transcript: string
   created_at: string
+  candidate_id?: string | null
+  submitted_at?: string | null
 }
 
 interface ConversationMessage {
@@ -152,17 +156,90 @@ export default function InterviewDetailPage() {
     }
   }
 
-  // Highlight search matches in transcript
+  // Parse and format transcript with speaker labels and timestamps
+  function formatTranscript(text: string) {
+    if (!text) return []
+    
+    // Remove Tactiq header if present
+    let cleanText = text.replace(/^Transcript delivered by Tactiq\.io[\s\S]*?(?=(\*\s*\d{1,2}:\d{2}|\bTranscript\b\s*\d{1,2}:\d{2}|\d{1,2}:\d{2}\s+[A-Za-z]))/i, '')
+    cleanText = cleanText.trim()
+
+    type TranscriptLine = { id: string; timestamp: string | null; speaker: string | null; content: string }
+
+    // One-pass parser that supports mixed formats inside the same transcript.
+    // We find every "utterance header" and take content until the next header.
+    const headerRegex = new RegExp(
+      [
+        // * 12:34 ✅ : (rachel xie)
+        String.raw`\*\s*(?<ts1>\d{1,2}:\d{2})\s*[⏰✅💡📋🎯⚡️💬🔥✨🌟📌⏱️✓]*\s*:\s*\((?<sp1>[^)]+)\)\s*`,
+        // Transcript 00:00 Adam Perlis:
+        String.raw`(?:\bTranscript\b\s*)?(?<ts2>\d{1,2}:\d{2})\s+(?<sp2>[^:\n]{2,60}?):\s*`,
+      ].join('|'),
+      'g'
+    )
+
+    const headers = Array.from(cleanText.matchAll(headerRegex))
+
+    // If we can't find any structure, fall back to a single block.
+    if (headers.length === 0) {
+      return [{ id: 'line-0', timestamp: null, speaker: null, content: cleanText }]
+    }
+
+    const result: TranscriptLine[] = []
+
+    const pushPlain = (content: string) => {
+      const trimmed = content.replace(/\s+/g, ' ').trim()
+      if (!trimmed) return
+      result.push({
+        id: `line-${result.length}`,
+        timestamp: null,
+        speaker: null,
+        content: trimmed,
+      })
+    }
+
+    // Keep any leading non-matching text as a plain paragraph
+    const firstStart = headers[0]?.index ?? 0
+    if (firstStart > 0) pushPlain(cleanText.slice(0, firstStart))
+
+    for (let i = 0; i < headers.length; i++) {
+      const h = headers[i]
+      const next = headers[i + 1]
+
+      const headerEnd = (h.index ?? 0) + h[0].length
+      const contentEnd = next?.index ?? cleanText.length
+      const rawContent = cleanText.slice(headerEnd, contentEnd).trim()
+
+      const ts = h.groups?.ts1 ?? h.groups?.ts2 ?? null
+      const speakerRaw = (h.groups?.sp1 ?? h.groups?.sp2 ?? '').trim()
+      const speaker = speakerRaw ? speakerRaw.replace(/\s*\(chat\)\s*$/i, '').trim() : null
+
+      // Sometimes there are stray tokens like "Highlights" between entries; keep them as plain text.
+      if (!speaker || !rawContent) {
+        pushPlain(rawContent)
+        continue
+      }
+
+      result.push({
+        id: `line-${result.length}`,
+        timestamp: ts,
+        speaker,
+        content: rawContent,
+      })
+    }
+
+    return result.length > 0 ? result : [{ id: 'line-0', timestamp: null, speaker: null, content: cleanText }]
+  }
+
+  // Highlight search matches in formatted transcript
   function highlightText(text: string, query: string) {
     if (!query.trim()) return text
     const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     const regex = new RegExp(`(${escapedQuery})`, 'gi')
     const parts = text.split(regex)
-    // Check if part matches query (case-insensitive) instead of using regex.test()
-    // which has lastIndex issues with the global flag
     return parts.map((part, i) => 
       part.toLowerCase() === query.toLowerCase() 
-        ? <mark key={i} className="bg-peach/30 text-foreground px-1 rounded">{part}</mark> 
+        ? <mark key={i} className="bg-peach/30 text-foreground px-1 rounded font-semibold">{part}</mark> 
         : part
     )
   }
@@ -190,6 +267,60 @@ export default function InterviewDetailPage() {
     )
   }
 
+  const transcriptLines = formatTranscript(interview.transcript || 'No transcript available')
+  const normalizedQuery = searchQuery.trim().toLowerCase()
+  const visibleTranscriptLines = normalizedQuery
+    ? transcriptLines.filter((line) => {
+        const content = (line.content || '').toLowerCase()
+        const speaker = (line.speaker || '').toLowerCase()
+        const timestamp = (line.timestamp || '').toLowerCase()
+        return (
+          content.includes(normalizedQuery) ||
+          speaker.includes(normalizedQuery) ||
+          timestamp.includes(normalizedQuery)
+        )
+      })
+    : transcriptLines
+
+  const isInterview =
+    (interview as any)?.meeting_type === 'Interview' || interview.meeting_title === 'Interview'
+
+  const submittedAtRaw = (interview as any)?.submitted_at as string | null | undefined
+  const isSubmitted = Boolean(isInterview && (submittedAtRaw || (interview as any)?.candidate_id))
+  const submittedDate = isSubmitted
+    ? new Date(submittedAtRaw || interview.meeting_date || interview.created_at)
+    : null
+  const submittedDateLabel = submittedDate
+    ? submittedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    : null
+
+  const viewerLabel = session?.user?.name || session?.user?.email || interview.interviewer || ''
+  const viewerInitials = (viewerLabel || 'U')
+    .trim()
+    .split(/[\s@]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]!.toUpperCase())
+    .join('')
+
+  const isViewerSpeaker = (speaker?: string | null) => {
+    if (!speaker) return false
+    const s = speaker.toLowerCase().trim()
+    const name = session?.user?.name?.toLowerCase().trim()
+    if (name) {
+      // Match either full name, or first+last token containment.
+      if (s === name) return true
+      const tokens = name.split(/\s+/).filter(Boolean)
+      const first = tokens[0]
+      const last = tokens.length > 1 ? tokens[tokens.length - 1] : null
+      if (first && s.includes(first) && (!last || s.includes(last))) return true
+    }
+    // Fallback: match email local-part token (e.g. adam.perlis)
+    const emailLocal = session?.user?.email?.split('@')[0]?.toLowerCase()
+    if (emailLocal && s.replace(/\s+/g, '').includes(emailLocal.replace(/[._-]/g, ''))) return true
+    return false
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-6xl mx-auto px-6 py-8">
@@ -197,38 +328,82 @@ export default function InterviewDetailPage() {
         <div className="mb-8">
           <button 
             onClick={() => router.back()}
-            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
+            className={cn(
+              "inline-flex items-center gap-2 text-sm",
+              "text-muted-foreground hover:text-foreground transition-colors",
+              "rounded-full px-3 py-1.5",
+              "hover:bg-muted/40 border border-transparent hover:border-border/40",
+              "mb-6"
+            )}
           >
             <ArrowLeft className="h-4 w-4" />
             Back to History
           </button>
           
-          <div className="flex items-start justify-between gap-6">
-            <div className="flex items-start gap-4">
-              <div className="h-16 w-16 rounded-full bg-peach/20 flex items-center justify-center flex-shrink-0 border border-peach/30">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+            <div className="flex items-start gap-4 min-w-0">
+              <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-full bg-peach/20 flex items-center justify-center flex-shrink-0 border border-peach/30 shadow-sm ring-1 ring-foreground/5">
                 <span className="text-lg font-semibold text-foreground/80">
                   {(interview.candidate_name || 'U').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
                 </span>
               </div>
-              <div>
-                <h1 className="text-3xl font-normal text-foreground mb-2">
+              <div className="min-w-0">
+                <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground leading-tight">
                   {interview.candidate_name || 'Unknown Candidate'}
                 </h1>
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="mt-2 flex items-center gap-2 flex-wrap">
                   {interview.position && (
-                    <Badge variant="secondary" className="text-sm bg-peach/20 text-foreground border-peach/30">{interview.position}</Badge>
+                    <span className="text-sm text-muted-foreground font-medium px-3 py-1 border border-border/50 rounded-full bg-muted/30">
+                      {interview.position}
+                    </span>
                   )}
                   {interview.meeting_title && interview.meeting_title !== 'Interview' && (
-                    <Badge variant="outline" className="text-sm border-border/40">{interview.meeting_title}</Badge>
+                    <Badge
+                      variant="outline"
+                      className="text-xs px-2.5 py-0.5 border-border/40 text-muted-foreground rounded-full"
+                    >
+                      {interview.meeting_title}
+                    </Badge>
+                  )}
+                  {isInterview && (
+                    <div
+                      className={cn(
+                        "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium",
+                        "border transition-all duration-300",
+                        "shadow-sm hover:shadow",
+                        isSubmitted
+                          ? "bg-success/10 border-success/30 text-success hover:bg-success/15"
+                          : "bg-warning/10 border-warning/30 text-warning hover:bg-warning/15"
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          "h-1.5 w-1.5 rounded-full",
+                          isSubmitted ? "bg-success" : "bg-warning"
+                        )}
+                      />
+                      {isSubmitted ? "Submitted" : "Not Submitted"}
+                    </div>
                   )}
                   {interview.interviewer && interview.interviewer !== 'Unknown' && (
-                    <span className="text-sm text-muted-foreground font-light">with {interview.interviewer}</span>
+                    <span className="inline-flex items-center gap-2 text-sm text-muted-foreground font-light truncate">
+                      <Avatar className="h-5 w-5 border border-border/40">
+                        <AvatarImage
+                          src={session?.user?.image || undefined}
+                          alt={session?.user?.name || 'User'}
+                        />
+                        <AvatarFallback className="text-[10px] font-semibold bg-muted/50 text-foreground/70">
+                          {viewerInitials || 'U'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-foreground/80 font-medium">{interview.interviewer}</span>
+                    </span>
                   )}
                 </div>
               </div>
             </div>
             
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground bg-card/40 border border-border/40 px-3 py-2 rounded-lg flex-shrink-0">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground bg-card/60 backdrop-blur border border-border/50 px-4 py-2 rounded-full flex-shrink-0 shadow-sm">
               <Calendar className="h-4 w-4" />
               {new Date(interview.meeting_date || interview.created_at).toLocaleDateString('en-US', {
                 weekday: 'short',
@@ -241,31 +416,55 @@ export default function InterviewDetailPage() {
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex items-center gap-2 p-1 bg-muted/40 rounded-lg w-fit mb-6">
-          <button
-            onClick={() => setActiveTab('transcript')}
-            className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200",
-              activeTab === 'transcript'
-                ? "bg-card/60 text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-background/50"
-            )}
-          >
-            <Search className="h-4 w-4" />
-            Transcript
-          </button>
-          <button
-            onClick={() => setActiveTab('ask')}
-            className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200",
-              activeTab === 'ask'
-                ? "bg-card/60 text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-background/50"
-            )}
-          >
-            <MagicWandIcon size={16} />
-            Ask AI
-          </button>
+        <div className="flex items-center justify-between gap-4 mb-6">
+          <div className="flex items-center gap-2 p-1 bg-card/40 backdrop-blur border border-border/40 rounded-full w-fit shadow-sm">
+            <button
+              onClick={() => setActiveTab('transcript')}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200",
+                activeTab === 'transcript'
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-background/40"
+              )}
+            >
+              <Search className="h-4 w-4" />
+              Transcript
+            </button>
+            <button
+              onClick={() => setActiveTab('ask')}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200",
+                activeTab === 'ask'
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-background/40"
+              )}
+            >
+              <MagicWandIcon size={16} />
+              Ask AI
+            </button>
+          </div>
+
+          {isInterview && (
+            isSubmitted ? (
+              <div className="flex items-center gap-2 text-sm text-success bg-success/10 border border-success/30 px-4 py-2 rounded-full shadow-sm">
+                <Check className="h-4 w-4" />
+                <span className="font-medium">Submitted</span>
+                {submittedDateLabel && <span className="text-success/80">• {submittedDateLabel}</span>}
+              </div>
+            ) : (
+              <Button
+                onClick={() => router.push(`/feedback?interviewId=${interview.id}`)}
+                className={cn(
+                  "h-10 rounded-full px-5 gap-2",
+                  "bg-peach text-foreground hover:bg-peach/85",
+                  "border border-peach/40 shadow-sm hover:shadow-md transition-all"
+                )}
+              >
+                <ClipboardList className="h-4 w-4" />
+                Submit feedback
+              </Button>
+            )
+          )}
         </div>
 
         {/* Transcript Tab */}
@@ -300,10 +499,72 @@ export default function InterviewDetailPage() {
                   </Button>
                 </div>
               </div>
-              <div className="bg-background/30 p-4 rounded-lg border border-border/40 max-h-[60vh] overflow-y-auto">
-                <p className="text-sm leading-relaxed whitespace-pre-wrap font-light">
-                  {highlightText(interview.transcript || 'No transcript available', searchQuery)}
-                </p>
+              <div className="bg-background/30 p-6 rounded-lg border border-border/40 max-h-[60vh] overflow-y-auto">
+                {normalizedQuery && (
+                  <div className="mb-4 flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground">
+                      Showing <span className="font-medium text-foreground">{visibleTranscriptLines.length}</span> of{' '}
+                      <span className="font-medium text-foreground">{transcriptLines.length}</span> matches
+                    </p>
+                    {visibleTranscriptLines.length === 0 && (
+                      <Badge variant="secondary" className="text-[10px] rounded-full">
+                        No matches
+                      </Badge>
+                    )}
+                  </div>
+                )}
+                <div className="space-y-6">
+                  {visibleTranscriptLines.length === 0 ? (
+                    <div className="py-10 text-center">
+                      <p className="text-sm text-muted-foreground font-light">
+                        No transcript lines match “{searchQuery.trim()}”.
+                      </p>
+                    </div>
+                  ) : (
+                    visibleTranscriptLines.map((line) => (
+                    <div key={line.id} className="group">
+                      {line.speaker && (
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="flex items-center gap-2">
+                            {isViewerSpeaker(line.speaker) ? (
+                              <Avatar className="h-8 w-8 border border-border/40 flex-shrink-0">
+                                <AvatarImage
+                                  src={session?.user?.image || undefined}
+                                  alt={session?.user?.name || 'You'}
+                                />
+                                <AvatarFallback className="text-xs font-semibold bg-muted/50 text-foreground/70">
+                                  {viewerInitials || 'U'}
+                                </AvatarFallback>
+                              </Avatar>
+                            ) : (
+                              <div className="h-8 w-8 rounded-full bg-peach/20 flex items-center justify-center border border-peach/30 flex-shrink-0">
+                                <span className="text-xs font-semibold text-foreground/80">
+                                  {line.speaker.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                                </span>
+                              </div>
+                            )}
+                            <span className="text-sm font-semibold text-foreground">
+                              {line.speaker}
+                            </span>
+                          </div>
+                          {line.timestamp && (
+                            <span className="text-xs text-muted-foreground font-mono bg-muted/30 px-2 py-0.5 rounded">
+                              {line.timestamp}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      <p className={cn(
+                        "text-sm leading-relaxed font-light",
+                        // Align content with start of speaker name (avatar 32px + gap-2 = 8px)
+                        line.speaker ? "ml-10" : "text-muted-foreground/90 italic"
+                      )}>
+                        {highlightText(line.content, searchQuery)}
+                      </p>
+                    </div>
+                    ))
+                  )}
+                </div>
               </div>
             </Card>
           </div>

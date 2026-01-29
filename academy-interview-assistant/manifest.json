@@ -1,13 +1,17 @@
 {
   "manifest_version": 3,
   "name": "Academy Interview Assistant",
-  "version": "3.1.0",
+  "version": "3.3.0",
   "description": "Auto-opens feedback form after Google Meet interviews",
   "permissions": [
-    "tabs"
+    "tabs",
+    "storage",
+    "notifications"
   ],
   "host_permissions": [
-    "https://meet.google.com/*"
+    "https://meet.google.com/*",
+    "https://academy-ai-assistant.vercel.app/*",
+    "https://*.vercel.app/*"
   ],
   "background": {
     "service_worker": "background.js"

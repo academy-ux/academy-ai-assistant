@@ -23,7 +23,7 @@ async function testKey() {
   try {
     // Test text generation
     console.log('\n📝 Testing text generation...')
-    const textModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
+    const textModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
     const textResult = await textModel.generateContent('Say "API key works!"')
     console.log('✅ Text generation:', textResult.response.text())
     

@@ -34,7 +34,7 @@ export async function parseTranscriptMetadata(transcript: string, fileName: stri
 
   // Use AI to extract metadata and generate summary
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
     
     // Use a good sample of the transcript for context
     const transcriptSample = cleanTranscript.slice(0, 12000)

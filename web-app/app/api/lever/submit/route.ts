@@ -18,6 +18,7 @@ export async function POST(request: NextRequest) {
     const { 
       opportunityId, 
       templateId, 
+      fieldValues,
       feedback,
       transcript,
       meetingTitle,
@@ -25,26 +26,6 @@ export async function POST(request: NextRequest) {
       candidateName,
       position
     } = body
-
-    // Format feedback text
-    const feedbackText = `
-Rating: ${feedback.rating}
-
-Strengths:
-${feedback.strengths || 'Not provided'}
-
-Concerns:
-${feedback.concerns || 'Not provided'}
-
-Technical Skills:
-${feedback.technicalSkills || 'Not provided'}
-
-Cultural Fit:
-${feedback.culturalFit || 'Not provided'}
-
-Recommendation:
-${feedback.recommendation || 'Not provided'}
-    `.trim()
 
     // 1. Submit to Lever
     const response = await fetch(
@@ -57,7 +38,8 @@ ${feedback.recommendation || 'Not provided'}
         },
         body: JSON.stringify({
           baseTemplateId: templateId,
-          text: feedbackText,
+          fieldValues,
+          createdAt: Date.now(),
           completedAt: Date.now(),
         }),
       }
@@ -71,28 +53,59 @@ ${feedback.recommendation || 'Not provided'}
 
     const data = await response.json()
 
-    // 2. Save to Supabase
+    // 2. Save to Supabase (update existing interview when possible)
     if (transcript) {
       try {
         const embedding = await generateEmbedding(transcript)
 
-        const { error: dbError } = await supabase
-          .from('interviews')
-          .insert({
-            meeting_code: meetingCode,
-            meeting_title: meetingTitle,
-            meeting_date: new Date().toISOString(),
-            candidate_id: opportunityId,
-            candidate_name: candidateName,
-            position: position,
-            transcript: transcript,
-            rating: feedback.rating,
-            summary: feedback.recommendation,
-            embedding: embedding
-          })
+        const submittedAt = new Date().toISOString()
 
-        if (dbError) {
-          console.error('Supabase insertion error:', dbError)
+        // Prefer updating the existing transcript row (meetingCode is the interview id from the UI).
+        let updated = false
+        if (meetingCode) {
+          const { data: updatedRows, error: updateError } = await supabase
+            .from('interviews')
+            .update({
+              candidate_id: opportunityId,
+              candidate_name: candidateName,
+              position: position,
+              rating: feedback.rating,
+              summary: feedback.recommendation,
+              embedding: embedding,
+              submitted_at: submittedAt,
+              updated_at: submittedAt,
+            })
+            .eq('id', meetingCode)
+            .select('id')
+
+          if (updateError) {
+            console.error('Supabase update error:', updateError)
+          } else if (updatedRows && updatedRows.length > 0) {
+            updated = true
+          }
+        }
+
+        // Fallback for older flows: create a record if we couldn't update.
+        if (!updated) {
+          const { error: dbError } = await supabase
+            .from('interviews')
+            .insert({
+              meeting_code: meetingCode,
+              meeting_title: meetingTitle,
+              meeting_date: new Date().toISOString(),
+              candidate_id: opportunityId,
+              candidate_name: candidateName,
+              position: position,
+              transcript: transcript,
+              rating: feedback.rating,
+              summary: feedback.recommendation,
+              embedding: embedding,
+              submitted_at: submittedAt,
+            })
+
+          if (dbError) {
+            console.error('Supabase insertion error:', dbError)
+          }
         }
       } catch (innerError) {
         console.error('Error saving to Supabase:', innerError)

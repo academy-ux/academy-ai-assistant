@@ -1,0 +1,210 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
+import { validateSearchParams, errorResponse } from '@/lib/validation'
+
+const searchQuerySchema = z.object({
+  q: z.string().min(1).max(200), // Search query (name or email)
+})
+
+/**
+ * Search for a candidate by name or email.
+ * Used by the Chrome extension to find candidate info during interviews.
+ */
+export async function GET(request: NextRequest) {
+  // Handle CORS for Chrome extension
+  const origin = request.headers.get('origin') || ''
+  const isExtension = origin.startsWith('chrome-extension://')
+  
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  }
+  
+  if (isExtension) {
+    headers['Access-Control-Allow-Origin'] = origin
+    headers['Access-Control-Allow-Credentials'] = 'true'
+  }
+
+  try {
+    const leverKey = process.env.LEVER_API_KEY
+
+    if (!leverKey) {
+      return NextResponse.json(
+        { error: 'Lever API key not configured' },
+        { status: 500, headers }
+      )
+    }
+
+    const { data: params, error: validationError } = validateSearchParams(
+      request.nextUrl.searchParams,
+      searchQuerySchema
+    )
+    if (validationError) {
+      return NextResponse.json(
+        { error: 'Search query is required' },
+        { status: 400, headers }
+      )
+    }
+
+    const searchQuery = params.q.toLowerCase().trim()
+
+    // Fetch opportunities with contact info and applications
+    const leverParams = new URLSearchParams()
+    leverParams.append('limit', '100')
+    leverParams.append('expand', 'contact')
+    leverParams.append('expand', 'stage')
+    leverParams.append('expand', 'applications')
+
+    const response = await fetch(
+      `https://api.lever.co/v1/opportunities?${leverParams.toString()}`,
+      {
+        headers: {
+          'Authorization': `Basic ${Buffer.from(leverKey + ':').toString('base64')}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    )
+
+    if (!response.ok) {
+      throw new Error(`Lever API error: ${response.status}`)
+    }
+
+    const data = await response.json()
+    const opportunities = data.data || []
+
+    // Search by name (fuzzy match)
+    const matches = opportunities.filter((opp: any) => {
+      const name = (opp.name || '').toLowerCase()
+      const email = (opp.emails?.[0] || '').toLowerCase()
+      
+      // Check if search query matches name or email
+      return name.includes(searchQuery) || 
+             email.includes(searchQuery) ||
+             searchQuery.split(' ').every((word: string) => name.includes(word))
+    })
+
+    // Transform matches to include useful info
+    const candidates = matches.map((opp: any) => {
+      const contact = opp.contact || {}
+      const app = opp.applications?.[0]
+      
+      // IMPORTANT: Links are on the OPPORTUNITY object, not contact!
+      const rawLinks = opp.links || []
+      
+      // Debug: Log the raw links data
+      if (rawLinks.length > 0) {
+        console.log('[Lever Search] Raw links for', opp.name, ':', JSON.stringify(rawLinks))
+      }
+      
+      // Extract links (LinkedIn, portfolio, etc.)
+      const links: Record<string, string> = {}
+      for (const link of rawLinks) {
+        // Lever stores links as either strings or objects with url property
+        let url: string
+        if (typeof link === 'string') {
+          url = link
+        } else if (link && typeof link === 'object') {
+          // Link could be { url: "...", type: "..." } or just have a url property
+          url = link.url || link.href || String(link)
+        } else {
+          continue
+        }
+        
+        // Skip if no valid URL
+        if (!url || typeof url !== 'string') continue
+        
+        // Categorize by URL pattern
+        if (url.includes('linkedin.com')) {
+          links.linkedin = url
+        } else if (url.includes('github.com')) {
+          links.github = url
+        } else if (url.includes('twitter.com') || url.includes('x.com')) {
+          links.twitter = url
+        } else if (url.includes('dribbble.com')) {
+          links.dribbble = url
+        } else if (url.includes('behance.net')) {
+          links.behance = url
+        } else {
+          // Assume it's a portfolio or personal site
+          if (!links.portfolio) {
+            links.portfolio = url
+          } else if (!links.other) {
+            links.other = url
+          }
+        }
+      }
+
+      // Debug: Log extracted links
+      if (Object.keys(links).length > 0) {
+        console.log('[Lever Search] ✓ Extracted links for', opp.name, ':', links)
+      } else if (rawLinks.length > 0) {
+        console.log('[Lever Search] ⚠️  Had raw links but extracted none for', opp.name)
+      }
+      
+      // Get resume from resumes endpoint (the resume field on opp is deprecated)
+      // For now we'll use what's available on the opportunity
+      const resume = opp.resume || null
+      const resumeUrl = resume?.file?.downloadUrl || null
+      
+      return {
+        id: opp.id,
+        name: opp.name || 'Unknown',
+        email: opp.emails?.[0] || '',
+        phone: opp.phones?.[0]?.value || '',
+        headline: opp.headline || '',
+        location: opp.location || '',
+        position: app?.postingTitle || 'No position',
+        stage: opp.stage?.text || 'Unknown Stage',
+        links,
+        allLinks: rawLinks,
+        leverUrl: `https://hire.lever.co/candidates/${opp.id}`,
+        resumeUrl,
+        createdAt: opp.createdAt,
+      }
+    })
+
+    // Sort by relevance and completeness
+    candidates.sort((a: any, b: any) => {
+      // Exact name match first
+      const aExact = a.name.toLowerCase() === searchQuery
+      const bExact = b.name.toLowerCase() === searchQuery
+      if (aExact && !bExact) return -1
+      if (!aExact && bExact) return 1
+      
+      // Then by number of links (more complete profiles first)
+      const aLinkCount = Object.keys(a.links).length
+      const bLinkCount = Object.keys(b.links).length
+      return bLinkCount - aLinkCount
+    })
+
+    return NextResponse.json(
+      { 
+        success: true, 
+        query: params.q,
+        count: candidates.length,
+        candidates: candidates.slice(0, 5) // Return top 5 matches
+      },
+      { headers }
+    )
+
+  } catch (error) {
+    return errorResponse(error, 'Lever search error')
+  }
+}
+
+// Handle preflight requests for CORS
+export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get('origin') || ''
+  const isExtension = origin.startsWith('chrome-extension://')
+  
+  const headers: HeadersInit = {
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  }
+  
+  if (isExtension) {
+    headers['Access-Control-Allow-Origin'] = origin
+    headers['Access-Control-Allow-Credentials'] = 'true'
+  }
+  
+  return new NextResponse(null, { status: 204, headers })
+}

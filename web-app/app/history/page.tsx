@@ -17,7 +17,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Spinner } from '@/components/ui/spinner'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { ChevronsUpDown, Check, Search, CloudDownload, FileText, Calendar, User, X, Send, ChevronRight, RefreshCw, SlidersHorizontal } from 'lucide-react'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { ChevronsUpDown, Check, Search, CloudDownload, FileText, Calendar, User, X, Send, ChevronRight, RefreshCw, SlidersHorizontal, Trash2 } from 'lucide-react'
 import { MagicWandIcon } from '@/components/icons/magic-wand'
 import { VoiceRecorder } from '@/components/voice-recorder'
 import { Message, MessageContent, MessageAvatar } from '@/components/ui/message'
@@ -40,6 +41,8 @@ interface Meeting {
   summary?: string
   transcript: string
   created_at: string
+  candidate_id?: string | null
+  submitted_at?: string | null
   similarity?: number
 }
 
@@ -118,6 +121,15 @@ export default function HistoryPage() {
     lastPollFileCount: 0,
   })
   const [settingsLoading, setSettingsLoading] = useState(false)
+
+  const viewerLabel = session?.user?.name || session?.user?.email || ''
+  const viewerInitials = (viewerLabel || 'U')
+    .trim()
+    .split(/[\s@]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]!.toUpperCase())
+    .join('')
   const [settingsSaving, setSettingsSaving] = useState(false)
   const [polling, setPolling] = useState(false)
   const [pollResult, setPollResult] = useState<{imported: number, skipped: number, errors: number} | null>(null)
@@ -127,6 +139,11 @@ export default function HistoryPage() {
   const [regenerateProgress, setRegenerateProgress] = useState({ current: 0, total: 0 })
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false)
   const [showRecategorizeConfirm, setShowRecategorizeConfirm] = useState(false)
+  
+  // Delete state
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [meetingToDelete, setMeetingToDelete] = useState<Meeting | null>(null)
   
   // Voice recording state
   const [isRecording, setIsRecording] = useState(false)
@@ -144,6 +161,39 @@ export default function HistoryPage() {
   const [sortBy, setSortBy] = useState<string>('date-desc')
   
   const ITEMS_PER_PAGE = 20
+
+  function formatRoleAndCompany(position?: string) {
+    if (!position) return { role: '', company: '' }
+    const raw = position.trim()
+
+    // If already formatted with a bullet, keep as-is.
+    if (raw.includes('•')) {
+      const [role, ...rest] = raw.split('•')
+      return { role: role.trim(), company: rest.join('•').trim() }
+    }
+
+    // Try common separators
+    const separators = [' - ', ' — ', ' – ', ' @ ', ' | ']
+    const sep = separators.find(s => raw.includes(s))
+    if (!sep) return { role: raw, company: '' }
+
+    const parts = raw.split(sep).map(p => p.trim()).filter(Boolean)
+    if (parts.length < 2) return { role: raw, company: '' }
+
+    const looksLikeRole = (s: string) =>
+      /(designer|design|engineer|product|manager|lead|founding|director|vp|marketing|sales|research|ops|data|frontend|backend|full[- ]?stack)/i.test(s)
+
+    // Heuristic: whichever side looks more like a role becomes role; the other becomes company.
+    const [a, b] = [parts[0], parts.slice(1).join(sep).trim()]
+    const aIsRole = looksLikeRole(a)
+    const bIsRole = looksLikeRole(b)
+
+    if (aIsRole && !bIsRole) return { role: a, company: b }
+    if (!aIsRole && bIsRole) return { role: b, company: a }
+
+    // Default: assume first is role, second is company
+    return { role: a, company: b }
+  }
 
   async function fetchMeetings(pageNum = 0, append = false) {
     try {
@@ -212,9 +262,36 @@ export default function HistoryPage() {
   }, [selectedFolder])
 
   useEffect(() => {
-    fetchMeetings()
-    loadSettings()
-  }, [])
+    if (session) {
+      fetchMeetings()
+      loadSettings()
+    }
+  }, [session])
+
+  // Refresh meetings when page becomes visible (user returns from another tab/page)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && session) {
+        fetchMeetings()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    
+    // Also refresh on window focus
+    const handleFocus = () => {
+      if (session) {
+        fetchMeetings()
+      }
+    }
+    
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [session])
 
   // Auto-scroll to bottom when conversation updates
   useEffect(() => {
@@ -581,6 +658,38 @@ export default function HistoryPage() {
     setAiQuestion('')
   }
 
+  async function handleDeleteMeeting(meeting: Meeting) {
+    setMeetingToDelete(meeting)
+    setShowDeleteConfirm(true)
+  }
+
+  async function confirmDelete() {
+    if (!meetingToDelete) return
+    
+    setDeletingId(meetingToDelete.id)
+    setShowDeleteConfirm(false)
+    
+    try {
+      const res = await fetch(`/api/interviews/${meetingToDelete.id}`, {
+        method: 'DELETE'
+      })
+      
+      if (res.ok) {
+        // Remove from local state
+        setMeetings(prev => prev.filter(m => m.id !== meetingToDelete.id))
+        setTotalCount(prev => Math.max(0, prev - 1))
+      } else {
+        throw new Error('Failed to delete meeting')
+      }
+    } catch (error) {
+      console.error('Delete failed', error)
+      alert('Failed to delete meeting. Please try again.')
+    } finally {
+      setDeletingId(null)
+      setMeetingToDelete(null)
+    }
+  }
+
   // Get unique values for filters
   const positions = Array.from(new Set(meetings.map(m => m.position).filter((p): p is string => Boolean(p)))).sort()
   const interviewers = Array.from(new Set(meetings.map(m => m.interviewer).filter((i): i is string => Boolean(i)))).sort()
@@ -658,7 +767,7 @@ export default function HistoryPage() {
       >
         <div 
           className={cn(
-            "fixed right-0 top-0 h-full w-full sm:w-[400px] bg-card/60 backdrop-blur-md border-l border-border/40 shadow-xl transition-transform duration-300 ease-in-out",
+            "fixed right-0 top-0 h-full w-[85vw] sm:w-[400px] bg-card/60 backdrop-blur-md border-l border-border/40 shadow-xl transition-transform duration-300 ease-in-out",
             filtersOpen ? "translate-x-0" : "translate-x-full"
           )}
           onClick={(e) => e.stopPropagation()}
@@ -820,11 +929,11 @@ export default function HistoryPage() {
         <div className="mb-10">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
             <div>
-              <p className="text-xs font-medium tracking-[0.2em] text-muted-foreground uppercase mb-3">Meeting Library</p>
-              <h1 className="text-5xl font-normal tracking-tight text-foreground mb-4">
+              <p className="text-xs font-medium tracking-[0.2em] text-muted-foreground uppercase mb-2 md:mb-3">Meeting Library</p>
+              <h1 className="text-3xl md:text-5xl font-normal tracking-tight text-foreground mb-3 md:mb-4">
                 History
               </h1>
-              <p className="text-muted-foreground font-light text-lg">
+              <p className="text-muted-foreground font-light text-base md:text-lg">
                 Browse your meetings or ask AI for insights across all conversations
               </p>
             </div>
@@ -1303,14 +1412,14 @@ export default function HistoryPage() {
         </div>
 
         {/* Tabs Navigation */}
-        <div className="flex gap-1 mb-6 p-1 bg-muted/50 rounded-lg w-fit">
+        <div className="flex items-center gap-2 mb-6 p-1 bg-card/40 backdrop-blur border border-border/40 rounded-full w-fit shadow-sm">
           <button
             onClick={() => setActiveTab('meetings')}
             className={cn(
-              "relative px-4 py-2 text-sm font-medium rounded-md transition-all duration-300 ease-smooth flex items-center gap-2",
+              "relative px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-2",
               activeTab === 'meetings'
-                ? "bg-card/60 text-foreground shadow-md"
-                : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-background/40"
             )}
           >
             <FileText className={cn("h-4 w-4 transition-transform duration-200", activeTab === 'meetings' && "scale-110")} />
@@ -1320,15 +1429,14 @@ export default function HistoryPage() {
           <button
             onClick={() => setActiveTab('ask')}
             className={cn(
-              "relative px-4 py-2 text-sm font-medium rounded-md transition-all duration-300 ease-smooth flex items-center gap-2",
+              "relative px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-2",
               activeTab === 'ask'
-                ? "bg-card/60 text-foreground shadow-md"
-                : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-background/40"
             )}
           >
             <MagicWandIcon size={16} className={cn("transition-transform duration-200", activeTab === 'ask' && "scale-110")} />
             Ask AI
-            {totalCount > 0 && <Badge variant="secondary" className={cn("ml-1 text-xs transition-all duration-200", activeTab === 'ask' && "bg-primary/10")}>{totalCount}</Badge>}
           </button>
         </div>
 
@@ -1521,36 +1629,36 @@ export default function HistoryPage() {
           <div className="animate-fade-in">
             {/* Quick Stats Bar */}
             {!loading && meetings.length > 0 && (
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 mb-12">
-                <div className="border border-border/40 bg-gradient-to-br from-card/40 to-card/20 rounded-2xl p-7 flex flex-col justify-between h-44 hover:bg-card/50 hover:border-border/60 hover:shadow-lg transition-all duration-300 relative group">
-                  <div className="space-y-3">
-                    <p className="text-5xl font-semibold text-foreground tracking-tight group-hover:text-primary transition-colors duration-300">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5 mb-8 md:mb-12">
+                <div className="border border-border/40 bg-gradient-to-br from-card/40 to-card/20 rounded-2xl p-5 md:p-7 flex flex-col justify-between h-32 md:h-44 hover:bg-card/50 hover:border-border/60 hover:shadow-lg transition-all duration-300 relative group">
+                  <div className="space-y-2 md:space-y-3">
+                    <p className="text-4xl md:text-5xl font-semibold text-foreground tracking-tight group-hover:text-primary transition-colors duration-300">
                       {hasActiveFilters ? filteredMeetings.length : totalCount}
                     </p>
                     <p className="text-sm font-normal font-sans">
                       {hasActiveFilters ? 'Filtered' : 'Total'} Meetings
                     </p>
                   </div>
-                  <div className="absolute top-6 right-6 h-10 w-10 rounded-xl bg-peach/10 flex items-center justify-center opacity-50 group-hover:opacity-100 transition-opacity">
-                    <FileText className="h-5 w-5 text-peach" />
+                  <div className="absolute top-5 right-5 md:top-6 md:right-6 h-8 w-8 md:h-10 md:w-10 rounded-xl bg-peach/10 flex items-center justify-center opacity-50 group-hover:opacity-100 transition-opacity">
+                    <FileText className="h-4 w-4 md:h-5 md:w-5 text-peach" />
                   </div>
                 </div>
                 
-                <div className="border border-border/40 bg-gradient-to-br from-card/40 to-card/20 rounded-2xl p-7 flex flex-col justify-between h-44 hover:bg-card/50 hover:border-border/60 hover:shadow-lg transition-all duration-300 relative group">
-                  <div className="space-y-3">
-                    <p className="text-5xl font-semibold text-foreground tracking-tight group-hover:text-primary transition-colors duration-300">
+                <div className="border border-border/40 bg-gradient-to-br from-card/40 to-card/20 rounded-2xl p-5 md:p-7 flex flex-col justify-between h-32 md:h-44 hover:bg-card/50 hover:border-border/60 hover:shadow-lg transition-all duration-300 relative group">
+                  <div className="space-y-2 md:space-y-3">
+                    <p className="text-4xl md:text-5xl font-semibold text-foreground tracking-tight group-hover:text-primary transition-colors duration-300">
                       {new Set(filteredMeetings.map(i => i.candidate_name)).size}
                     </p>
                     <p className="text-sm font-normal font-sans">Participants</p>
                   </div>
-                  <div className="absolute top-6 right-6 h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center opacity-50 group-hover:opacity-100 transition-opacity">
-                    <User className="h-5 w-5 text-primary" />
+                  <div className="absolute top-5 right-5 md:top-6 md:right-6 h-8 w-8 md:h-10 md:w-10 rounded-xl bg-primary/10 flex items-center justify-center opacity-50 group-hover:opacity-100 transition-opacity">
+                    <User className="h-4 w-4 md:h-5 md:w-5 text-primary" />
                   </div>
                 </div>
 
-                <div className="border border-border/40 bg-gradient-to-br from-card/40 to-card/20 rounded-2xl p-7 flex flex-col justify-between h-44 hover:bg-card/50 hover:border-border/60 hover:shadow-lg transition-all duration-300 relative group">
-                  <div className="space-y-3">
-                    <p className="text-5xl font-semibold text-foreground tracking-tight group-hover:text-primary transition-colors duration-300">
+                <div className="border border-border/40 bg-gradient-to-br from-card/40 to-card/20 rounded-2xl p-5 md:p-7 flex flex-col justify-between h-32 md:h-44 hover:bg-card/50 hover:border-border/60 hover:shadow-lg transition-all duration-300 relative group">
+                  <div className="space-y-2 md:space-y-3">
+                    <p className="text-4xl md:text-5xl font-semibold text-foreground tracking-tight group-hover:text-primary transition-colors duration-300">
                       {filteredMeetings.filter((i: Meeting) => {
                         const date = new Date(i.meeting_date || i.created_at)
                         const weekAgo = new Date()
@@ -1560,20 +1668,20 @@ export default function HistoryPage() {
                     </p>
                     <p className="text-sm font-normal font-sans">This Week</p>
                   </div>
-                  <div className="absolute top-6 right-6 h-10 w-10 rounded-xl bg-peach/10 flex items-center justify-center opacity-50 group-hover:opacity-100 transition-opacity">
-                    <Calendar className="h-5 w-5 text-peach" />
+                  <div className="absolute top-5 right-5 md:top-6 md:right-6 h-8 w-8 md:h-10 md:w-10 rounded-xl bg-peach/10 flex items-center justify-center opacity-50 group-hover:opacity-100 transition-opacity">
+                    <Calendar className="h-4 w-4 md:h-5 md:w-5 text-peach" />
                   </div>
                 </div>
 
-                <div className="border border-border/40 bg-gradient-to-br from-card/40 to-card/20 rounded-2xl p-7 flex flex-col justify-between h-44 hover:bg-card/50 hover:border-border/60 hover:shadow-lg transition-all duration-300 relative group">
-                  <div className="space-y-3">
-                    <p className="text-5xl font-semibold text-foreground tracking-tight group-hover:text-primary transition-colors duration-300">
+                <div className="border border-border/40 bg-gradient-to-br from-card/40 to-card/20 rounded-2xl p-5 md:p-7 flex flex-col justify-between h-32 md:h-44 hover:bg-card/50 hover:border-border/60 hover:shadow-lg transition-all duration-300 relative group">
+                  <div className="space-y-2 md:space-y-3">
+                    <p className="text-4xl md:text-5xl font-semibold text-foreground tracking-tight group-hover:text-primary transition-colors duration-300">
                       {new Set(filteredMeetings.map((i: Meeting) => i.position).filter(Boolean)).size}
                     </p>
                     <p className="text-sm font-normal font-sans">Positions</p>
                   </div>
-                  <div className="absolute top-6 right-6 h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center opacity-50 group-hover:opacity-100 transition-opacity">
-                    <FileText className="h-5 w-5 text-primary" />
+                  <div className="absolute top-5 right-5 md:top-6 md:right-6 h-8 w-8 md:h-10 md:w-10 rounded-xl bg-primary/10 flex items-center justify-center opacity-50 group-hover:opacity-100 transition-opacity">
+                    <FileText className="h-4 w-4 md:h-5 md:w-5 text-primary" />
                   </div>
                 </div>
               </div>
@@ -1618,15 +1726,27 @@ export default function HistoryPage() {
                       <span className="sr-only sm:not-sr-only">Filters</span>
                       {hasActiveFilters && <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">On</Badge>}
                     </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fetchMeetings()}
+                      disabled={loading}
+                      className="rounded-full h-10 px-4 border-border/60 hover:bg-secondary/30 hover:border-border text-muted-foreground hover:text-foreground gap-2"
+                      title="Refresh meetings list"
+                    >
+                      <RefreshCw className={cn("h-4 w-4", loading && "animate-spin-slow")} />
+                      <span className="sr-only sm:not-sr-only">Refresh</span>
+                    </Button>
                      <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setShowRegenerateConfirm(true)}
                       disabled={regenerating}
                       className="rounded-full h-10 px-4 border-border/60 hover:bg-secondary/30 hover:border-border text-muted-foreground hover:text-foreground gap-2 ml-auto sm:ml-0"
+                      title="Regenerate all summaries"
                     >
-                      <RefreshCw className={cn("h-4 w-4", regenerating && "animate-spin")} />
-                      <span className="sr-only sm:not-sr-only">{regenerating ? "Regenerating..." : "Refresh"}</span>
+                      <RefreshCw className={cn("h-4 w-4", regenerating && "animate-spin-slow")} />
+                      <span className="sr-only sm:not-sr-only">{regenerating ? "Regenerating..." : "Reanalyze"}</span>
                     </Button>
                     
                     <div className="h-6 w-px bg-border/40 mx-1 hidden sm:block" />
@@ -1710,29 +1830,41 @@ export default function HistoryPage() {
             {loading ? (
               /* Skeleton Loading State */
               [1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="border border-border/40 rounded-xl p-6 bg-card/40 h-[200px] flex flex-col justify-between animate-pulse">
-                   <div className="flex justify-between items-start mb-4">
-                      <div className="flex items-center gap-3 w-1/2">
-                         <Skeleton className="h-6 w-48 rounded-full" />
-                         <Skeleton className="h-5 w-24 rounded-full opacity-60" />
+                <div key={i} className="border border-border/40 rounded-2xl p-5 md:p-8 bg-card/40 animate-pulse">
+                   <div className="flex flex-col sm:flex-row gap-4 md:gap-5">
+                      {/* Avatar Skeleton */}
+                      <div className="flex items-center gap-3 sm:block">
+                        <Skeleton className="h-12 w-12 md:h-14 md:w-14 rounded-2xl flex-shrink-0" />
+                        <div className="sm:hidden flex-1 space-y-2">
+                           <Skeleton className="h-5 w-32 rounded-full" />
+                           <Skeleton className="h-3 w-20 rounded-full opacity-60" />
+                        </div>
                       </div>
-                      <Skeleton className="h-4 w-24 rounded-full opacity-50" />
-                   </div>
-                   
-                   <div className="flex gap-4 items-start flex-1">
-                      <Skeleton className="h-10 w-10 rounded-full flex-shrink-0" />
-                      <div className="space-y-3 flex-1 pt-1">
-                         <Skeleton className="h-4 w-full rounded-full opacity-60" />
-                         <Skeleton className="h-4 w-3/4 rounded-full opacity-60" />
+
+                      <div className="flex-1 min-w-0 space-y-4">
+                         {/* Header Row Skeleton */}
+                         <div className="hidden sm:flex items-start justify-between gap-4">
+                            <div className="flex items-center gap-3">
+                               <Skeleton className="h-6 w-48 rounded-full" />
+                               <Skeleton className="h-5 w-24 rounded-full opacity-60" />
+                            </div>
+                            <Skeleton className="h-4 w-24 rounded-full opacity-50" />
+                         </div>
+
+                         {/* Summary Skeleton */}
+                         <div className="space-y-2">
+                            <Skeleton className="h-4 w-full rounded-full opacity-60" />
+                            <Skeleton className="h-4 w-3/4 rounded-full opacity-60" />
+                         </div>
+
+                         {/* Tags Skeleton */}
+                         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2 border-t border-border/30">
+                            <div className="flex gap-2">
+                               <Skeleton className="h-6 w-20 rounded-full opacity-50" />
+                               <Skeleton className="h-6 w-24 rounded-full opacity-50" />
+                            </div>
+                         </div>
                       </div>
-                   </div>
-                   
-                   <div className="flex justify-between items-center mt-4">
-                      <div className="flex gap-2">
-                         <Skeleton className="h-5 w-24 rounded-full opacity-50" />
-                         <Skeleton className="h-5 w-20 rounded-full opacity-50" />
-                      </div>
-                      <Skeleton className="h-6 w-6 rounded-full opacity-30" />
                    </div>
                 </div>
               ))
@@ -1759,16 +1891,36 @@ export default function HistoryPage() {
               {filteredMeetings.map((meeting, index) => (
                 <div 
                   key={meeting.id} 
-                  className="group relative border border-border/40 rounded-2xl p-8 bg-card/30 hover:bg-card/50 hover:border-border/60 transition-all duration-300 hover:shadow-lg cursor-pointer"
+                  className="group relative border border-border/40 rounded-2xl p-5 md:p-8 bg-card/30 hover:bg-card/50 hover:border-border/60 transition-all duration-300 hover:shadow-lg cursor-pointer"
                   style={{ animationDelay: `${index * 50}ms` }}
                   onClick={() => router.push(`/history/${meeting.id}`)}
                 >
-                  <div className="flex gap-5">
+                  <div className="flex flex-col sm:flex-row gap-4 md:gap-5">
                     {/* Left: Avatar */}
-                    <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-peach/30 to-peach/10 flex items-center justify-center shrink-0 border border-peach/20 shadow-sm">
-                      <span className="text-base font-semibold text-foreground tracking-tight">
-                        {(meeting.candidate_name || 'U').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
-                      </span>
+                    <div className="flex items-center gap-3 sm:block">
+                      <div className="h-12 w-12 md:h-14 md:w-14 rounded-2xl bg-gradient-to-br from-peach/30 to-peach/10 flex items-center justify-center shrink-0 border border-peach/20 shadow-sm">
+                        <span className="text-sm md:text-base font-semibold text-foreground tracking-tight">
+                          {(meeting.candidate_name || 'U').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                        </span>
+                      </div>
+                      {/* Mobile Name Display (visible only on small screens next to avatar) */}
+                      <div className="sm:hidden flex-1">
+                        <h3 className="text-lg font-normal text-foreground leading-tight group-hover:text-primary transition-colors duration-200">
+                            {meeting.candidate_name || 'Unknown Participant'}
+                        </h3>
+                         <time className="text-xs font-medium text-muted-foreground">
+                            {(() => {
+                            const date = new Date(meeting.meeting_date || meeting.created_at)
+                            const today = new Date()
+                            const yesterday = new Date(today)
+                            yesterday.setDate(yesterday.getDate() - 1)
+                            
+                            if (date.toDateString() === today.toDateString()) return 'Today'
+                            if (date.toDateString() === yesterday.toDateString()) return 'Yesterday'
+                            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined })
+                            })()}
+                        </time>
+                      </div>
                     </div>
 
                     {/* Right: Content */}
@@ -1776,18 +1928,21 @@ export default function HistoryPage() {
                       {/* Header Row */}
                       <div className="flex items-start justify-between gap-4 mb-2">
                         <div className="flex items-baseline gap-3 flex-wrap">
-                          <h3 className="text-xl font-normal text-foreground leading-tight group-hover:text-primary transition-colors duration-200">
+                          <h3 className="hidden sm:block text-xl font-normal text-foreground leading-tight group-hover:text-primary transition-colors duration-200">
                             {meeting.candidate_name || 'Unknown Participant'}
                           </h3>
                           {meeting.position && (
-                            <span className="text-sm text-muted-foreground font-medium px-3 py-1 border border-border/50 rounded-full bg-muted/30">
-                              {meeting.position}
+                            <span className="text-xs md:text-sm text-muted-foreground font-medium px-2.5 py-0.5 md:px-3 md:py-1 border border-border/50 rounded-full bg-muted/30">
+                              {(() => {
+                                const { role, company } = formatRoleAndCompany(meeting.position)
+                                return company ? `${role} • ${company}` : role
+                              })()}
                             </span>
                           )}
                         </div>
 
-                        {/* Date - More prominent */}
-                        <time className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+                        {/* Date - More prominent (hidden on mobile as shown next to avatar) */}
+                        <time className="hidden sm:block text-sm font-medium text-muted-foreground whitespace-nowrap">
                           {(() => {
                             const date = new Date(meeting.meeting_date || meeting.created_at)
                             const today = new Date()
@@ -1822,8 +1977,8 @@ export default function HistoryPage() {
                       )}
                       
                       {/* Tags & Meta Row */}
-                      <div className="flex items-center justify-between pt-2 border-t border-border/30">
-                        <div className="flex flex-wrap gap-2 items-center">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2 border-t border-border/30">
+                        <div className="flex flex-wrap gap-2 items-center w-full sm:w-auto">
                           {meeting.meeting_type && (
                             <Badge variant="secondary" className="text-xs font-medium px-3 py-1 bg-peach/20 text-foreground border-0 rounded-full">
                               {meeting.meeting_type}
@@ -1834,9 +1989,37 @@ export default function HistoryPage() {
                               {meeting.meeting_title}
                             </Badge>
                           )}
+                          {/* Submission Status Badge - Only for Interviews */}
+                          {meeting.meeting_type === 'Interview' && (() => {
+                            const isSubmitted = Boolean((meeting as any)?.submitted_at || (meeting as any)?.candidate_id)
+                            return (
+                              <div className={cn(
+                                "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium",
+                                "border transition-all duration-300",
+                                "shadow-sm hover:shadow",
+                                isSubmitted
+                                  ? "bg-success/10 border-success/30 text-success hover:bg-success/15"
+                                  : "bg-warning/10 border-warning/30 text-warning hover:bg-warning/15"
+                              )}>
+                                <div className={cn(
+                                  "h-1.5 w-1.5 rounded-full",
+                                  isSubmitted ? "bg-success" : "bg-warning"
+                                )} />
+                                {isSubmitted ? 'Submitted' : 'Not Submitted'}
+                              </div>
+                            )
+                          })()}
                           {meeting.interviewer && meeting.interviewer !== 'Unknown' && (
                             <span className="text-xs text-muted-foreground flex items-center gap-1.5">
-                              <User className="h-3 w-3" />
+                              <Avatar className="h-4 w-4 border border-border/40">
+                                <AvatarImage
+                                  src={session?.user?.image || undefined}
+                                  alt={session?.user?.name || 'User'}
+                                />
+                                <AvatarFallback className="text-[9px] font-semibold bg-muted/50 text-foreground/70">
+                                  {viewerInitials || 'U'}
+                                </AvatarFallback>
+                              </Avatar>
                               {meeting.interviewer.split(' ')[0]}
                             </span>
                           )}
@@ -1847,9 +2030,39 @@ export default function HistoryPage() {
                           )}
                         </div>
                         
-                        {/* Arrow indicator */}
-                        <div className="h-8 w-8 rounded-full bg-muted/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform -translate-x-2 group-hover:translate-x-0">
-                          <ChevronRight className="h-4 w-4 text-foreground" />
+                        {/* Delete and Arrow indicators */}
+                        <div className="flex items-center gap-2 self-end sm:self-auto mt-2 sm:mt-0">
+                          {/* Delete Button */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDeleteMeeting(meeting)
+                            }}
+                            disabled={deletingId === meeting.id}
+                            className={cn(
+                              "h-8 w-8 rounded-full flex items-center justify-center",
+                              "bg-destructive/10 hover:bg-destructive/20 border border-destructive/20 hover:border-destructive/30",
+                              "text-destructive hover:text-destructive",
+                              "transition-all duration-300 ease-out",
+                              // Mobile: always visible, Desktop: hover visible
+                              "opacity-100 sm:opacity-0 scale-100 sm:scale-75 sm:group-hover:opacity-100 sm:group-hover:scale-100",
+                              "hover:scale-110 active:scale-95",
+                              "shadow-sm hover:shadow-md",
+                              deletingId === meeting.id && "opacity-50 cursor-not-allowed"
+                            )}
+                            title="Delete meeting"
+                          >
+                            {deletingId === meeting.id ? (
+                              <div className="h-4 w-4 rounded-full border-2 border-destructive/30 border-t-destructive animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </button>
+                          
+                          {/* Arrow indicator */}
+                          <div className="h-8 w-8 rounded-full bg-muted/50 flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all duration-300 transform translate-x-0 sm:-translate-x-2 sm:group-hover:translate-x-0">
+                            <ChevronRight className="h-4 w-4 text-foreground" />
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1888,6 +2101,18 @@ export default function HistoryPage() {
         cancelLabel="Cancel"
         onConfirm={handleRegenerateSummaries}
         loading={regenerating}
+      />
+
+      {/* Confirm Dialog for Delete */}
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        title="Delete Meeting?"
+        description={meetingToDelete ? `Are you sure you want to delete the meeting with ${meetingToDelete.candidate_name}? This action cannot be undone.` : ''}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={confirmDelete}
+        loading={false}
       />
     </div>
   )

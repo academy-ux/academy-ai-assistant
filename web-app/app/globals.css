@@ -47,6 +47,12 @@
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
+    
+    /* Status colors - subtle and palette-friendly */
+    --success: 142 40% 48%;
+    --success-foreground: 0 0% 100%;
+    --warning: 25 75% 55%;
+    --warning-foreground: 0 0% 100%;
 
     /* Border: Darker olive */
     --border: 72 7% 69%;
@@ -97,6 +103,12 @@
 
     --destructive: 0 62% 40%;
     --destructive-foreground: 0 0% 100%;
+    
+    /* Status colors - dark mode */
+    --success: 142 40% 48%;
+    --success-foreground: 0 0% 100%;
+    --warning: 25 75% 55%;
+    --warning-foreground: 0 0% 100%;
 
     --border: 0 0% 25%;
     --input: 0 0% 25%;
@@ -193,4 +205,11 @@
 
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
+}
+
+/* Uppercase text styling */
+.uppercase,
+[class*="uppercase"] {
+  letter-spacing: 1px !important;
+  font-size: 10px !important;
 }
