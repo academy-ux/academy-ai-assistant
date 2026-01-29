@@ -218,6 +218,11 @@ export async function GET(request: NextRequest) {
       const resume = opp.resume || null
       const resumeUrl = resume?.file?.downloadUrl || null
       
+      // Extract role from tags - first tag typically contains the role/posting title
+      // Format is usually: "Role Title @ Company (Type)" or just "Role Title"
+      const roleTag = opp.tags?.[0] || ''
+      const role = roleTag || opp.headline || 'No position'
+      
       return {
         id: opp.id,
         name: opp.name || 'Unknown',
@@ -225,7 +230,8 @@ export async function GET(request: NextRequest) {
         phone: opp.phones?.[0]?.value || '',
         headline: opp.headline || '',
         location: opp.location || '',
-        position: app?.postingTitle || 'No position',
+        position: role,
+        role: role, // Also include as 'role' for clarity
         stage: opp.stage?.text || 'Unknown Stage',
         links,
         allLinks: rawLinks,
