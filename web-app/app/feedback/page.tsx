@@ -3,7 +3,7 @@
 import { useSession, signIn } from 'next-auth/react'
 import { useSearchParams } from 'next/navigation'
 import { useEffect, useRef, useState, Suspense } from 'react'
-import { Check, ChevronsUpDown, Search, FileText, User, ClipboardList, CheckCircle, ChevronRight, Calendar, X } from 'lucide-react'
+import { Check, ChevronsUpDown, Search, FileText, User, ClipboardList, CheckCircle, ChevronRight, Calendar, X, ThumbsUp, ThumbsDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -237,6 +237,7 @@ function FeedbackContent() {
 
   const [submitting, setSubmitting] = useState(false)
   const [submitSuccess, setSubmitSuccess] = useState(false)
+  const [submitDbStatus, setSubmitDbStatus] = useState<{ updated?: boolean; inserted?: boolean; error?: string } | null>(null)
   const [error, setError] = useState('')
 
   const viewerInitials = initialsFrom(session?.user?.name || session?.user?.email || '')
@@ -478,6 +479,7 @@ function FeedbackContent() {
     setAnalysisLoading(false)
     setError('')
     setSubmitSuccess(false)
+    setSubmitDbStatus(null)
     setAnalysis(null)
     setDynamicAnswers({})
     setAiGeneratedFields({})
@@ -1096,6 +1098,7 @@ function FeedbackContent() {
 
       if (data.success) {
         setSubmitSuccess(true)
+        setSubmitDbStatus(data.dbStatus || null)
       } else {
         const baseMsg = data.error || data.message || 'Submission failed'
         const details =
@@ -1151,6 +1154,14 @@ function FeedbackContent() {
             <CardDescription className="font-light">
               Your feedback has been successfully submitted to Lever.
             </CardDescription>
+            {submitDbStatus && (
+              <p className="text-xs text-muted-foreground">
+                {submitDbStatus.updated ? '✓ History updated' : 
+                 submitDbStatus.inserted ? '✓ Added to history' :
+                 submitDbStatus.error ? `⚠ History not updated: ${submitDbStatus.error}` :
+                 '⚠ History status unknown'}
+              </p>
+            )}
           </CardHeader>
           <CardContent className="pt-2 space-y-3">
             <Button 
@@ -1226,37 +1237,81 @@ function FeedbackContent() {
 
               {/* Interviews List */}
               <ScrollArea className="flex-1">
-                {interviewsLoading || pollingForTranscript ? (
+                {interviewsLoading && filteredInterviews.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 gap-2">
                     <Spinner size={32} className="text-primary" />
-                    {pollingForTranscript && (
-                      <p className="text-xs text-muted-foreground">Checking for new transcripts...</p>
-                    )}
                   </div>
                 ) : filteredInterviews.length === 0 ? (
-                  <div className="text-center py-12 px-4">
-                    <FileText className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
-                    <p className="text-sm text-muted-foreground mb-3">
-                      {interviewSearch ? 'No matching interviews' : 'No interviews available'}
-                    </p>
-                    {!interviewSearch && (searchParams.get('meeting') || searchParams.get('ts')) && (
-                      <div className="space-y-2">
-                        <p className="text-xs text-muted-foreground">
-                          Transcript may take 1-2 minutes to appear after meeting ends
+                  <div className="p-3">
+                    {pollingForTranscript ? (
+                      /* Show polling card when no interviews but polling */
+                      <div className="relative overflow-hidden rounded-xl border border-primary/30 bg-gradient-to-r from-primary/5 to-primary/10 p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="relative">
+                            <div className="h-12 w-12 rounded-full bg-primary/20 flex items-center justify-center">
+                              <Spinner size={24} className="text-primary" />
+                            </div>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-primary">Searching for new transcripts...</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Checking Google Drive for your latest meeting
+                            </p>
+                          </div>
+                        </div>
+                        {/* Animated shimmer effect */}
+                        <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                      </div>
+                    ) : (
+                      <div className="text-center py-12 px-4">
+                        <FileText className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
+                        <p className="text-sm text-muted-foreground mb-3">
+                          {interviewSearch ? 'No matching interviews' : 'No interviews available'}
                         </p>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={pollForNewTranscript}
-                          disabled={pollingForTranscript}
-                        >
-                          {pollingForTranscript ? 'Checking...' : 'Check for new transcripts'}
-                        </Button>
+                        {!interviewSearch && (searchParams.get('meeting') || searchParams.get('ts')) && (
+                          <div className="space-y-2">
+                            <p className="text-xs text-muted-foreground">
+                              Transcript may take 1-2 minutes to appear after meeting ends
+                            </p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={pollForNewTranscript}
+                              disabled={pollingForTranscript}
+                            >
+                              Check for new transcripts
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
                 ) : (
                   <div className="p-3 space-y-2">
+                    {/* Polling indicator at top of list */}
+                    {pollingForTranscript && (
+                      <div className="relative overflow-hidden rounded-xl border border-primary/30 bg-gradient-to-r from-primary/5 to-primary/10 p-3 mb-2">
+                        <div className="flex items-center gap-3">
+                          <div className="relative">
+                            <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center">
+                              <Spinner size={20} className="text-primary" />
+                            </div>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-primary">Searching for new transcripts...</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Checking Google Drive for your latest meeting
+                            </p>
+                          </div>
+                        </div>
+                        {/* Animated shimmer effect */}
+                        <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                      </div>
+                    )}
                     {filteredInterviews.map((interview) => (
                       (() => {
                         const date = new Date(interview.meeting_date || interview.created_at)
@@ -1719,7 +1774,50 @@ function FeedbackContent() {
                                       <p className="text-xs text-destructive">{fieldErrors[field.text]}</p>
                                     )}
                                     
-                                    {(field.type === 'score-system' || field.text.toLowerCase().includes('rating')) ? (
+                                    {/* Yes/No field type - render thumbs up/down buttons */}
+                                    {field.type === 'yes-no' ? (
+                                      <div className="flex gap-2">
+                                        <Button
+                                          type="button"
+                                          variant={dynamicAnswers[field.text] === 'yes' ? 'default' : 'outline'}
+                                          className={`flex-1 h-11 gap-2 ${dynamicAnswers[field.text] === 'yes' ? 'bg-success hover:bg-success/90 text-success-foreground' : ''}`}
+                                          onClick={() => {
+                                            setDynamicAnswers({ ...dynamicAnswers, [field.text]: 'yes' })
+                                            setAiGeneratedFields(prev => ({ ...prev, [field.text]: false }))
+                                            setTouchedFields(prev => ({ ...prev, [field.text]: true }))
+                                            setFieldErrors(prev => { const next = { ...prev }; delete next[field.text]; return next })
+                                          }}
+                                        >
+                                          <ThumbsUp className="h-4 w-4" /> Yes
+                                        </Button>
+                                        <Button
+                                          type="button"
+                                          variant={dynamicAnswers[field.text] === 'no' ? 'default' : 'outline'}
+                                          className={`flex-1 h-11 gap-2 ${dynamicAnswers[field.text] === 'no' ? 'bg-destructive hover:bg-destructive/90 text-destructive-foreground' : ''}`}
+                                          onClick={() => {
+                                            setDynamicAnswers({ ...dynamicAnswers, [field.text]: 'no' })
+                                            setAiGeneratedFields(prev => ({ ...prev, [field.text]: false }))
+                                            setTouchedFields(prev => ({ ...prev, [field.text]: true }))
+                                            setFieldErrors(prev => { const next = { ...prev }; delete next[field.text]; return next })
+                                          }}
+                                        >
+                                          <ThumbsDown className="h-4 w-4" /> No
+                                        </Button>
+                                        {dynamicAnswers[field.text] && dynamicAnswers[field.text] !== '?' && (
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-11 w-11"
+                                            onClick={() => {
+                                              setDynamicAnswers({ ...dynamicAnswers, [field.text]: '' })
+                                            }}
+                                          >
+                                            <X className="h-4 w-4" />
+                                          </Button>
+                                        )}
+                                      </div>
+                                    ) : (field.type === 'score-system' || field.type === 'dropdown' || field.type === 'score' || field.text.toLowerCase().includes('rating')) ? (
                                        <Select 
                                           value={dynamicAnswers[field.text] || ''} 
                                           onValueChange={(val) => {
@@ -1736,13 +1834,23 @@ function FeedbackContent() {
                                           }}
                                        >
                                           <SelectTrigger className={`h-11 ${fieldErrors[field.text] ? 'border-destructive focus:ring-destructive/30' : ''}`}>
-                                             <SelectValue placeholder="Select rating..." />
+                                             <SelectValue placeholder={field.type === 'score' ? 'Select score...' : field.type === 'dropdown' ? 'Select option...' : 'Select rating...'} />
                                           </SelectTrigger>
                                           <SelectContent>
                                              <SelectItem value="?">?</SelectItem>
+                                             {/* For score type without options, show 1-5 */}
+                                             {field.type === 'score' && (!field.options || field.options.length === 0) && (
+                                               <>
+                                                 <SelectItem value="1">1</SelectItem>
+                                                 <SelectItem value="2">2</SelectItem>
+                                                 <SelectItem value="3">3</SelectItem>
+                                                 <SelectItem value="4">4</SelectItem>
+                                                 <SelectItem value="5">5</SelectItem>
+                                               </>
+                                             )}
                                              {(Array.isArray(field.options) ? field.options : [])
                                                .map((o: any) => (o && typeof o === 'object' ? (o.text ?? o.optionId ?? o.value) : o))
-                                               .map((v: any) => (typeof v === 'string' ? v.trim() : ''))
+                                               .map((v: any) => (typeof v === 'string' ? v.trim() : String(v)))
                                                .filter(Boolean)
                                                .map((text: string) => (
                                                  <SelectItem key={text} value={text}>{text}</SelectItem>

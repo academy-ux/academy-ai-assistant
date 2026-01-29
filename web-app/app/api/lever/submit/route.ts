@@ -89,6 +89,55 @@ export async function POST(request: NextRequest) {
             }
           }
           
+          // Handle 'yes-no' type fields - extract yes/no from text
+          if (fieldDef.type === 'yes-no') {
+            const val = fv.value;
+            if (val === '?' || val === null || val === undefined || val === '') {
+              return null; // Omit unknown values
+            }
+            if (typeof val === 'string') {
+              const lower = val.toLowerCase().trim();
+              // Check for explicit yes/no at start or as the whole value
+              if (lower === 'yes' || lower.startsWith('yes,') || lower.startsWith('yes.') || lower.startsWith('yes ')) {
+                return { ...fv, value: 'yes' };
+              }
+              if (lower === 'no' || lower.startsWith('no,') || lower.startsWith('no.') || lower.startsWith('no ')) {
+                return { ...fv, value: 'no' };
+              }
+              // Check for thumbs indicators
+              if (lower.includes('thumbs up') || lower.includes('👍')) {
+                return { ...fv, value: 'yes' };
+              }
+              if (lower.includes('thumbs down') || lower.includes('👎')) {
+                return { ...fv, value: 'no' };
+              }
+              // If we can't determine yes/no, omit the field
+              console.warn(`[Lever submit] Omitting yes-no field ${fv.id}: couldn't extract yes/no from "${val.slice(0, 50)}..."`);
+              return null;
+            }
+          }
+          
+          // Handle 'dropdown' type fields - validate against options
+          if (fieldDef.type === 'dropdown' && fieldDef.options) {
+            const validOptions = fieldDef.options.map((o: any) => o.text || o);
+            if (fv.value === '?' || fv.value === null || fv.value === undefined) {
+              return null; // Omit ? for dropdown
+            }
+            if (typeof fv.value === 'string' && !validOptions.includes(fv.value)) {
+              // Try to find a matching option
+              const match = validOptions.find((opt: string) => 
+                opt.toLowerCase() === fv.value.toLowerCase() ||
+                fv.value.toLowerCase().includes(opt.toLowerCase()) ||
+                opt.toLowerCase().includes(fv.value.toLowerCase())
+              );
+              if (match) {
+                return { ...fv, value: match };
+              }
+              console.warn(`[Lever submit] Omitting dropdown field ${fv.id}: "${fv.value}" not in options`);
+              return null;
+            }
+          }
+          
           return fv;
         }).filter(Boolean) : fieldValues;
       }
@@ -105,12 +154,17 @@ export async function POST(request: NextRequest) {
       completedAt: Date.now(),
     }
 
+    // Track which fields were omitted/transformed
+    const omittedFieldIds = Array.isArray(fieldValues) 
+      ? fieldValues.filter((fv: any) => !transformedFieldValues.find((tf: any) => tf.id === fv.id)).map((fv: any) => fv.id)
+      : [];
+    
     console.log('[Lever submit]', {
       opportunityId,
       templateId,
       originalFieldValuesCount: Array.isArray(fieldValues) ? fieldValues.length : null,
       transformedFieldValuesCount: Array.isArray(transformedFieldValues) ? transformedFieldValues.length : null,
-      fieldValueIdsPreview: Array.isArray(transformedFieldValues) ? transformedFieldValues.slice(0, 8).map((fv: any) => fv?.id).filter(Boolean) : null,
+      omittedFieldIds,
     })
 
     const response = await fetch(
@@ -230,6 +284,8 @@ export async function POST(request: NextRequest) {
     const data = await response.json()
 
     // 2. Save to Supabase (update existing interview when possible)
+    let dbStatus: { updated: boolean; inserted: boolean; error?: string } = { updated: false, inserted: false }
+    
     if (transcript) {
       try {
         const embedding = await generateEmbedding(transcript)
@@ -237,8 +293,8 @@ export async function POST(request: NextRequest) {
         const submittedAt = new Date().toISOString()
 
         // Prefer updating the existing transcript row (meetingCode is the interview id from the UI).
-        let updated = false
         if (meetingCode) {
+          console.log('[Lever submit] Attempting Supabase update for interview:', meetingCode)
           const { data: updatedRows, error: updateError } = await supabase
             .from('interviews')
             .update({
@@ -256,13 +312,18 @@ export async function POST(request: NextRequest) {
 
           if (updateError) {
             console.error('Supabase update error:', updateError)
+            dbStatus.error = updateError.message
           } else if (updatedRows && updatedRows.length > 0) {
-            updated = true
+            console.log('[Lever submit] Supabase update succeeded, rows:', updatedRows.length)
+            dbStatus.updated = true
+          } else {
+            console.log('[Lever submit] Supabase update matched 0 rows for id:', meetingCode)
           }
         }
 
         // Fallback for older flows: create a record if we couldn't update.
-        if (!updated) {
+        if (!dbStatus.updated) {
+          console.log('[Lever submit] Attempting Supabase insert')
           const { error: dbError } = await supabase
             .from('interviews')
             .insert({
@@ -281,15 +342,23 @@ export async function POST(request: NextRequest) {
 
           if (dbError) {
             console.error('Supabase insertion error:', dbError)
+            dbStatus.error = dbError.message
+          } else {
+            console.log('[Lever submit] Supabase insert succeeded')
+            dbStatus.inserted = true
           }
         }
       } catch (innerError) {
         console.error('Error saving to Supabase:', innerError)
+        dbStatus.error = String(innerError)
         // Don't fail the whole request if Supabase fails, since Lever succeeded
       }
+    } else {
+      console.log('[Lever submit] No transcript provided, skipping Supabase update')
+      dbStatus.error = 'no_transcript'
     }
 
-    return NextResponse.json({ success: true, data })
+    return NextResponse.json({ success: true, data, dbStatus })
 
   } catch (error) {
     return errorResponse(error, 'Lever submit error')

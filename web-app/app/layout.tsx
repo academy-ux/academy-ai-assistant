@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { Providers } from './providers'
 import { Navbar } from '@/components/navbar'
 import { AppErrorBoundary } from '@/components/app-error-boundary'
+import { Toaster } from 'sonner'
 
 export const metadata: Metadata = {
   title: 'Academy Interview Assistant',
@@ -31,6 +32,7 @@ export default function RootLayout({
                 {children}
               </main>
             </div>
+            <Toaster position="bottom-right" theme="system" richColors closeButton />
           </AppErrorBoundary>
         </Providers>
       </body>

@@ -18,6 +18,7 @@ import { Message, MessageContent, MessageAvatar } from '@/components/ui/message'
 import { Response } from '@/components/ui/response'
 import { ShimmeringText } from '@/components/ui/shimmering-text'
 import { cn } from '@/lib/utils'
+import { toast } from "sonner"
 
 interface Interview {
   id: string
@@ -152,6 +153,7 @@ export default function InterviewDetailPage() {
     if (interview?.transcript) {
       navigator.clipboard.writeText(interview.transcript)
       setCopied(true)
+      toast.success("Transcript copied to clipboard")
       setTimeout(() => setCopied(false), 2000)
     }
   }

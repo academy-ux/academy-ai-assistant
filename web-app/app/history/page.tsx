@@ -29,6 +29,7 @@ import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
 import { SetupGuideDialog } from '@/components/setup-guide-dialog'
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { toast } from "sonner"
 
 interface Meeting {
   id: string
@@ -400,9 +401,11 @@ export default function HistoryPage() {
       })
       if (res.ok) {
         setSettings({ ...settings, ...updates })
+        toast.success('Settings saved')
       }
     } catch (e) {
       console.error('Failed to save settings', e)
+      toast.error('Failed to save settings')
     } finally {
       setSettingsSaving(false)
     }
@@ -422,6 +425,13 @@ export default function HistoryPage() {
           skipped: data.skipped,
           errors: data.errors
         })
+        
+        if (data.imported > 0) {
+          toast.success(`Imported ${data.imported} new meetings`)
+        } else {
+          toast.info('No new meetings found')
+        }
+
         // Reload settings to get updated lastPollTime
         await loadSettings()
         // Refresh meetings list if new files were imported
@@ -429,11 +439,11 @@ export default function HistoryPage() {
           await fetchMeetings(0, false)
         }
       } else {
-        alert(data.error || 'Failed to poll Drive folder')
+        toast.error(data.error || 'Failed to poll Drive folder')
       }
     } catch (e) {
       console.error('Failed to poll Drive', e)
-      alert('Failed to poll Drive folder')
+      toast.error('Failed to poll Drive folder')
     } finally {
       setPolling(false)
     }
@@ -545,6 +555,7 @@ export default function HistoryPage() {
       
     } catch (error) {
       console.error('Import failed', error)
+      toast.error('Import failed. Please try again.')
     } finally {
       setImporting(false)
       importReaderRef.current = null
@@ -572,6 +583,7 @@ export default function HistoryPage() {
       }
     } catch (error) {
       console.error('Search failed', error)
+      toast.error('Search failed')
     } finally {
       setLoading(false)
     }
@@ -650,9 +662,11 @@ export default function HistoryPage() {
         setRegenerateProgress({ current: data.updated, total: data.total })
         // Refresh meetings
         await fetchMeetings()
+        toast.success(`Regenerated summaries for ${data.updated} meetings`)
       }
     } catch (error) {
       console.error('Regenerate failed', error)
+      toast.error('Failed to regenerate summaries')
     } finally {
       setRegenerating(false)
     }
@@ -683,12 +697,13 @@ export default function HistoryPage() {
         // Remove from local state
         setMeetings(prev => prev.filter(m => m.id !== meetingToDelete.id))
         setTotalCount(prev => Math.max(0, prev - 1))
+        toast.success('Meeting deleted successfully')
       } else {
         throw new Error('Failed to delete meeting')
       }
     } catch (error) {
       console.error('Delete failed', error)
-      alert('Failed to delete meeting. Please try again.')
+      toast.error('Failed to delete meeting. Please try again.')
     } finally {
       setDeletingId(null)
       setMeetingToDelete(null)
@@ -812,8 +827,12 @@ export default function HistoryPage() {
     setShowBulkDeleteConfirm(false)
     setBulkDeleting(false)
     
+    if (successCount > 0) {
+      toast.success(`Deleted ${successCount} meetings successfully`)
+    }
+    
     if (failCount > 0) {
-      alert(`Deleted ${successCount} meetings. Failed to delete ${failCount} meetings.`)
+      toast.error(`Failed to delete ${failCount} meetings`)
     }
   }
 
@@ -2019,53 +2038,55 @@ export default function HistoryPage() {
                   style={{ animationDelay: `${index * 50}ms` }}
                   onClick={() => router.push(`/history/${meeting.id}`)}
                 >
-                  <div className="flex flex-col sm:flex-row gap-4 md:gap-5">
-                    {/* Left: Checkbox + Avatar */}
-                    <div className="flex items-center gap-3 sm:flex-col sm:items-start sm:gap-3">
-                      {/* Checkbox */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          toggleMeetingSelection(meeting.id)
-                        }}
-                        className={cn(
-                          "h-6 w-6 rounded-md border-2 flex items-center justify-center transition-all duration-200 shrink-0",
-                          selectedMeetings.has(meeting.id)
-                            ? "bg-primary border-primary text-primary-foreground"
-                            : "border-border/60 hover:border-primary/50 bg-background/50"
-                        )}
-                      >
-                        {selectedMeetings.has(meeting.id) && (
-                          <Check className="h-4 w-4" />
-                        )}
-                      </button>
-                      {/* Avatar */}
-                      <div className="h-12 w-12 md:h-14 md:w-14 rounded-2xl bg-gradient-to-br from-peach/30 to-peach/10 flex items-center justify-center shrink-0 border border-peach/20 shadow-sm">
-                        <span className="text-sm md:text-base font-semibold text-foreground tracking-tight">
-                          {(meeting.candidate_name || 'U').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
-                        </span>
-                      </div>
-                      {/* Mobile Name Display (visible only on small screens next to avatar) */}
-                      <div className="sm:hidden flex-1">
-                        <h3 className="text-lg font-normal text-foreground leading-tight group-hover:text-primary transition-colors duration-200">
-                            {meeting.candidate_name || 'Unknown Participant'}
-                        </h3>
-                         <time className="text-xs font-medium text-muted-foreground">
-                            {(() => {
-                            const date = new Date(meeting.meeting_date || meeting.created_at)
-                            const today = new Date()
-                            const yesterday = new Date(today)
-                            yesterday.setDate(yesterday.getDate() - 1)
-                            
-                            if (date.toDateString() === today.toDateString()) return 'Today'
-                            if (date.toDateString() === yesterday.toDateString()) return 'Yesterday'
-                            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined })
-                            })()}
-                        </time>
-                      </div>
-                    </div>
+                  <div className="flex items-center gap-4">
+                    {/* Checkbox */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        toggleMeetingSelection(meeting.id)
+                      }}
+                      className={cn(
+                        "h-6 w-6 rounded-md border-2 flex items-center justify-center transition-all duration-200 shrink-0",
+                        selectedMeetings.has(meeting.id)
+                          ? "bg-primary border-primary text-primary-foreground"
+                          : "border-border/60 hover:border-primary/50 bg-background/50"
+                      )}
+                    >
+                      {selectedMeetings.has(meeting.id) && (
+                        <Check className="h-4 w-4" />
+                      )}
+                    </button>
 
-                    {/* Right: Content */}
+                    <div className="flex flex-col sm:flex-row gap-4 md:gap-5 flex-1">
+                      {/* Left: Avatar */}
+                      <div className="flex items-center gap-3 sm:items-start sm:gap-3">
+                        {/* Avatar */}
+                        <div className="h-12 w-12 md:h-14 md:w-14 rounded-2xl bg-gradient-to-br from-peach/30 to-peach/10 flex items-center justify-center shrink-0 border border-peach/20 shadow-sm">
+                          <span className="text-sm md:text-base font-semibold text-foreground tracking-tight">
+                            {(meeting.candidate_name || 'U').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                          </span>
+                        </div>
+                        {/* Mobile Name Display (visible only on small screens next to avatar) */}
+                        <div className="sm:hidden flex-1">
+                          <h3 className="text-lg font-normal text-foreground leading-tight group-hover:text-primary transition-colors duration-200">
+                              {meeting.candidate_name || 'Unknown Participant'}
+                          </h3>
+                           <time className="text-xs font-medium text-muted-foreground">
+                              {(() => {
+                              const date = new Date(meeting.meeting_date || meeting.created_at)
+                              const today = new Date()
+                              const yesterday = new Date(today)
+                              yesterday.setDate(yesterday.getDate() - 1)
+                              
+                              if (date.toDateString() === today.toDateString()) return 'Today'
+                              if (date.toDateString() === yesterday.toDateString()) return 'Yesterday'
+                              return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined })
+                              })()}
+                          </time>
+                        </div>
+                      </div>
+  
+                      {/* Right: Content */}
                     <div className="flex-1 min-w-0">
                       {/* Header Row */}
                       <div className="flex items-start justify-between gap-4 mb-2">
@@ -2210,6 +2231,7 @@ export default function HistoryPage() {
                     </div>
                   </div>
                 </div>
+              </div>
               ))}
               
               {/* Infinite Scroll Trigger */}

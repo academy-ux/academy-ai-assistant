@@ -17,19 +17,39 @@ export async function parseTranscriptMetadata(transcript: string, fileName: stri
   let cleanTranscript = transcript
     .replace(/Transcript delivered by Tactiq\.io.*?View the full transcript.*?\n/gs, '')
     .replace(/get it for your Google Meet today!/g, '')
+    // Clean up Google Meet boilerplate
+    // Example: "Transcript for Meeting Name (ABC-DEF-GHI)\nDate: Jan 1, 2024\nAttendees: Person A, Person B"
+    .replace(/^Transcript for .*?Attendees:.*?\n/s, '') 
     .trim()
   
   // Extract participants from speaker labels for fallback
   let participants: string[] = []
-  const speakerRegex = /\* \d+:\d+ [✓✅] : \((.*?)\)/g
   const speakers = new Set<string>()
+
+  // 1. Tactiq format: * 12:30 ✓ : (Speaker Name)
+  const tactiqSpeakerRegex = /\* \d+:\d+ [✓✅] : \((.*?)\)/g
   let speakerMatch
-  while ((speakerMatch = speakerRegex.exec(cleanTranscript)) !== null) {
+  while ((speakerMatch = tactiqSpeakerRegex.exec(cleanTranscript)) !== null) {
     const name = speakerMatch[1].trim()
     if (name && name.length > 2 && !name.includes('View the full transcript')) {
       speakers.add(name)
     }
   }
+
+  // 2. Google Meet format: "Speaker Name 10:00 AM" or "Speaker Name 14:00"
+  if (speakers.size === 0) {
+    // Look for lines that look like speaker headers
+    const googleMeetSpeakerRegex = /^(.+?)\s+\d{1,2}:\d{2}\s*(?:AM|PM)?$/gm
+    let gmMatch
+    while ((gmMatch = googleMeetSpeakerRegex.exec(cleanTranscript)) !== null) {
+      const name = gmMatch[1].trim()
+      // Filter out obvious false positives
+      if (name && name.length > 2 && name.length < 50 && !name.includes('Transcript for')) {
+        speakers.add(name)
+      }
+    }
+  }
+
   participants = Array.from(speakers)
 
   // Use AI to extract metadata and generate summary
