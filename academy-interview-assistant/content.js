@@ -884,28 +884,30 @@ function showCandidatePanel(candidate) {
       
       /* Auth status section */
       .academy-auth-status {
-        padding: 12px 16px;
-        background: rgba(245, 246, 243, 0.2);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        border-top: 1px solid rgba(227, 229, 222, 0.2);
+        padding: 14px 18px;
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-top: 1px solid rgba(255, 255, 255, 0.25);
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 10px;
+        gap: 12px;
       }
       
       .academy-auth-status.authenticated {
-        background: rgba(220, 252, 231, 0.25);
+        background: rgba(220, 252, 231, 0.35);
+        border-top-color: rgba(34, 197, 94, 0.3);
       }
       
       .academy-auth-status.not-authenticated {
-        background: rgba(254, 226, 226, 0.25);
+        background: rgba(254, 226, 226, 0.35);
+        border-top-color: rgba(239, 68, 68, 0.3);
       }
       
       .academy-auth-icon {
-        width: 16px;
-        height: 16px;
+        width: 20px;
+        height: 20px;
         flex-shrink: 0;
       }
       
@@ -913,57 +915,57 @@ function showCandidatePanel(candidate) {
         flex: 1;
         display: flex;
         flex-direction: column;
-        gap: 2px;
+        gap: 3px;
         min-width: 0;
       }
       
       .academy-auth-label {
-        font-size: 10px;
-        font-weight: 500;
+        font-size: 12px;
+        font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        color: #8a8a8a;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
       }
       
       .academy-auth-status.authenticated .academy-auth-label {
-        color: hsl(140, 50%, 35%);
+        color: #15803d;
       }
       
       .academy-auth-status.not-authenticated .academy-auth-label {
-        color: hsl(0, 50%, 45%);
+        color: #dc2626;
       }
       
       .academy-auth-user {
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 500;
-        color: #575757;
+        color: #272727;
+        text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
       
       .academy-auth-button {
-        padding: 6px 12px;
-        background: rgba(255, 255, 255, 0.9);
-        color: #ef4444;
-        border: 1px solid rgba(252, 165, 165, 0.5);
+        padding: 8px 16px;
+        background: #dc2626;
+        color: white;
+        border: none;
         border-radius: 6px;
-        font-size: 10px;
-        font-weight: 600;
+        font-size: 12px;
+        font-weight: 700;
         cursor: pointer;
         white-space: nowrap;
         transition: all 0.2s ease-out;
         text-decoration: none;
         display: inline-block;
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
+        box-shadow: 0 2px 8px rgba(220, 38, 38, 0.25);
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
       }
       
       .academy-auth-button:hover {
-        background: rgba(254, 242, 242, 0.95);
-        border-color: rgba(248, 113, 113, 0.6);
+        background: #b91c1c;
         transform: translateY(-1px);
-        box-shadow: 0 2px 8px rgba(239, 68, 68, 0.15);
+        box-shadow: 0 4px 12px rgba(220, 38, 38, 0.35);
       }
       
       .academy-auth-button:active {

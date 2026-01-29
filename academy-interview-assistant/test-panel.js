@@ -319,28 +319,28 @@ panel.innerHTML = `
     
     /* Auth status section */
     .academy-auth-status {
-      padding: 12px 16px;
-      background: linear-gradient(to bottom, #f5f6f3, #e3e5de);
-      border-top: 1px solid #e3e5de;
+      padding: 14px 18px;
+      background: linear-gradient(to bottom, #f5f6f3, #e8eae3);
+      border-top: 1px solid #d4d7cc;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
+      gap: 12px;
     }
     
     .academy-auth-status.authenticated {
-      background: linear-gradient(to bottom, hsl(140, 40%, 96%), hsl(140, 30%, 92%));
-      border-top-color: hsl(140, 30%, 85%);
+      background: linear-gradient(to bottom, hsl(140, 50%, 92%), hsl(140, 45%, 88%));
+      border-top-color: hsl(140, 40%, 75%);
     }
     
     .academy-auth-status.not-authenticated {
-      background: linear-gradient(to bottom, hsl(0, 50%, 96%), hsl(0, 40%, 92%));
-      border-top-color: hsl(0, 40%, 85%);
+      background: linear-gradient(to bottom, hsl(0, 60%, 94%), hsl(0, 55%, 90%));
+      border-top-color: hsl(0, 50%, 75%);
     }
     
     .academy-auth-icon {
-      width: 16px;
-      height: 16px;
+      width: 20px;
+      height: 20px;
       flex-shrink: 0;
     }
     
@@ -348,54 +348,54 @@ panel.innerHTML = `
       flex: 1;
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      gap: 3px;
       min-width: 0;
     }
     
     .academy-auth-label {
-      font-size: 10px;
-      font-weight: 500;
+      font-size: 12px;
+      font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      color: #8a8a8a;
     }
     
     .academy-auth-status.authenticated .academy-auth-label {
-      color: hsl(140, 50%, 35%);
+      color: #15803d;
     }
     
     .academy-auth-status.not-authenticated .academy-auth-label {
-      color: hsl(0, 50%, 45%);
+      color: #dc2626;
     }
     
     .academy-auth-user {
-      font-size: 11px;
+      font-size: 12px;
       font-weight: 500;
-      color: #575757;
+      color: #272727;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
     
     .academy-auth-button {
-      padding: 6px 12px;
-      background: #ffffff;
-      color: #ef4444;
-      border: 1px solid #fca5a5;
+      padding: 8px 16px;
+      background: #dc2626;
+      color: white;
+      border: none;
       border-radius: 6px;
-      font-size: 10px;
-      font-weight: 600;
+      font-size: 12px;
+      font-weight: 700;
       cursor: pointer;
       white-space: nowrap;
       transition: all 0.2s ease-out;
       text-decoration: none;
       display: inline-block;
+      box-shadow: 0 2px 6px rgba(220, 38, 38, 0.2);
     }
     
     .academy-auth-button:hover {
-      background: #fef2f2;
-      border-color: #f87171;
+      background: #b91c1c;
       transform: translateY(-1px);
+      box-shadow: 0 4px 10px rgba(220, 38, 38, 0.3);
     }
     
     .academy-auth-button:active {
