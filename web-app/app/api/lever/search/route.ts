@@ -63,6 +63,7 @@ export async function GET(request: NextRequest) {
       leverParams.append('expand', 'contact')
       leverParams.append('expand', 'stage')
       leverParams.append('expand', 'applications')
+      leverParams.append('confidentiality', 'all') // Get both confidential AND non-confidential
       if (offset) {
         leverParams.append('offset', offset)
       }
