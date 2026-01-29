@@ -589,6 +589,13 @@ function FeedbackContent() {
   }, [selectedInterview?.id, transcript, currentTemplate?.id, selectedTemplate])
 
   async function analyzeTranscript(text: string, templateOverride?: Template | null) {
+    console.log('[analyzeTranscript] Called with:', { 
+      textLength: text?.length, 
+      templateOverride: templateOverride?.name, 
+      currentTemplate: currentTemplate?.name,
+      selectedInterview: selectedInterview?.meeting_title 
+    })
+    
     const effectiveTemplate = templateOverride ?? currentTemplate
     const effectiveInterview = selectedInterview
 
@@ -601,6 +608,7 @@ function FeedbackContent() {
     if (cacheKey) {
       const cached = analysisCacheRef.current.get(cacheKey)
       if (cached) {
+        console.log('[analyzeTranscript] Using cached analysis')
         setError('')
         setAnalysis(cached.analysis)
         if (effectiveInterview?.id && effectiveTemplate?.id) {
@@ -621,6 +629,8 @@ function FeedbackContent() {
         return
       }
     }
+    
+    console.log('[analyzeTranscript] Starting new analysis, calling API...')
 
     setAnalysisLoading(true)
     setError('')
@@ -665,12 +675,17 @@ function FeedbackContent() {
         }),
       })
       const data = await res.json()
+      console.log('[analyzeTranscript] API response:', { ok: res.ok, success: data?.success, error: data?.error })
 
       // If a newer analysis run started, ignore this result.
-      if (runId !== analyzeRunIdRef.current) return
+      if (runId !== analyzeRunIdRef.current) {
+        console.log('[analyzeTranscript] Ignoring stale result')
+        return
+      }
 
       if (!res.ok || !data?.success) {
         const msg = data?.error || data?.message || 'Analysis failed'
+        console.error('[analyzeTranscript] Analysis failed:', msg)
         setError(msg)
         // Allow auto-analysis to retry if it failed (rate-limit, auth, etc.)
         lastAutoAnalyzeKeyRef.current = null
@@ -715,8 +730,10 @@ function FeedbackContent() {
         const incoming = extractIncomingAnswers()
 
         if (incoming) {
+          console.log('[analyzeTranscript] Processing incoming answers:', Object.keys(incoming).length, 'answers')
           if (effectiveTemplate) {
             const { next, filledKeys } = mergeIncomingAnswers(dynamicAnswers, incoming, effectiveTemplate)
+            console.log('[analyzeTranscript] Merged answers, filled', filledKeys.length, 'fields:', filledKeys)
             setDynamicAnswers(next)
             if (filledKeys.length > 0) {
               setAiGeneratedFields(prevFlags => {
@@ -726,22 +743,24 @@ function FeedbackContent() {
               })
             }
           }
+        } else {
+          console.log('[analyzeTranscript] No incoming answers to process')
 
           // Cache for this transcript+template so we don't re-analyze again.
           if (cacheKey) {
             analysisCacheRef.current.set(cacheKey, { analysis: data.analysis, incomingAnswers: incoming })
           }
-        } else {
-           // Back-compat fallback for older analyzer responses
-           setDynamicAnswers(prev => ({
-             ...prev,
-             ...(prev['Overall Rating'] ? {} : { "Overall Rating": data.analysis.rating }),
-             ...(prev['Strengths'] ? {} : { "Strengths": data.analysis.strengths }),
-             ...(prev['Concerns'] ? {} : { "Concerns": data.analysis.concerns }),
-             ...(prev['Technical Skills'] ? {} : { "Technical Skills": data.analysis.technicalSkills }),
-             ...(prev['Cultural Fit'] ? {} : { "Cultural Fit": data.analysis.culturalFit }),
-             ...(prev['Recommendation'] ? {} : { "Recommendation": data.analysis.recommendation }),
-           }))
+
+          // Back-compat fallback for older analyzer responses
+          setDynamicAnswers(prev => ({
+            ...prev,
+            ...(prev['Overall Rating'] ? {} : { "Overall Rating": data.analysis.rating }),
+            ...(prev['Strengths'] ? {} : { "Strengths": data.analysis.strengths }),
+            ...(prev['Concerns'] ? {} : { "Concerns": data.analysis.concerns }),
+            ...(prev['Technical Skills'] ? {} : { "Technical Skills": data.analysis.technicalSkills }),
+            ...(prev['Cultural Fit'] ? {} : { "Cultural Fit": data.analysis.culturalFit }),
+            ...(prev['Recommendation'] ? {} : { "Recommendation": data.analysis.recommendation }),
+          }))
         }
 
         if (candidateNameFromApi) {
@@ -750,10 +769,15 @@ function FeedbackContent() {
       }
     } catch (err: any) {
       // Ignore intentional aborts when switching interviews/templates.
-      if (err?.name === 'AbortError') return
+      if (err?.name === 'AbortError') {
+        console.log('[analyzeTranscript] Aborted')
+        return
+      }
+      console.error('[analyzeTranscript] Error:', err)
       setError('Analysis failed: ' + err.message)
       lastAutoAnalyzeKeyRef.current = null
     } finally {
+      console.log('[analyzeTranscript] Complete, setting loading to false')
       setAnalysisLoading(false)
     }
   }
