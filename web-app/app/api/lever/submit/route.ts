@@ -90,6 +90,31 @@ export async function POST(request: NextRequest) {
           fetch('http://127.0.0.1:7244/ingest/e9fe012d-75cb-4528-8bd7-ab7d06b4d4db',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'submit/route.ts:85',message:'template fields analysis',data:{templateFieldCount:templateFields.length,templateFieldIds,requiredFieldIds,submittedIds,missingRequired,unknownSubmitted,scoreFields:templateFields.filter((f:any)=>f?.type==='score-system').map((f:any)=>({id:f.id,text:f.text,options:f.options}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,C'})}).catch(()=>{});
           // #endregion
 
+          // Build field type map and check for invalid values
+          const fieldTypeMap = templateFields.reduce((acc: any, f: any) => {
+            acc[f.id] = { type: f.type, text: f.text, required: f.required, options: f.options };
+            return acc;
+          }, {});
+          
+          // Check each submitted value against its field type
+          const fieldValueIssues = Array.isArray(fieldValues) ? fieldValues.map((fv: any) => {
+            const fieldDef = fieldTypeMap[fv.id];
+            if (!fieldDef) return { id: fv.id, issue: 'unknown_field' };
+            const issues = [];
+            // Check if ? is sent for option-based fields
+            if (fv.value === '?' && (fieldDef.type === 'score-system' || fieldDef.type === 'yes-no' || fieldDef.type === 'dropdown')) {
+              issues.push('question_mark_for_option_field');
+            }
+            // Check if score-system value matches options
+            if (fieldDef.type === 'score-system' && fieldDef.options && fv.value !== '?') {
+              const validOptions = fieldDef.options.map((o: any) => o.text || o);
+              if (!validOptions.includes(fv.value)) {
+                issues.push(`invalid_score_option: got "${fv.value}", valid: ${JSON.stringify(validOptions)}`);
+              }
+            }
+            return issues.length > 0 ? { id: fv.id, type: fieldDef.type, text: fieldDef.text, value: typeof fv.value === 'string' ? fv.value.slice(0, 50) : fv.value, issues } : null;
+          }).filter(Boolean) : [];
+
           diagnostics = {
             performAsUser: { id: leverUserId, ok: userRes.ok, status: userRes.status },
             template: {
@@ -100,8 +125,10 @@ export async function POST(request: NextRequest) {
               requiredFieldCount: requiredFieldIds.length,
               missingRequiredFieldIds: missingRequired,
               unknownSubmittedFieldIds: unknownSubmitted,
+              fields: templateFields.map((f: any) => ({ id: f.id, type: f.type, text: (f.text || '').slice(0, 40), required: !!f.required })),
             },
             opportunity: { id: opportunityId, ok: oppRes.ok, status: oppRes.status },
+            fieldValueIssues,
           }
         }
       } catch (e) {
