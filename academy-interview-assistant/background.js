@@ -337,7 +337,7 @@ async function handleMeetingEnded(request, tabId) {
 
   console.log('[Academy] Opening:', url)
 
-  // Open the web app
+  // Open the web app immediately
   const tab = await chrome.tabs.create({
     url: url,
     active: true

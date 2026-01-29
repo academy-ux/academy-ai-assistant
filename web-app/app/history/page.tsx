@@ -1204,10 +1204,17 @@ export default function HistoryPage() {
                       {importResults.length > 0 && (
                         <ScrollArea className="h-[200px] w-full rounded-lg border p-4">
                           <div className="space-y-2">
-                            {importResults.map((res, i) => (
+                            {importResults.map((res: any, i) => (
                               <div key={i} className="flex justify-between items-center text-sm py-2">
-                                <span className="truncate max-w-[280px]">{res.name}</span>
-                                <Badge variant={res.status === 'imported' ? 'success' : 'secondary'}>
+                                <div className="truncate max-w-[280px]">
+                                  <span>{res.name}</span>
+                                  {res.reason && res.status === 'error' && (
+                                    <span className="text-xs text-muted-foreground ml-1">
+                                      ({res.reason}{res.details ? `: ${res.details}` : ''})
+                                    </span>
+                                  )}
+                                </div>
+                                <Badge variant={res.status === 'imported' ? 'success' : res.status === 'error' ? 'destructive' : 'secondary'}>
                                   {res.status}
                                 </Badge>
                               </div>

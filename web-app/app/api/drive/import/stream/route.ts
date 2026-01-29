@@ -179,10 +179,42 @@ export async function POST(req: NextRequest) {
               }
 
               // Parse transcript metadata
-              const metadata = await parseTranscriptMetadata(text, file.name || '')
+              let metadata
+              try {
+                metadata = await parseTranscriptMetadata(text, file.name || '')
+              } catch (parseError: any) {
+                console.error('Parse error for', file.name, ':', parseError.message || parseError)
+                errorCount++
+                safeEnqueue(
+                  encoder.encode(`data: ${JSON.stringify({ 
+                    type: 'result',
+                    name: file.name, 
+                    status: 'error',
+                    reason: 'parse_failed',
+                    details: parseError.message?.substring(0, 100) || 'Unknown parse error'
+                  })}\n\n`)
+                )
+                return
+              }
 
               // Generate Embedding
-              const embedding = await generateEmbedding(text)
+              let embedding
+              try {
+                embedding = await generateEmbedding(text)
+              } catch (embedError: any) {
+                console.error('Embedding error for', file.name, ':', embedError.message || embedError)
+                errorCount++
+                safeEnqueue(
+                  encoder.encode(`data: ${JSON.stringify({ 
+                    type: 'result',
+                    name: file.name, 
+                    status: 'error',
+                    reason: 'embedding_failed',
+                    details: embedError.message?.substring(0, 100) || 'Unknown embedding error'
+                  })}\n\n`)
+                )
+                return
+              }
 
               // Save to Supabase
               const { error } = await supabase.from('interviews').insert({
@@ -201,13 +233,15 @@ export async function POST(req: NextRequest) {
               })
 
               if (error) {
-                console.error('Supabase error:', error)
+                console.error('Supabase error for', file.name, ':', error)
                 errorCount++
                 safeEnqueue(
                   encoder.encode(`data: ${JSON.stringify({ 
                     type: 'result',
                     name: file.name, 
-                    status: 'error'
+                    status: 'error',
+                    reason: 'database_failed',
+                    details: error.message?.substring(0, 100) || 'Unknown database error'
                   })}\n\n`)
                 )
               } else {
@@ -221,13 +255,20 @@ export async function POST(req: NextRequest) {
                 )
               }
             } catch (fileError: any) {
-              console.error('File processing error:', fileError)
+              console.error('File processing error for', file.name, ':', fileError.message || fileError)
               errorCount++
+              // Provide more detail about the error
+              let errorReason = 'download_failed'
+              if (fileError.code === 403 || fileError.code === 404) {
+                errorReason = 'access_denied'
+              }
               safeEnqueue(
                 encoder.encode(`data: ${JSON.stringify({ 
                   type: 'result',
                   name: file.name, 
-                  status: 'error'
+                  status: 'error',
+                  reason: errorReason,
+                  details: fileError.message?.substring(0, 100) || 'Unknown error'
                 })}\n\n`)
               )
             }

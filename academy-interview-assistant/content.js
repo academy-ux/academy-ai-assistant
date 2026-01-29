@@ -259,6 +259,9 @@ async function showTestCandidate() {
 }
 
 function startMonitoring() {
+  // First, check if we're already in a meeting (e.g., page was reloaded)
+  checkIfAlreadyInMeeting();
+  
   detectMeetingJoin();
   watchForMeetingEnd();
 
@@ -267,6 +270,38 @@ function startMonitoring() {
   
   // Periodic check for participants
   setInterval(detectParticipants, 5000);
+  
+  // Periodic check if we're in a meeting (catches page reloads)
+  setInterval(checkIfAlreadyInMeeting, 2000);
+}
+
+// Check if we're already in a meeting (handles page reload scenario)
+function checkIfAlreadyInMeeting() {
+  if (isInMeeting) return; // Already detected
+  
+  // Check URL pattern for meeting code
+  const urlMatch = location.pathname.match(/\/([a-z]{3}-[a-z]{4}-[a-z]{3})/);
+  if (!urlMatch) return; // Not on a meeting URL
+  
+  // Check for video elements or meeting controls
+  const hasVideo = document.querySelectorAll('video').length > 0;
+  const hasMeetingControls = document.querySelector('[data-is-muted]') ||
+                             document.querySelector('[aria-label*="microphone"]') ||
+                             document.querySelector('[aria-label*="camera"]') ||
+                             document.querySelector('[aria-label*="Turn off"]') ||
+                             document.querySelector('[aria-label*="Turn on"]');
+  
+  // Check for participant elements (more reliable indicator of active meeting)
+  const hasParticipants = document.querySelector('[data-self-name]') ||
+                          document.querySelector('[data-participant-id]') ||
+                          document.querySelector('[data-requested-participant-id]');
+  
+  if (hasVideo || hasMeetingControls || hasParticipants) {
+    isInMeeting = true;
+    console.log('[Academy] Detected active meeting (page was reloaded or joined late)');
+    detectMeetingInfo();
+    notifyMeetingJoined();
+  }
 }
 
 function detectMeetingJoin() {

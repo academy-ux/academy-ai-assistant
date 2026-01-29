@@ -315,13 +315,69 @@ function FeedbackContent() {
     return errors
   }
 
+  // Track if we've already polled for new transcripts this session
+  const hasPolledForNewTranscriptRef = useRef(false)
+  const [pollingForTranscript, setPollingForTranscript] = useState(false)
+
   useEffect(() => {
     if (session) {
       loadInterviews()
       loadPostings()
       loadTemplates()
+      
+      // If opened from extension (has meeting/ts params), poll for new transcripts
+      const meetingCode = searchParams.get('meeting')
+      const timestamp = searchParams.get('ts')
+      
+      if ((meetingCode || timestamp) && !hasPolledForNewTranscriptRef.current) {
+        hasPolledForNewTranscriptRef.current = true
+        pollForNewTranscript()
+      }
     }
   }, [session])
+
+  // Poll Drive for new transcripts (called when opened from extension)
+  async function pollForNewTranscript() {
+    console.log('[Feedback] Polling Drive for new transcripts...')
+    setPollingForTranscript(true)
+    
+    try {
+      const res = await fetch('/api/poll-drive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      
+      if (res.ok) {
+        const result = await res.json()
+        console.log('[Feedback] Drive poll result:', result)
+        
+        // Always reload interviews after polling to get latest
+        const interviewsRes = await fetch('/api/interviews?limit=100&offset=0')
+        const interviewsData = await interviewsRes.json()
+        
+        if (interviewsData.interviews && interviewsData.interviews.length > 0) {
+          const newInterviews = interviewsData.interviews as Interview[]
+          setInterviews(newInterviews)
+          
+          // If we imported new transcripts and no interview is selected, select the newest one
+          if (result.imported > 0 && !selectedInterview) {
+            const newest = newInterviews[0] // Interviews are sorted by date, newest first
+            if (newest) {
+              selectInterview(newest)
+              console.log('[Feedback] Auto-selected newest transcript:', newest.meeting_title)
+            }
+          }
+        }
+      } else {
+        const errorData = await res.json().catch(() => ({}))
+        console.log('[Feedback] Drive poll not configured or failed:', res.status, errorData.error || '')
+      }
+    } catch (err) {
+      console.log('[Feedback] Drive poll error:', err)
+    } finally {
+      setPollingForTranscript(false)
+    }
+  }
 
   // Reset validation state when template/interview changes
   useEffect(() => {
@@ -1170,16 +1226,34 @@ function FeedbackContent() {
 
               {/* Interviews List */}
               <ScrollArea className="flex-1">
-                {interviewsLoading ? (
-                  <div className="flex items-center justify-center py-12">
+                {interviewsLoading || pollingForTranscript ? (
+                  <div className="flex flex-col items-center justify-center py-12 gap-2">
                     <Spinner size={32} className="text-primary" />
+                    {pollingForTranscript && (
+                      <p className="text-xs text-muted-foreground">Checking for new transcripts...</p>
+                    )}
                   </div>
                 ) : filteredInterviews.length === 0 ? (
                   <div className="text-center py-12 px-4">
                     <FileText className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-muted-foreground mb-3">
                       {interviewSearch ? 'No matching interviews' : 'No interviews available'}
                     </p>
+                    {!interviewSearch && (searchParams.get('meeting') || searchParams.get('ts')) && (
+                      <div className="space-y-2">
+                        <p className="text-xs text-muted-foreground">
+                          Transcript may take 1-2 minutes to appear after meeting ends
+                        </p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={pollForNewTranscript}
+                          disabled={pollingForTranscript}
+                        >
+                          {pollingForTranscript ? 'Checking...' : 'Check for new transcripts'}
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="p-3 space-y-2">
