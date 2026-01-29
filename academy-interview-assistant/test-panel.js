@@ -166,7 +166,7 @@ panel.innerHTML = `
       font-size: 17px;
       font-weight: 600;
       letter-spacing: -0.02em;
-      color: #272727;
+      color: #5b5b53;
       margin-bottom: 4px;
     }
     
@@ -185,14 +185,14 @@ panel.innerHTML = `
       letter-spacing: 0.5px;
       padding: 4px 10px;
       background: #e3e5de;
-      color: #575757;
+      color: #5b5b53;
       border-radius: 6px;
       margin-bottom: 12px;
     }
     
     .academy-candidate-meta {
       font-size: 12px;
-      color: #8a8a8a;
+      color: #5b5b53;
       margin-bottom: 4px;
       display: flex;
       align-items: center;
@@ -214,7 +214,7 @@ panel.innerHTML = `
       font-weight: 500;
       text-transform: uppercase;
       letter-spacing: 1px;
-      color: #8a8a8a;
+      color: #5b5b53;
       margin-bottom: 10px;
     }
     

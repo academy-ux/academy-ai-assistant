@@ -32,10 +32,75 @@ export async function POST(request: NextRequest) {
       position
     } = body
 
+    // 0. Fetch template to get field types and transform fieldValues accordingly
+    let transformedFieldValues = fieldValues;
+    try {
+      const templateRes = await fetch(
+        `https://api.lever.co/v1/feedback_templates/${encodeURIComponent(templateId)}`,
+        { headers: leverHeaders }
+      );
+      if (templateRes.ok) {
+        const templateJson = await templateRes.json();
+        const templateFields = templateJson?.data?.fields || templateJson?.fields || [];
+        const fieldTypeMap = templateFields.reduce((acc: any, f: any) => {
+          acc[f.id] = { type: f.type, options: f.options };
+          return acc;
+        }, {});
+        
+        // Transform fieldValues based on field type
+        transformedFieldValues = Array.isArray(fieldValues) ? fieldValues.map((fv: any) => {
+          const fieldDef = fieldTypeMap[fv.id];
+          if (!fieldDef) return fv;
+          
+          // Handle 'score' type fields - extract number from text
+          if (fieldDef.type === 'score') {
+            const val = fv.value;
+            if (typeof val === 'number') return fv;
+            if (typeof val === 'string') {
+              // Try to extract a number from the beginning or the string
+              const numMatch = val.match(/^(\d+)/);
+              if (numMatch) {
+                return { ...fv, value: parseInt(numMatch[1], 10) };
+              }
+              // If value is just "?" or empty-ish, omit this field
+              if (val === '?' || val.trim() === '') {
+                return null; // Will be filtered out
+              }
+              // For long text in a score field, we can't extract a score - omit it
+              // (Better to omit than send invalid data)
+              console.warn(`[Lever submit] Omitting score field ${fv.id}: value is text, not a number`);
+              return null;
+            }
+          }
+          
+          // Handle 'score-system' type - validate against options
+          if (fieldDef.type === 'score-system' && fieldDef.options) {
+            const validOptions = fieldDef.options.map((o: any) => o.text || o);
+            if (fv.value === '?' || fv.value === null || fv.value === undefined) {
+              return null; // Omit ? for score-system
+            }
+            if (!validOptions.includes(fv.value)) {
+              console.warn(`[Lever submit] score-system field ${fv.id}: "${fv.value}" not in valid options`);
+              // Try to find a partial match
+              const match = validOptions.find((opt: string) => fv.value?.includes(opt) || opt?.includes(fv.value));
+              if (match) {
+                return { ...fv, value: match };
+              }
+            }
+          }
+          
+          return fv;
+        }).filter(Boolean) : fieldValues;
+      }
+    } catch (e) {
+      console.error('[Lever submit] Failed to fetch template for field type transformation:', e);
+      // Continue with original fieldValues if template fetch fails
+    }
+
     // 1. Submit to Lever
     const payload = {
       baseTemplateId: templateId,
-      fieldValues,
+      fieldValues: transformedFieldValues,
       createdAt: Date.now(),
       completedAt: Date.now(),
     }
@@ -43,12 +108,10 @@ export async function POST(request: NextRequest) {
     console.log('[Lever submit]', {
       opportunityId,
       templateId,
-      fieldValuesCount: Array.isArray(fieldValues) ? fieldValues.length : null,
-      fieldValueIdsPreview: Array.isArray(fieldValues) ? fieldValues.slice(0, 8).map((fv: any) => fv?.id).filter(Boolean) : null,
+      originalFieldValuesCount: Array.isArray(fieldValues) ? fieldValues.length : null,
+      transformedFieldValuesCount: Array.isArray(transformedFieldValues) ? transformedFieldValues.length : null,
+      fieldValueIdsPreview: Array.isArray(transformedFieldValues) ? transformedFieldValues.slice(0, 8).map((fv: any) => fv?.id).filter(Boolean) : null,
     })
-    // #region agent log
-    fetch('http://127.0.0.1:7244/ingest/e9fe012d-75cb-4528-8bd7-ab7d06b4d4db',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'submit/route.ts:49',message:'fieldValues with question marks',data:{questionMarkFields:Array.isArray(fieldValues)?fieldValues.filter((fv:any)=>fv?.value==='?').map((fv:any)=>fv?.id):[],allFieldValues:Array.isArray(fieldValues)?fieldValues.map((fv:any)=>({id:fv?.id,valuePreview:typeof fv?.value==='string'?fv.value.slice(0,30):fv?.value})):null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
 
     const response = await fetch(
       `https://api.lever.co/v1/opportunities/${encodeURIComponent(opportunityId)}/feedback?perform_as=${encodeURIComponent(leverUserId)}`,

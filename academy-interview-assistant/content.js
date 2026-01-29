@@ -697,13 +697,13 @@ function showCandidatePanel(candidate) {
         font-size: 17px;
         font-weight: 600;
         letter-spacing: -0.02em;
-        color: #272727;
+        color: #5b5b53;
         margin-bottom: 4px;
       }
       
       .academy-candidate-position {
         font-size: 13px;
-        color: #575757;
+        color: #5b5b53;
         margin-bottom: 8px;
         line-height: 1.4;
       }
@@ -716,14 +716,14 @@ function showCandidatePanel(candidate) {
         letter-spacing: 0.5px;
         padding: 4px 10px;
         background: rgba(227, 229, 222, 0.5);
-        color: #575757;
+        color: #5b5b53;
         border-radius: 6px;
         margin-bottom: 12px;
       }
       
       .academy-candidate-meta {
         font-size: 12px;
-        color: #8a8a8a;
+        color: #5b5b53;
         margin-bottom: 4px;
         display: flex;
         align-items: center;
@@ -750,7 +750,7 @@ function showCandidatePanel(candidate) {
         font-weight: 500;
         text-transform: uppercase;
         letter-spacing: 1px;
-        color: #8a8a8a;
+        color: #5b5b53;
         margin-bottom: 10px;
       }
       
@@ -929,7 +929,6 @@ function showCandidatePanel(candidate) {
         font-size: 12px;
         font-weight: 500;
         color: #272727;
-        text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
