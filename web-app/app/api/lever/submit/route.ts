@@ -12,6 +12,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Lever API not configured' }, { status: 500 })
     }
 
+    const leverHeaders = {
+      'Authorization': `Basic ${Buffer.from(leverKey + ':').toString('base64')}`,
+      'Content-Type': 'application/json',
+    } as const
+
     const { data: body, error: validationError } = await validateBody(request, leverSubmitSchema)
     if (validationError) return validationError
 
@@ -28,26 +33,26 @@ export async function POST(request: NextRequest) {
     } = body
 
     // 1. Submit to Lever
+    const payload = {
+      baseTemplateId: templateId,
+      fieldValues,
+      createdAt: Date.now(),
+      completedAt: Date.now(),
+    }
+
     console.log('[Lever submit]', {
       opportunityId,
       templateId,
       fieldValuesCount: Array.isArray(fieldValues) ? fieldValues.length : null,
       fieldValueIdsPreview: Array.isArray(fieldValues) ? fieldValues.slice(0, 8).map((fv: any) => fv?.id).filter(Boolean) : null,
     })
+
     const response = await fetch(
       `https://api.lever.co/v1/opportunities/${encodeURIComponent(opportunityId)}/feedback?perform_as=${encodeURIComponent(leverUserId)}`,
       {
         method: 'POST',
-        headers: {
-          'Authorization': `Basic ${Buffer.from(leverKey + ':').toString('base64')}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          baseTemplateId: templateId,
-          fieldValues,
-          createdAt: Date.now(),
-          completedAt: Date.now(),
-        }),
+        headers: leverHeaders,
+        body: JSON.stringify(payload),
       }
     )
 
@@ -55,6 +60,41 @@ export async function POST(request: NextRequest) {
       const errorData = await response.json().catch(() => null)
       const errorText = errorData ? null : await response.text().catch(() => null)
       console.error('Lever API error:', response.status, errorData || errorText)
+
+      // Extra diagnostics for the generic "Unable to create feedback" error.
+      let diagnostics: any = null
+      try {
+        if (response.status === 400) {
+          const [userRes, templateRes, oppRes] = await Promise.all([
+            fetch(`https://api.lever.co/v1/users/${encodeURIComponent(leverUserId)}`, { headers: leverHeaders }).then(async r => ({ ok: r.ok, status: r.status, data: await r.json().catch(() => null) })).catch((e) => ({ ok: false, status: -1, error: String(e) })),
+            fetch(`https://api.lever.co/v1/feedback_templates/${encodeURIComponent(templateId)}`, { headers: leverHeaders }).then(async r => ({ ok: r.ok, status: r.status, data: await r.json().catch(() => null) })).catch((e) => ({ ok: false, status: -1, error: String(e) })),
+            fetch(`https://api.lever.co/v1/opportunities/${encodeURIComponent(opportunityId)}`, { headers: leverHeaders }).then(async r => ({ ok: r.ok, status: r.status, data: await r.json().catch(() => null) })).catch((e) => ({ ok: false, status: -1, error: String(e) })),
+          ])
+
+          const templateFields = Array.isArray(templateRes?.data?.fields) ? templateRes.data.fields : []
+          const templateFieldIds = templateFields.map((f: any) => f?.id).filter(Boolean)
+          const requiredFieldIds = templateFields.filter((f: any) => !!f?.required || String(f?.type || '').toLowerCase() === 'score-system').map((f: any) => f?.id).filter(Boolean)
+          const submittedIds = Array.isArray(fieldValues) ? fieldValues.map((fv: any) => fv?.id).filter(Boolean) : []
+          const missingRequired = requiredFieldIds.filter((id: any) => !submittedIds.includes(id))
+          const unknownSubmitted = submittedIds.filter((id: any) => templateFieldIds.length > 0 && !templateFieldIds.includes(id))
+
+          diagnostics = {
+            performAsUser: { id: leverUserId, ok: userRes.ok, status: userRes.status },
+            template: {
+              id: templateId,
+              ok: templateRes.ok,
+              status: templateRes.status,
+              fieldCount: templateFieldIds.length,
+              requiredFieldCount: requiredFieldIds.length,
+              missingRequiredFieldIds: missingRequired,
+              unknownSubmittedFieldIds: unknownSubmitted,
+            },
+            opportunity: { id: opportunityId, ok: oppRes.ok, status: oppRes.status },
+          }
+        }
+      } catch (e) {
+        diagnostics = { error: String(e) }
+      }
 
       const leverMessage =
         (errorData && typeof errorData === 'object' && 'message' in errorData && typeof (errorData as any).message === 'string')
@@ -70,7 +110,16 @@ export async function POST(request: NextRequest) {
         {
           success: false,
           error: leverCode ? `${leverCode}: ${leverMessage}` : leverMessage,
-          details: errorData || errorText,
+          details: {
+            lever: errorData || errorText,
+            sent: {
+              opportunityId,
+              templateId,
+              payload,
+              performAs: leverUserId,
+            },
+            diagnostics,
+          },
         },
         { status: response.status }
       )

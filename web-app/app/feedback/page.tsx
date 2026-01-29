@@ -231,6 +231,8 @@ function FeedbackContent() {
   
   const [dynamicAnswers, setDynamicAnswers] = useState<Record<string, any>>({})
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [touchedFields, setTouchedFields] = useState<Record<string, boolean>>({})
+  const [submitAttempted, setSubmitAttempted] = useState(false)
   const [aiGeneratedFields, setAiGeneratedFields] = useState<Record<string, boolean>>({})
 
   const [submitting, setSubmitting] = useState(false)
@@ -255,6 +257,64 @@ function FeedbackContent() {
     return false
   }
 
+  const isOptionField = (f: TemplateField) => {
+    const t = String(f.type || '').toLowerCase()
+    return t === 'score-system' || t === 'score' || t === 'dropdown' || t === 'multiple-choice' || t === 'yes-no'
+  }
+
+  const optionTextsFor = (f: TemplateField) => {
+    const opts = Array.isArray(f.options) ? f.options : []
+    const texts = opts
+      .map((o: any) => (o && typeof o === 'object' ? (o.text ?? o.optionId ?? o.value) : o))
+      .map((v: any) => (typeof v === 'string' ? v.trim() : ''))
+      .filter(Boolean)
+    return Array.from(new Set(texts))
+  }
+
+  const validateField = (f: TemplateField, value: any) => {
+    const t = String(f.type || '').toLowerCase()
+    const isScoreSystem = t === 'score-system'
+    const requiredByLever = !!f.required || isScoreSystem
+
+    if (requiredByLever) {
+      const blank =
+        value === undefined ||
+        value === null ||
+        (typeof value === 'string' && value.trim() === '') ||
+        (Array.isArray(value) && value.length === 0) ||
+        (value === '?' && isOptionField(f))
+      if (blank) return 'Required'
+    }
+
+    if (isOptionField(f)) {
+      if (value === '?' || value === undefined || value === null || (typeof value === 'string' && value.trim() === '')) {
+        return null
+      }
+
+      if (t === 'yes-no') {
+        const v = typeof value === 'string' ? value.toLowerCase() : ''
+        if (v !== 'yes' && v !== 'no') return 'Please select a valid option'
+      }
+
+      const optionTexts = optionTextsFor(f)
+      if (optionTexts.length > 0 && typeof value === 'string' && !optionTexts.includes(value)) {
+        return 'Please select a valid option'
+      }
+    }
+
+    return null
+  }
+
+  const validateAllFields = (template: Template | null, answers: Record<string, any>) => {
+    if (!template) return {}
+    const errors: Record<string, string> = {}
+    for (const f of template.fields || []) {
+      const msg = validateField(f, answers[f.text])
+      if (msg) errors[f.text] = msg
+    }
+    return errors
+  }
+
   useEffect(() => {
     if (session) {
       loadInterviews()
@@ -262,6 +322,13 @@ function FeedbackContent() {
       loadTemplates()
     }
   }, [session])
+
+  // Reset validation state when template/interview changes
+  useEffect(() => {
+    setFieldErrors({})
+    setTouchedFields({})
+    setSubmitAttempted(false)
+  }, [selectedInterview?.id, selectedTemplate])
 
   // #region agent log (hypothesis B/C/E)
   useEffect(() => {
@@ -880,7 +947,7 @@ function FeedbackContent() {
 
     setSubmitting(true)
     setError('')
-    setFieldErrors({})
+    setSubmitAttempted(true)
 
     const candidate = candidates.find(c => c.id === selectedCandidate)
 
@@ -890,23 +957,7 @@ function FeedbackContent() {
         return
       }
 
-      const nextFieldErrors: Record<string, string> = {}
-      const isOptionField = (f: TemplateField) => {
-        const t = String(f.type || '').toLowerCase()
-        return t === 'score-system' || t === 'score' || t === 'dropdown' || t === 'multiple-choice' || t === 'yes-no'
-      }
-      for (const f of currentTemplate.fields) {
-        if (!f.required) continue
-        const v = dynamicAnswers[f.text]
-        const isBlank =
-          v === undefined ||
-          v === null ||
-          (v === '?' && isOptionField(f)) ||
-          (typeof v === 'string' && v.trim() === '') ||
-          (Array.isArray(v) && v.length === 0)
-        if (isBlank) nextFieldErrors[f.text] = 'Required'
-      }
-
+      const nextFieldErrors = validateAllFields(currentTemplate, dynamicAnswers)
       if (Object.keys(nextFieldErrors).length > 0) {
         setFieldErrors(nextFieldErrors)
         setError('Please fill the highlighted required fields.')
@@ -919,6 +970,17 @@ function FeedbackContent() {
 
         // Lever option-based fields must match one of the option texts; "?" isn't valid there.
         if (raw === '?' && isOptionField(f)) return null
+
+        const t = String(f.type || '').toLowerCase()
+        if (isOptionField(f) && typeof raw === 'string') {
+          const optionTexts = optionTextsFor(f)
+          if (optionTexts.length > 0 && !optionTexts.includes(raw)) return null
+          if (t === 'yes-no') {
+            const v = raw.toLowerCase()
+            if (v !== 'yes' && v !== 'no') return null
+            return v
+          }
+        }
 
         if (f.type === 'multiple-select') {
           if (Array.isArray(raw)) return raw
@@ -1563,10 +1625,12 @@ function FeedbackContent() {
                                           onValueChange={(val) => {
                                             setDynamicAnswers({ ...dynamicAnswers, [field.text]: val })
                                             setAiGeneratedFields(prev => ({ ...prev, [field.text]: false }))
+                                            setTouchedFields(prev => ({ ...prev, [field.text]: true }))
+                                            const msg = validateField(field as any, val)
                                             setFieldErrors(prev => {
-                                              if (!prev[field.text]) return prev
                                               const next = { ...prev }
-                                              delete next[field.text]
+                                              if ((submitAttempted || true) && msg) next[field.text] = msg
+                                              else delete next[field.text]
                                               return next
                                             })
                                           }}
@@ -1576,10 +1640,13 @@ function FeedbackContent() {
                                           </SelectTrigger>
                                           <SelectContent>
                                              <SelectItem value="?">?</SelectItem>
-                                             <SelectItem value="4 - Strong Hire">4 - Strong Hire</SelectItem>
-                                             <SelectItem value="3 - Hire">3 - Hire</SelectItem>
-                                             <SelectItem value="2 - No Hire">2 - No Hire</SelectItem>
-                                             <SelectItem value="1 - Strong No Hire">1 - Strong No Hire</SelectItem>
+                                             {(Array.isArray(field.options) ? field.options : [])
+                                               .map((o: any) => (o && typeof o === 'object' ? (o.text ?? o.optionId ?? o.value) : o))
+                                               .map((v: any) => (typeof v === 'string' ? v.trim() : ''))
+                                               .filter(Boolean)
+                                               .map((text: string) => (
+                                                 <SelectItem key={text} value={text}>{text}</SelectItem>
+                                               ))}
                                           </SelectContent>
                                        </Select>
                                     ) : (
@@ -1589,10 +1656,13 @@ function FeedbackContent() {
                                           onChange={(e) => {
                                             setDynamicAnswers({ ...dynamicAnswers, [field.text]: e.target.value })
                                             setAiGeneratedFields(prev => ({ ...prev, [field.text]: false }))
+                                            const val = e.target.value
+                                            setTouchedFields(prev => ({ ...prev, [field.text]: true }))
+                                            const msg = validateField(field as any, val)
                                             setFieldErrors(prev => {
-                                              if (!prev[field.text]) return prev
                                               const next = { ...prev }
-                                              delete next[field.text]
+                                              if ((submitAttempted || true) && msg) next[field.text] = msg
+                                              else delete next[field.text]
                                               return next
                                             })
                                           }}
