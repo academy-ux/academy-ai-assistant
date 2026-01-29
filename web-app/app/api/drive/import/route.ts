@@ -118,9 +118,28 @@ export async function POST(req: NextRequest) {
         // Generate Embedding
         const embedding = await generateEmbedding(text)
 
+        // Generate a descriptive meeting title
+        const meetingDate = file.createdTime 
+          ? new Date(file.createdTime).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
+          : new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
+        
+        let generatedTitle = metadata.meetingType || 'Meeting'
+        
+        // Format: "Candidate <> Interviewer — Type MM/DD/YYYY"
+        if (metadata.candidateName && metadata.candidateName !== 'Unknown Candidate' && metadata.candidateName !== 'Team') {
+          if (metadata.interviewer && metadata.interviewer !== 'Unknown') {
+            generatedTitle = `${metadata.candidateName} <> ${metadata.interviewer} — ${metadata.meetingCategory} ${meetingDate}`
+          } else {
+            generatedTitle = `${metadata.candidateName} — ${metadata.meetingCategory} ${meetingDate}`
+          }
+        } else if (metadata.meetingCategory && metadata.meetingCategory !== 'Other') {
+          generatedTitle = `${metadata.meetingCategory} ${meetingDate}`
+        }
+
         // Save to Supabase
         const { error } = await supabase.from('interviews').insert({
-          meeting_title: metadata.meetingType,
+          meeting_title: generatedTitle,
+          meeting_type: metadata.meetingCategory,
           meeting_date: file.createdTime || new Date().toISOString(),
           transcript: text,
           transcript_file_name: file.name,
@@ -141,8 +160,22 @@ export async function POST(req: NextRequest) {
             progress: { current: i + 1, total: totalFiles }
           })
         } else {
+          // Rename the file in Google Drive to use the intelligent title
+          try {
+            await drive.files.update({
+              fileId: file.id!,
+              requestBody: {
+                name: generatedTitle
+              }
+            })
+            console.log(`Renamed Drive file: "${file.name}" -> "${generatedTitle}"`)
+          } catch (renameError: any) {
+            // Log but don't fail the import if rename fails
+            console.error('Failed to rename Drive file:', file.name, renameError.message || renameError)
+          }
+          
           results.push({ 
-            name: file.name, 
+            name: generatedTitle, 
             status: 'imported',
             progress: { current: i + 1, total: totalFiles }
           })

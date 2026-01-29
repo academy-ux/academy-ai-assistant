@@ -18,7 +18,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { ChevronsUpDown, Check, Search, CloudDownload, FileText, Calendar, User, X, Send, ChevronRight, RefreshCw, SlidersHorizontal, Trash2 } from 'lucide-react'
+import { ChevronsUpDown, Check, Search, CloudDownload, FileText, Calendar, User, X, Send, ChevronRight, RefreshCw, SlidersHorizontal, Trash2, CheckSquare, Square, MinusSquare } from 'lucide-react'
 import { MagicWandIcon } from '@/components/icons/magic-wand'
 import { VoiceRecorder } from '@/components/voice-recorder'
 import { Message, MessageContent, MessageAvatar } from '@/components/ui/message'
@@ -144,6 +144,11 @@ export default function HistoryPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [meetingToDelete, setMeetingToDelete] = useState<Meeting | null>(null)
+  
+  // Multi-select state
+  const [selectedMeetings, setSelectedMeetings] = useState<Set<string>>(new Set())
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
+  const [bulkDeleting, setBulkDeleting] = useState(false)
   
   // Voice recording state
   const [isRecording, setIsRecording] = useState(false)
@@ -754,6 +759,67 @@ export default function HistoryPage() {
     setSelectedCandidate('all')
     setSortBy('date-desc')
   }
+
+  // Multi-select handlers
+  function toggleMeetingSelection(meetingId: string) {
+    setSelectedMeetings(prev => {
+      const next = new Set(prev)
+      if (next.has(meetingId)) {
+        next.delete(meetingId)
+      } else {
+        next.add(meetingId)
+      }
+      return next
+    })
+  }
+
+  function selectAllMeetings() {
+    setSelectedMeetings(new Set(filteredMeetings.map(m => m.id)))
+  }
+
+  function deselectAllMeetings() {
+    setSelectedMeetings(new Set())
+  }
+
+  async function handleBulkDelete() {
+    if (selectedMeetings.size === 0) return
+    
+    setBulkDeleting(true)
+    const idsToDelete = Array.from(selectedMeetings)
+    let successCount = 0
+    let failCount = 0
+    
+    for (const id of idsToDelete) {
+      try {
+        const res = await fetch(`/api/interviews/${id}`, {
+          method: 'DELETE'
+        })
+        if (res.ok) {
+          successCount++
+        } else {
+          failCount++
+        }
+      } catch (error) {
+        console.error(`Failed to delete meeting ${id}`, error)
+        failCount++
+      }
+    }
+    
+    // Update local state
+    setMeetings(prev => prev.filter(m => !selectedMeetings.has(m.id)))
+    setTotalCount(prev => Math.max(0, prev - successCount))
+    setSelectedMeetings(new Set())
+    setShowBulkDeleteConfirm(false)
+    setBulkDeleting(false)
+    
+    if (failCount > 0) {
+      alert(`Deleted ${successCount} meetings. Failed to delete ${failCount} meetings.`)
+    }
+  }
+
+  // Check selection state for select-all toggle
+  const allFilteredSelected = filteredMeetings.length > 0 && filteredMeetings.every(m => selectedMeetings.has(m.id))
+  const someFilteredSelected = filteredMeetings.some(m => selectedMeetings.has(m.id))
 
   return (
     <div className="min-h-screen bg-background">
@@ -1826,6 +1892,52 @@ export default function HistoryPage() {
                     )
                   })}
                 </div>
+                
+                {/* Selection Bar - appears when items are selected */}
+                {selectedMeetings.size > 0 && (
+                  <div className="flex items-center justify-between gap-4 py-3 px-4 bg-primary/5 border border-primary/20 rounded-xl animate-in slide-in-from-top-2 duration-200">
+                    <div className="flex items-center gap-4">
+                      <button
+                        onClick={allFilteredSelected ? deselectAllMeetings : selectAllMeetings}
+                        className="flex items-center gap-2 text-sm text-foreground hover:text-primary transition-colors"
+                      >
+                        {allFilteredSelected ? (
+                          <CheckSquare className="h-5 w-5 text-primary" />
+                        ) : someFilteredSelected ? (
+                          <MinusSquare className="h-5 w-5 text-primary" />
+                        ) : (
+                          <Square className="h-5 w-5" />
+                        )}
+                        <span className="font-medium">
+                          {allFilteredSelected ? 'Deselect All' : 'Select All'}
+                        </span>
+                      </button>
+                      <div className="h-4 w-px bg-border/60" />
+                      <span className="text-sm text-muted-foreground">
+                        <span className="font-semibold text-foreground">{selectedMeetings.size}</span> selected
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={deselectAllMeetings}
+                        className="text-muted-foreground hover:text-foreground h-8 px-3"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => setShowBulkDeleteConfirm(true)}
+                        className="gap-2 h-8 px-4"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Delete ({selectedMeetings.size})
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1898,13 +2010,36 @@ export default function HistoryPage() {
               {filteredMeetings.map((meeting, index) => (
                 <div 
                   key={meeting.id} 
-                  className="group relative border border-border/40 rounded-2xl p-5 md:p-8 bg-card/30 hover:bg-card/50 hover:border-border/60 transition-all duration-300 hover:shadow-lg cursor-pointer"
+                  className={cn(
+                    "group relative border rounded-2xl p-5 md:p-8 bg-card/30 hover:bg-card/50 transition-all duration-300 hover:shadow-lg cursor-pointer",
+                    selectedMeetings.has(meeting.id)
+                      ? "border-primary/50 bg-primary/5 hover:bg-primary/10"
+                      : "border-border/40 hover:border-border/60"
+                  )}
                   style={{ animationDelay: `${index * 50}ms` }}
                   onClick={() => router.push(`/history/${meeting.id}`)}
                 >
                   <div className="flex flex-col sm:flex-row gap-4 md:gap-5">
-                    {/* Left: Avatar */}
-                    <div className="flex items-center gap-3 sm:block">
+                    {/* Left: Checkbox + Avatar */}
+                    <div className="flex items-center gap-3 sm:flex-col sm:items-start sm:gap-3">
+                      {/* Checkbox */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          toggleMeetingSelection(meeting.id)
+                        }}
+                        className={cn(
+                          "h-6 w-6 rounded-md border-2 flex items-center justify-center transition-all duration-200 shrink-0",
+                          selectedMeetings.has(meeting.id)
+                            ? "bg-primary border-primary text-primary-foreground"
+                            : "border-border/60 hover:border-primary/50 bg-background/50"
+                        )}
+                      >
+                        {selectedMeetings.has(meeting.id) && (
+                          <Check className="h-4 w-4" />
+                        )}
+                      </button>
+                      {/* Avatar */}
                       <div className="h-12 w-12 md:h-14 md:w-14 rounded-2xl bg-gradient-to-br from-peach/30 to-peach/10 flex items-center justify-center shrink-0 border border-peach/20 shadow-sm">
                         <span className="text-sm md:text-base font-semibold text-foreground tracking-tight">
                           {(meeting.candidate_name || 'U').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
@@ -2102,9 +2237,9 @@ export default function HistoryPage() {
       <ConfirmDialog
         open={showRegenerateConfirm}
         onOpenChange={setShowRegenerateConfirm}
-        title="Regenerate All Summaries?"
-        description="This will re-analyze all meetings using AI to generate new summaries, categories, and metadata. This process may take a few minutes."
-        confirmLabel="Regenerate"
+        title="Reanalyze All Meetings?"
+        description="This will re-analyze all meetings using AI to generate intelligent titles (e.g., 'Jane Doe <> Adam Perlis — Interview 01/14/2025'), updated summaries, categories, and metadata. This process may take a few minutes."
+        confirmLabel="Reanalyze"
         cancelLabel="Cancel"
         onConfirm={handleRegenerateSummaries}
         loading={regenerating}
@@ -2120,6 +2255,18 @@ export default function HistoryPage() {
         cancelLabel="Cancel"
         onConfirm={confirmDelete}
         loading={false}
+      />
+
+      {/* Confirm Dialog for Bulk Delete */}
+      <ConfirmDialog
+        open={showBulkDeleteConfirm}
+        onOpenChange={setShowBulkDeleteConfirm}
+        title={`Delete ${selectedMeetings.size} Meeting${selectedMeetings.size === 1 ? '' : 's'}?`}
+        description={`Are you sure you want to delete ${selectedMeetings.size} selected meeting${selectedMeetings.size === 1 ? '' : 's'}? This action cannot be undone.`}
+        confirmLabel={`Delete ${selectedMeetings.size}`}
+        cancelLabel="Cancel"
+        onConfirm={handleBulkDelete}
+        loading={bulkDeleting}
       />
     </div>
   )

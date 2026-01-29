@@ -584,7 +584,7 @@ function FeedbackContent() {
     // Don't gate on `analysisLoading` here; `analyzeTranscript` will abort any in-flight run.
     analyzeTranscript(transcript, currentTemplate)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedInterview?.id, transcript, currentTemplate?.id])
+  }, [selectedInterview?.id, transcript, currentTemplate?.id, selectedTemplate])
 
   async function analyzeTranscript(text: string, templateOverride?: Template | null) {
     const effectiveTemplate = templateOverride ?? currentTemplate
@@ -1665,6 +1665,32 @@ function FeedbackContent() {
                   </div>
 
                   <Separator />
+
+                  {/* Re-analyze button */}
+                  {currentTemplate && transcript && !analysisLoading && (
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-muted-foreground">
+                        {analysis ? 'AI analysis complete' : 'Ready to analyze'}
+                      </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          // Clear cache for this interview+template to force fresh analysis
+                          if (selectedInterview?.id && currentTemplate?.id) {
+                            const cacheKey = buildAnalysisCacheKey(selectedInterview.id, currentTemplate.id, transcript)
+                            analysisCacheRef.current.delete(cacheKey)
+                          }
+                          lastAutoAnalyzeKeyRef.current = null
+                          analyzeTranscript(transcript, currentTemplate)
+                        }}
+                        className="gap-1.5 h-8 text-xs"
+                      >
+                        <MagicWandIcon className="h-3.5 w-3.5" />
+                        {analysis ? 'Re-analyze' : 'Analyze'}
+                      </Button>
+                    </div>
+                  )}
 
                   {analysisLoading ? (
                     <div className="flex flex-col items-center justify-center py-16 gap-4 text-muted-foreground">

@@ -33,13 +33,32 @@ export async function POST(request: NextRequest) {
           interview.transcript_file_name || ''
         )
 
+        // Generate intelligent meeting title
+        const meetingDate = interview.meeting_date 
+          ? new Date(interview.meeting_date).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
+          : new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
+        
+        let generatedTitle = metadata.meetingType || 'Meeting'
+        
+        // Format: "Candidate <> Interviewer — Type MM/DD/YYYY"
+        if (metadata.candidateName && metadata.candidateName !== 'Unknown Candidate' && metadata.candidateName !== 'Team') {
+          if (metadata.interviewer && metadata.interviewer !== 'Unknown') {
+            generatedTitle = `${metadata.candidateName} <> ${metadata.interviewer} — ${metadata.meetingCategory} ${meetingDate}`
+          } else {
+            generatedTitle = `${metadata.candidateName} — ${metadata.meetingCategory} ${meetingDate}`
+          }
+        } else if (metadata.meetingCategory && metadata.meetingCategory !== 'Other') {
+          generatedTitle = `${metadata.meetingCategory} ${meetingDate}`
+        }
+
         // Update the interview
         const { error: updateError } = await supabase
           .from('interviews')
           .update({
             candidate_name: metadata.candidateName,
             interviewer: metadata.interviewer,
-            meeting_title: metadata.meetingType,
+            meeting_title: generatedTitle,
+            meeting_type: metadata.meetingCategory,
             summary: metadata.summary,
             position: metadata.position || interview.position,
             updated_at: new Date().toISOString()
