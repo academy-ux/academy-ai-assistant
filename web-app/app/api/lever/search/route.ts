@@ -48,11 +48,14 @@ export async function GET(request: NextRequest) {
     const searchQuery = params.q.toLowerCase().trim()
 
     // Fetch opportunities with contact info and applications
+    // Include ALL pipeline stages (active, archived, etc.) and increase limit
     const leverParams = new URLSearchParams()
-    leverParams.append('limit', '100')
+    leverParams.append('limit', '500') // Increase to 500 to catch more candidates
     leverParams.append('expand', 'contact')
     leverParams.append('expand', 'stage')
     leverParams.append('expand', 'applications')
+    // Don't filter by stage - get all opportunities including archived
+    // leverParams.append('archived', 'false') - Don't add this!
 
     const response = await fetch(
       `https://api.lever.co/v1/opportunities?${leverParams.toString()}`,
@@ -71,15 +74,30 @@ export async function GET(request: NextRequest) {
     const data = await response.json()
     const opportunities = data.data || []
 
-    // Search by name (fuzzy match)
+    // Search by name (fuzzy match with multiple strategies)
     const matches = opportunities.filter((opp: any) => {
       const name = (opp.name || '').toLowerCase()
       const email = (opp.emails?.[0] || '').toLowerCase()
       
-      // Check if search query matches name or email
-      return name.includes(searchQuery) || 
-             email.includes(searchQuery) ||
-             searchQuery.split(' ').every((word: string) => name.includes(word))
+      // Strategy 1: Direct substring match
+      if (name.includes(searchQuery) || email.includes(searchQuery)) {
+        return true
+      }
+      
+      // Strategy 2: All words in query appear in name (in any order)
+      const queryWords = searchQuery.split(/\s+/).filter(w => w.length > 0)
+      if (queryWords.every((word: string) => name.includes(word))) {
+        return true
+      }
+      
+      // Strategy 3: First word of query matches first word of name (for partial searches like "Tows")
+      const firstQueryWord = queryWords[0]
+      const firstNameWord = name.split(/\s+/)[0]
+      if (firstQueryWord && firstNameWord && firstNameWord.startsWith(firstQueryWord)) {
+        return true
+      }
+      
+      return false
     })
 
     // Transform matches to include useful info
