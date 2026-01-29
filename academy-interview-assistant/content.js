@@ -118,7 +118,7 @@ async function showTestCandidate() {
   
   showCandidatePanel(loadingCandidate);
   
-  // Search specifically for Towsiful (partial name match)
+  // Search for Towsiful Chowdhury
   console.log('[Academy Content] Requesting search for Towsiful...');
   chrome.runtime.sendMessage({
     action: 'searchCandidate',
