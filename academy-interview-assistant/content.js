@@ -585,9 +585,7 @@ function showCandidatePanel(candidate) {
         font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
         color: #272727;
         overflow: hidden;
-        animation: 
-          academyFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both,
-          subtleGlow 4s ease-in-out infinite;
+        animation: academyFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
         -webkit-font-smoothing: antialiased;
         /* More transparent border */
         border: 1px solid rgba(255, 255, 255, 0.35);
@@ -606,23 +604,6 @@ function showCandidatePanel(candidate) {
         }
       }
       
-      @keyframes subtleGlow {
-        0%, 100% {
-          box-shadow: 
-            0 8px 32px rgba(39, 39, 39, 0.12),
-            0 2px 8px rgba(39, 39, 39, 0.08),
-            inset 0 1px 0 rgba(255, 255, 255, 0.8),
-            0 0 0 1px rgba(181, 184, 169, 0.2);
-        }
-        50% {
-          box-shadow: 
-            0 8px 32px rgba(39, 39, 39, 0.12),
-            0 2px 8px rgba(39, 39, 39, 0.08),
-            inset 0 1px 0 rgba(255, 255, 255, 0.9),
-            0 0 0 1px rgba(181, 184, 169, 0.3),
-            0 0 20px rgba(143, 145, 127, 0.1);
-        }
-      }
       
       .academy-panel-header {
         /* Keep this very transparent so Meet UI shows through */
@@ -900,8 +881,10 @@ function showCandidatePanel(candidate) {
       }
       
       .academy-auth-status.authenticated {
-        background: rgba(220, 252, 231, 0.35);
-        border-top-color: rgba(34, 197, 94, 0.3);
+        background: rgba(220, 252, 231, 0.65);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border-top-color: rgba(34, 197, 94, 0.4);
       }
       
       .academy-auth-status.not-authenticated {
