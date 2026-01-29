@@ -1774,50 +1774,140 @@ function FeedbackContent() {
                                       <p className="text-xs text-destructive">{fieldErrors[field.text]}</p>
                                     )}
                                     
-                                    {/* Yes/No field type - render thumbs up/down buttons */}
-                                    {field.type === 'yes-no' ? (
-                                      <div className="flex gap-2">
-                                        <Button
-                                          type="button"
-                                          variant={dynamicAnswers[field.text] === 'yes' ? 'default' : 'outline'}
-                                          className={`flex-1 h-11 gap-2 ${dynamicAnswers[field.text] === 'yes' ? 'bg-success hover:bg-success/90 text-success-foreground' : ''}`}
-                                          onClick={() => {
-                                            setDynamicAnswers({ ...dynamicAnswers, [field.text]: 'yes' })
-                                            setAiGeneratedFields(prev => ({ ...prev, [field.text]: false }))
-                                            setTouchedFields(prev => ({ ...prev, [field.text]: true }))
-                                            setFieldErrors(prev => { const next = { ...prev }; delete next[field.text]; return next })
-                                          }}
-                                        >
-                                          <ThumbsUp className="h-4 w-4" /> Yes
-                                        </Button>
-                                        <Button
-                                          type="button"
-                                          variant={dynamicAnswers[field.text] === 'no' ? 'default' : 'outline'}
-                                          className={`flex-1 h-11 gap-2 ${dynamicAnswers[field.text] === 'no' ? 'bg-destructive hover:bg-destructive/90 text-destructive-foreground' : ''}`}
-                                          onClick={() => {
-                                            setDynamicAnswers({ ...dynamicAnswers, [field.text]: 'no' })
-                                            setAiGeneratedFields(prev => ({ ...prev, [field.text]: false }))
-                                            setTouchedFields(prev => ({ ...prev, [field.text]: true }))
-                                            setFieldErrors(prev => { const next = { ...prev }; delete next[field.text]; return next })
-                                          }}
-                                        >
-                                          <ThumbsDown className="h-4 w-4" /> No
-                                        </Button>
-                                        {dynamicAnswers[field.text] && dynamicAnswers[field.text] !== '?' && (
+                                    {/* Score field type (1-4) - render as 4-level thumbs (like Lever Portfolio Interview) */}
+                                    {field.type === 'score' ? (
+                                      <div className="space-y-2">
+                                        <div className="flex gap-1.5">
                                           <Button
                                             type="button"
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-11 w-11"
+                                            variant={dynamicAnswers[field.text] === '1' ? 'default' : 'outline'}
+                                            className={`flex-1 h-11 ${dynamicAnswers[field.text] === '1' ? 'bg-destructive hover:bg-destructive/90 text-destructive-foreground' : ''}`}
                                             onClick={() => {
-                                              setDynamicAnswers({ ...dynamicAnswers, [field.text]: '' })
+                                              setDynamicAnswers({ ...dynamicAnswers, [field.text]: '1' })
+                                              setAiGeneratedFields(prev => ({ ...prev, [field.text]: false }))
+                                              setTouchedFields(prev => ({ ...prev, [field.text]: true }))
+                                              setFieldErrors(prev => { const next = { ...prev }; delete next[field.text]; return next })
                                             }}
+                                            title="1 - Poor"
                                           >
-                                            <X className="h-4 w-4" />
+                                            <ThumbsDown className="h-4 w-4" />
+                                            <ThumbsDown className="h-4 w-4 -ml-3" />
                                           </Button>
+                                          <Button
+                                            type="button"
+                                            variant={dynamicAnswers[field.text] === '2' ? 'default' : 'outline'}
+                                            className={`flex-1 h-11 ${dynamicAnswers[field.text] === '2' ? 'bg-orange-500 hover:bg-orange-600 text-white' : ''}`}
+                                            onClick={() => {
+                                              setDynamicAnswers({ ...dynamicAnswers, [field.text]: '2' })
+                                              setAiGeneratedFields(prev => ({ ...prev, [field.text]: false }))
+                                              setTouchedFields(prev => ({ ...prev, [field.text]: true }))
+                                              setFieldErrors(prev => { const next = { ...prev }; delete next[field.text]; return next })
+                                            }}
+                                            title="2 - Fair"
+                                          >
+                                            <ThumbsDown className="h-4 w-4" />
+                                          </Button>
+                                          <Button
+                                            type="button"
+                                            variant={dynamicAnswers[field.text] === '3' ? 'default' : 'outline'}
+                                            className={`flex-1 h-11 ${dynamicAnswers[field.text] === '3' ? 'bg-success hover:bg-success/90 text-success-foreground' : ''}`}
+                                            onClick={() => {
+                                              setDynamicAnswers({ ...dynamicAnswers, [field.text]: '3' })
+                                              setAiGeneratedFields(prev => ({ ...prev, [field.text]: false }))
+                                              setTouchedFields(prev => ({ ...prev, [field.text]: true }))
+                                              setFieldErrors(prev => { const next = { ...prev }; delete next[field.text]; return next })
+                                            }}
+                                            title="3 - Good"
+                                          >
+                                            <ThumbsUp className="h-4 w-4" />
+                                          </Button>
+                                          <Button
+                                            type="button"
+                                            variant={dynamicAnswers[field.text] === '4' ? 'default' : 'outline'}
+                                            className={`flex-1 h-11 ${dynamicAnswers[field.text] === '4' ? 'bg-success hover:bg-success/90 text-success-foreground' : ''}`}
+                                            onClick={() => {
+                                              setDynamicAnswers({ ...dynamicAnswers, [field.text]: '4' })
+                                              setAiGeneratedFields(prev => ({ ...prev, [field.text]: false }))
+                                              setTouchedFields(prev => ({ ...prev, [field.text]: true }))
+                                              setFieldErrors(prev => { const next = { ...prev }; delete next[field.text]; return next })
+                                            }}
+                                            title="4 - Excellent"
+                                          >
+                                            <ThumbsUp className="h-4 w-4" />
+                                            <ThumbsUp className="h-4 w-4 -ml-3" />
+                                          </Button>
+                                          {dynamicAnswers[field.text] && dynamicAnswers[field.text] !== '?' && (
+                                            <Button
+                                              type="button"
+                                              variant="ghost"
+                                              size="icon"
+                                              className="h-11 w-11"
+                                              onClick={() => {
+                                                setDynamicAnswers({ ...dynamicAnswers, [field.text]: '?' })
+                                              }}
+                                            >
+                                              <X className="h-4 w-4" />
+                                            </Button>
+                                          )}
+                                        </div>
+                                        {aiGeneratedFields[field.text] && (
+                                          <Badge variant="outline" className="gap-1 rounded-full border-primary/20 bg-primary/5 text-[10px] text-primary">
+                                            <MagicWandIcon className="h-3 w-3" />
+                                            AI suggested
+                                          </Badge>
                                         )}
                                       </div>
-                                    ) : (field.type === 'score-system' || field.type === 'dropdown' || field.type === 'score' || field.text.toLowerCase().includes('rating')) ? (
+                                    ) : field.type === 'yes-no' ? (
+                                      <div className="space-y-2">
+                                        <div className="flex gap-2">
+                                          <Button
+                                            type="button"
+                                            variant={dynamicAnswers[field.text] === 'yes' ? 'default' : 'outline'}
+                                            className={`flex-1 h-11 gap-2 ${dynamicAnswers[field.text] === 'yes' ? 'bg-success hover:bg-success/90 text-success-foreground' : ''}`}
+                                            onClick={() => {
+                                              setDynamicAnswers({ ...dynamicAnswers, [field.text]: 'yes' })
+                                              setAiGeneratedFields(prev => ({ ...prev, [field.text]: false }))
+                                              setTouchedFields(prev => ({ ...prev, [field.text]: true }))
+                                              setFieldErrors(prev => { const next = { ...prev }; delete next[field.text]; return next })
+                                            }}
+                                          >
+                                            <ThumbsUp className="h-4 w-4" /> Yes
+                                          </Button>
+                                          <Button
+                                            type="button"
+                                            variant={dynamicAnswers[field.text] === 'no' ? 'default' : 'outline'}
+                                            className={`flex-1 h-11 gap-2 ${dynamicAnswers[field.text] === 'no' ? 'bg-destructive hover:bg-destructive/90 text-destructive-foreground' : ''}`}
+                                            onClick={() => {
+                                              setDynamicAnswers({ ...dynamicAnswers, [field.text]: 'no' })
+                                              setAiGeneratedFields(prev => ({ ...prev, [field.text]: false }))
+                                              setTouchedFields(prev => ({ ...prev, [field.text]: true }))
+                                              setFieldErrors(prev => { const next = { ...prev }; delete next[field.text]; return next })
+                                            }}
+                                          >
+                                            <ThumbsDown className="h-4 w-4" /> No
+                                          </Button>
+                                          {dynamicAnswers[field.text] && dynamicAnswers[field.text] !== '?' && (
+                                            <Button
+                                              type="button"
+                                              variant="ghost"
+                                              size="icon"
+                                              className="h-11 w-11"
+                                              onClick={() => {
+                                                setDynamicAnswers({ ...dynamicAnswers, [field.text]: '?' })
+                                              }}
+                                            >
+                                              <X className="h-4 w-4" />
+                                            </Button>
+                                          )}
+                                        </div>
+                                        {aiGeneratedFields[field.text] && (
+                                          <Badge variant="outline" className="gap-1 rounded-full border-primary/20 bg-primary/5 text-[10px] text-primary">
+                                            <MagicWandIcon className="h-3 w-3" />
+                                            AI suggested
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    ) : (field.type === 'score-system' || field.type === 'dropdown' || field.text.toLowerCase().includes('rating')) ? (
                                        <Select 
                                           value={dynamicAnswers[field.text] || ''} 
                                           onValueChange={(val) => {
@@ -1838,16 +1928,6 @@ function FeedbackContent() {
                                           </SelectTrigger>
                                           <SelectContent>
                                              <SelectItem value="?">?</SelectItem>
-                                             {/* For score type without options, show 1-5 */}
-                                             {field.type === 'score' && (!field.options || field.options.length === 0) && (
-                                               <>
-                                                 <SelectItem value="1">1</SelectItem>
-                                                 <SelectItem value="2">2</SelectItem>
-                                                 <SelectItem value="3">3</SelectItem>
-                                                 <SelectItem value="4">4</SelectItem>
-                                                 <SelectItem value="5">5</SelectItem>
-                                               </>
-                                             )}
                                              {(Array.isArray(field.options) ? field.options : [])
                                                .map((o: any) => (o && typeof o === 'object' ? (o.text ?? o.optionId ?? o.value) : o))
                                                .map((v: any) => (typeof v === 'string' ? v.trim() : String(v)))

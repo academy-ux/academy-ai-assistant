@@ -28,6 +28,23 @@ export async function POST(request: NextRequest) {
     
     if (template && template.fields && template.fields.length > 0) {
        // Dynamic Template Prompt
+       const fieldDescriptions = template.fields.map((f: any) => {
+         const type = String(f.type || '').toLowerCase()
+         let typeHint = ''
+         
+         if (type === 'yes-no') {
+           typeHint = ' [Answer with ONLY "yes", "no", or "?" - do not provide explanations]'
+         } else if (type === 'score') {
+           typeHint = ' [Answer with a single number: 1, 2, 3, or 4 only]'
+         } else if (type === 'score-system' || type === 'dropdown') {
+           typeHint = ' [Choose the most appropriate option from the provided choices]'
+         } else if (type === 'textarea' || type === 'text') {
+           typeHint = ' [Provide a detailed answer based on the transcript]'
+         }
+         
+         return `- "${f.question}"${typeHint}${f.description ? ` (${f.description})` : ''}`
+       }).join('\n')
+       
        prompt = `You are analyzing an interview transcript for a recruiting team at Academy.
        
 Meeting: ${meetingTitle || 'Interview'}
@@ -48,14 +65,19 @@ Return ONLY valid JSON in the following exact shape (no markdown, no extra keys)
 }
 
 Form Fields to Fill:
-${template.fields.map((f: any) => `- Question: "${f.question}" (${f.description || ''})`).join('\n')}
+${fieldDescriptions}
 
-Guidelines:
+CRITICAL Guidelines by Field Type:
+- YES/NO questions: Answer with ONLY "yes", "no", or "?" - never provide explanations or details
+- SCORE questions (1-4): Answer with ONLY the number: 1, 2, 3, or 4
+- RATING/DROPDOWN questions: Pick ONE option that best matches the transcript
+- TEXT questions: Provide detailed answers citing specific examples
+
+General Guidelines:
 - The keys inside "answers" MUST match the question text exactly, including punctuation/casing.
-- If a question is a rating/score question, keep the answer short and pick a single clear rating (e.g. "4 - Strong Hire").
-- Be objective and cite specific examples from the transcript where possible.
-- If you cannot infer the answer from the transcript, set the value to "?".
-- IMPORTANT: Do NOT include timestamps or time ranges in your answers (e.g. do not write "(17:13-17:16)" or similar).`
+- Be objective and base answers strictly on information in the transcript.
+- If you cannot determine the answer from the transcript, use "?".
+- NEVER include timestamps or time ranges in your answers (e.g. no "(17:13-17:16)").`
     } else {
        // Default Legacy Prompt
        prompt = `You are analyzing an interview transcript for a recruiting team at Academy, a design-led recruiting and staffing business.
