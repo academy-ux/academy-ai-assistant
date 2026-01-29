@@ -11,9 +11,9 @@ const searchQuerySchema = z.object({
  * Used by the Chrome extension to find candidate info during interviews.
  */
 export async function GET(request: NextRequest) {
-  // Handle CORS for Chrome extension
+  // Handle CORS for Chrome extension (content scripts run from meet.google.com)
   const origin = request.headers.get('origin') || ''
-  const isExtension = origin.startsWith('chrome-extension://')
+  const isExtension = origin.startsWith('chrome-extension://') || origin === 'https://meet.google.com'
   
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -242,7 +242,7 @@ export async function GET(request: NextRequest) {
 // Handle preflight requests for CORS
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get('origin') || ''
-  const isExtension = origin.startsWith('chrome-extension://')
+  const isExtension = origin.startsWith('chrome-extension://') || origin === 'https://meet.google.com'
   
   const headers: HeadersInit = {
     'Access-Control-Allow-Methods': 'GET, OPTIONS',

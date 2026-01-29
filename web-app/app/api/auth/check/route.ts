@@ -7,9 +7,9 @@ import { authOptions } from '@/lib/auth'
  * Used by the Chrome extension to verify login status.
  */
 export async function GET(req: NextRequest) {
-  // Handle CORS for Chrome extension
+  // Handle CORS for Chrome extension (content scripts run from meet.google.com)
   const origin = req.headers.get('origin') || ''
-  const isExtension = origin.startsWith('chrome-extension://')
+  const isExtension = origin.startsWith('chrome-extension://') || origin === 'https://meet.google.com'
   
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
 // Handle preflight requests for CORS
 export async function OPTIONS(req: NextRequest) {
   const origin = req.headers.get('origin') || ''
-  const isExtension = origin.startsWith('chrome-extension://')
+  const isExtension = origin.startsWith('chrome-extension://') || origin === 'https://meet.google.com'
   
   const headers: HeadersInit = {
     'Access-Control-Allow-Methods': 'GET, OPTIONS',
