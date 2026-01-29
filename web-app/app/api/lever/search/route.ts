@@ -46,24 +46,40 @@ export async function GET(request: NextRequest) {
     }
 
     const searchQuery = params.q.toLowerCase().trim()
+    const isEmailSearch = searchQuery.includes('@')
 
-    // Fetch ALL opportunities with pagination
-    // Include active AND archived to find candidates in any state
+    console.log('[Lever Search] Starting search for:', searchQuery, isEmailSearch ? '(email)' : '(name)')
+
+    // Fetch opportunities with pagination
+    // If searching by email, use Lever's email filter for exact match
+    // Otherwise, fetch all and filter by name locally
     const allOpportunities: any[] = []
     let hasMore = true
     let offset: string | null = null
     let pageCount = 0
-    const MAX_PAGES = 10 // Safety limit: 10 pages × 500 = 5000 opportunities max
+    // Lever API limits to 100/page, so we need more pages for larger datasets
+    const MAX_PAGES = isEmailSearch ? 1 : 50 // Email search should return exact match, name search needs more
 
-    console.log('[Lever Search] Starting search for:', searchQuery)
-
+    // For name searches, we need to search candidates created in the last 6 months
+    // This is because the Lever API doesn't return results in a predictable order without date filters
+    const sixMonthsAgo = Date.now() - (180 * 24 * 60 * 60 * 1000) // 180 days ago
+    
     while (hasMore && pageCount < MAX_PAGES) {
       const leverParams = new URLSearchParams()
-      leverParams.append('limit', '500')
+      leverParams.append('limit', '100') // Lever API max is 100
       leverParams.append('expand', 'contact')
       leverParams.append('expand', 'stage')
       leverParams.append('expand', 'applications')
       leverParams.append('confidentiality', 'all') // Get both confidential AND non-confidential
+      
+      // Use Lever's email filter for email searches (much faster!)
+      if (isEmailSearch) {
+        leverParams.append('email', searchQuery)
+      } else {
+        // For name searches, filter to recent candidates to ensure predictable results
+        leverParams.append('created_at_start', sixMonthsAgo.toString())
+      }
+      
       if (offset) {
         leverParams.append('offset', offset)
       }
@@ -93,34 +109,43 @@ export async function GET(request: NextRequest) {
       console.log(`[Lever Search] Page ${pageCount}: Got ${pageOpps.length} opportunities (total: ${allOpportunities.length}, hasMore: ${hasMore})`)
     }
 
-    console.log(`[Lever Search] Fetched ${allOpportunities.length} total opportunities across ${pageCount} pages`)
+    console.log(`[Lever Search] Fetched ${allOpportunities.length} total opportunities across ${pageCount} pages${isEmailSearch ? ' (email filter)' : ''}`)
     const opportunities = allOpportunities
 
-    // Search by name (fuzzy match with multiple strategies)
-    const matches = opportunities.filter((opp: any) => {
-      const name = (opp.name || '').toLowerCase()
-      const email = (opp.emails?.[0] || '').toLowerCase()
-      
-      // Strategy 1: Direct substring match
-      if (name.includes(searchQuery) || email.includes(searchQuery)) {
-        return true
-      }
-      
-      // Strategy 2: All words in query appear in name (in any order)
-      const queryWords = searchQuery.split(/\s+/).filter(w => w.length > 0)
-      if (queryWords.every((word: string) => name.includes(word))) {
-        return true
-      }
-      
-      // Strategy 3: First word of query matches first word of name (for partial searches like "Tows")
-      const firstQueryWord = queryWords[0]
-      const firstNameWord = name.split(/\s+/)[0]
-      if (firstQueryWord && firstNameWord && firstNameWord.startsWith(firstQueryWord)) {
-        return true
-      }
-      
-      return false
-    })
+    // For email searches, API already filtered - all results are matches
+    // For name searches, filter locally with fuzzy matching
+    let matches: any[]
+    
+    if (isEmailSearch) {
+      // API already filtered by email - all results are matches
+      matches = opportunities
+    } else {
+      // Search by name (fuzzy match with multiple strategies)
+      matches = opportunities.filter((opp: any) => {
+        const name = (opp.name || '').toLowerCase()
+        const email = (opp.emails?.[0] || '').toLowerCase()
+        
+        // Strategy 1: Direct substring match
+        if (name.includes(searchQuery) || email.includes(searchQuery)) {
+          return true
+        }
+        
+        // Strategy 2: All words in query appear in name (in any order)
+        const queryWords = searchQuery.split(/\s+/).filter(w => w.length > 0)
+        if (queryWords.every((word: string) => name.includes(word))) {
+          return true
+        }
+        
+        // Strategy 3: First word of query matches first word of name (for partial searches like "Tows")
+        const firstQueryWord = queryWords[0]
+        const firstNameWord = name.split(/\s+/)[0]
+        if (firstQueryWord && firstNameWord && firstNameWord.startsWith(firstQueryWord)) {
+          return true
+        }
+        
+        return false
+      })
+    }
 
     console.log(`[Lever Search] Found ${matches.length} matches for query: "${searchQuery}"`)
     if (matches.length > 0) {
