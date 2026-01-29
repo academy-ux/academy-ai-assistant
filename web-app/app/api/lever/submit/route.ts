@@ -71,7 +71,8 @@ export async function POST(request: NextRequest) {
             fetch(`https://api.lever.co/v1/opportunities/${encodeURIComponent(opportunityId)}`, { headers: leverHeaders }).then(async r => ({ ok: r.ok, status: r.status, data: await r.json().catch(() => null) })).catch((e) => ({ ok: false, status: -1, error: String(e) })),
           ])
 
-          const templateFields = Array.isArray(templateRes?.data?.fields) ? templateRes.data.fields : []
+          const templateData = (templateRes as any)?.data
+          const templateFields = Array.isArray(templateData?.fields) ? templateData.fields : []
           const templateFieldIds = templateFields.map((f: any) => f?.id).filter(Boolean)
           const requiredFieldIds = templateFields.filter((f: any) => !!f?.required || String(f?.type || '').toLowerCase() === 'score-system').map((f: any) => f?.id).filter(Boolean)
           const submittedIds = Array.isArray(fieldValues) ? fieldValues.map((fv: any) => fv?.id).filter(Boolean) : []
