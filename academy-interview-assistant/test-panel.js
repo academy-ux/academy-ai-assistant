@@ -316,6 +316,91 @@ panel.innerHTML = `
     .academy-link.academy-link-accent .academy-link-icon {
       color: hsl(24, 50%, 45%);
     }
+    
+    /* Auth status section */
+    .academy-auth-status {
+      padding: 12px 16px;
+      background: linear-gradient(to bottom, #f5f6f3, #e3e5de);
+      border-top: 1px solid #e3e5de;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    
+    .academy-auth-status.authenticated {
+      background: linear-gradient(to bottom, hsl(140, 40%, 96%), hsl(140, 30%, 92%));
+      border-top-color: hsl(140, 30%, 85%);
+    }
+    
+    .academy-auth-status.not-authenticated {
+      background: linear-gradient(to bottom, hsl(0, 50%, 96%), hsl(0, 40%, 92%));
+      border-top-color: hsl(0, 40%, 85%);
+    }
+    
+    .academy-auth-icon {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+    
+    .academy-auth-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+    
+    .academy-auth-label {
+      font-size: 10px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #8a8a8a;
+    }
+    
+    .academy-auth-status.authenticated .academy-auth-label {
+      color: hsl(140, 50%, 35%);
+    }
+    
+    .academy-auth-status.not-authenticated .academy-auth-label {
+      color: hsl(0, 50%, 45%);
+    }
+    
+    .academy-auth-user {
+      font-size: 11px;
+      font-weight: 500;
+      color: #575757;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    
+    .academy-auth-button {
+      padding: 6px 12px;
+      background: #ffffff;
+      color: #ef4444;
+      border: 1px solid #fca5a5;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s ease-out;
+      text-decoration: none;
+      display: inline-block;
+    }
+    
+    .academy-auth-button:hover {
+      background: #fef2f2;
+      border-color: #f87171;
+      transform: translateY(-1px);
+    }
+    
+    .academy-auth-button:active {
+      transform: scale(0.98);
+    }
   </style>
   
   <div class="academy-panel-header">
@@ -392,6 +477,18 @@ panel.innerHTML = `
     </div>
   </div>
   
+  <div id="academy-auth-status-container" class="academy-auth-status not-authenticated">
+    <svg class="academy-auth-icon" viewBox="0 0 16 16" fill="none">
+      <circle cx="8" cy="8" r="7" stroke="#ef4444" stroke-width="2"/>
+      <path d="M8 4V9" stroke="#ef4444" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="8" cy="11.5" r="0.5" fill="#ef4444" stroke="#ef4444"/>
+    </svg>
+    <div class="academy-auth-info">
+      <div class="academy-auth-label">Not Logged In</div>
+      <div class="academy-auth-user" style="font-size: 10px; color: #8a8a8a;">Loading...</div>
+    </div>
+  </div>
+  
   <a href="${escapeHtml(candidate.leverUrl)}" target="_blank" class="academy-lever-link">
     Open in Lever
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -410,4 +507,73 @@ closeBtn.addEventListener('click', () => panel.remove());
 // Make panel draggable
 makeDraggable(panel);
 
+// Check auth status
+checkAuthStatus();
+
 console.log('[Academy Test] Panel shown with mock data');
+
+// Function to check authentication status
+async function checkAuthStatus() {
+  try {
+    const API_BASE = 'https://academy-ai-assistant.vercel.app';
+    const response = await fetch(`${API_BASE}/api/auth/check`, {
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Auth check failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    updateAuthStatus(data);
+  } catch (error) {
+    console.error('[Academy] Failed to check auth status:', error);
+    updateAuthStatus({ authenticated: false, user: null });
+  }
+}
+
+// Function to update auth status UI
+function updateAuthStatus(authData) {
+  const container = document.getElementById('academy-auth-status-container');
+  if (!container) return;
+
+  const isAuthenticated = authData?.authenticated === true;
+  const user = authData?.user;
+
+  if (isAuthenticated && user) {
+    // Logged in - show green status with user name
+    container.className = 'academy-auth-status authenticated';
+    container.innerHTML = `
+      <svg class="academy-auth-icon" viewBox="0 0 16 16" fill="none">
+        <circle cx="8" cy="8" r="8" fill="hsl(140, 60%, 50%)"/>
+        <path d="M5 8L7 10L11 6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div class="academy-auth-info">
+        <div class="academy-auth-label">Logged In</div>
+        <div class="academy-auth-user">${escapeHtml(user.name || user.email || 'User')}</div>
+      </div>
+    `;
+    console.log('[Academy] Auth: Logged in as', user.name || user.email);
+  } else {
+    // Not logged in - show red warning with login button
+    container.className = 'academy-auth-status not-authenticated';
+    container.innerHTML = `
+      <svg class="academy-auth-icon" viewBox="0 0 16 16" fill="none">
+        <circle cx="8" cy="8" r="7" stroke="#ef4444" stroke-width="2"/>
+        <path d="M8 4V9" stroke="#ef4444" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="8" cy="11.5" r="0.5" fill="#ef4444" stroke="#ef4444"/>
+      </svg>
+      <div class="academy-auth-info">
+        <div class="academy-auth-label">Not Logged In</div>
+        <div class="academy-auth-user" style="font-size: 10px; color: #8a8a8a;">Transcripts won't be saved</div>
+      </div>
+      <a href="https://academy-ai-assistant.vercel.app/" target="_blank" class="academy-auth-button">
+        Login
+      </a>
+    `;
+    console.log('[Academy] Auth: Not logged in');
+  }
+}

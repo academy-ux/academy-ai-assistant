@@ -15,7 +15,6 @@ let candidateInfoPanel = null;
 let detectedParticipants = new Set();
 let currentCandidate = null;
 let authStatus = null; // Stores { authenticated: boolean, user: { name, email, image } }
-let authStatusBadge = null;
 
 // Initialize
 function init() {
@@ -121,137 +120,54 @@ async function checkAuthStatus() {
       console.log('[Academy] User:', authStatus.user.name || authStatus.user.email);
     }
     
-    // Show auth badge
-    showAuthBadge();
+    // Update auth status in panel if it exists
+    updateAuthStatusInPanel();
   } catch (error) {
     console.error('[Academy] Failed to check auth status:', error);
     authStatus = { authenticated: false, user: null };
-    showAuthBadge();
+    updateAuthStatusInPanel();
   }
 }
 
-// Show authentication status badge
-function showAuthBadge() {
-  // Remove existing badge if any
-  if (authStatusBadge) {
-    authStatusBadge.remove();
-    authStatusBadge = null;
-  }
-
-  const badge = document.createElement('div');
-  badge.id = 'academy-auth-badge';
-  authStatusBadge = badge;
+// Update authentication status in the candidate panel
+function updateAuthStatusInPanel() {
+  const container = document.getElementById('academy-auth-status-container');
+  if (!container) return;
 
   const isAuthenticated = authStatus?.authenticated === true;
   const user = authStatus?.user;
 
   if (isAuthenticated && user) {
-    // Logged in - show green badge with user info
-    badge.style.cssText = `
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      z-index: 99999;
-      padding: 10px 14px;
-      background: rgba(34, 197, 94, 0.95);
-      color: white;
-      border-radius: 8px;
-      font-size: 12px;
-      font-weight: 500;
-      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      transition: all 0.2s ease-out;
-      cursor: default;
-    `;
-
-    badge.innerHTML = `
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="8" cy="8" r="8" fill="white"/>
-        <path d="M5 8L7 10L11 6" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    // Logged in - show green status with user name
+    container.className = 'academy-auth-status authenticated';
+    container.innerHTML = `
+      <svg class="academy-auth-icon" viewBox="0 0 16 16" fill="none">
+        <circle cx="8" cy="8" r="8" fill="hsl(140, 60%, 50%)"/>
+        <path d="M5 8L7 10L11 6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
-      <span style="max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-        ${user.name || user.email || 'Logged in'}
-      </span>
-    `;
-
-    badge.title = `Logged in as ${user.name || user.email}\nTranscripts will be saved automatically`;
-  } else {
-    // Not logged in - show warning badge with login button
-    badge.style.cssText = `
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      z-index: 99999;
-      padding: 12px 16px;
-      background: rgba(239, 68, 68, 0.95);
-      color: white;
-      border-radius: 8px;
-      font-size: 12px;
-      font-weight: 500;
-      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      transition: all 0.2s ease-out;
-    `;
-
-    badge.innerHTML = `
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="8" cy="8" r="7" stroke="white" stroke-width="2"/>
-          <path d="M8 4V9" stroke="white" stroke-width="2" stroke-linecap="round"/>
-          <circle cx="8" cy="11.5" r="0.5" fill="white" stroke="white"/>
-        </svg>
-        <span>Not logged in</span>
+      <div class="academy-auth-info">
+        <div class="academy-auth-label">Logged In</div>
+        <div class="academy-auth-user">${escapeHtml(user.name || user.email || 'User')}</div>
       </div>
-      <button id="academy-login-btn" style="
-        padding: 6px 12px;
-        background: white;
-        color: #ef4444;
-        border: none;
-        border-radius: 4px;
-        font-size: 11px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s;
-      ">
-        Login to Save Transcripts
-      </button>
     `;
-
-    badge.title = 'Login required to automatically save interview transcripts';
-
-    // Add login button click handler
-    setTimeout(() => {
-      const loginBtn = document.getElementById('academy-login-btn');
-      if (loginBtn) {
-        loginBtn.addEventListener('mouseenter', () => {
-          loginBtn.style.background = '#fee2e2';
-        });
-        loginBtn.addEventListener('mouseleave', () => {
-          loginBtn.style.background = 'white';
-        });
-        loginBtn.addEventListener('click', () => {
-          window.open('https://academy-ai-assistant.vercel.app/', '_blank');
-        });
-      }
-    }, 100);
+  } else {
+    // Not logged in - show red warning with login button
+    container.className = 'academy-auth-status not-authenticated';
+    container.innerHTML = `
+      <svg class="academy-auth-icon" viewBox="0 0 16 16" fill="none">
+        <circle cx="8" cy="8" r="7" stroke="#ef4444" stroke-width="2"/>
+        <path d="M8 4V9" stroke="#ef4444" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="8" cy="11.5" r="0.5" fill="#ef4444" stroke="#ef4444"/>
+      </svg>
+      <div class="academy-auth-info">
+        <div class="academy-auth-label">Not Logged In</div>
+        <div class="academy-auth-user" style="font-size: 10px; color: #8a8a8a;">Transcripts won't be saved</div>
+      </div>
+      <a href="https://academy-ai-assistant.vercel.app/" target="_blank" class="academy-auth-button">
+        Login
+      </a>
+    `;
   }
-
-  // Wait for body to be available
-  const addBadge = () => {
-    if (document.body) {
-      document.body.appendChild(badge);
-      console.log('[Academy] Auth badge displayed');
-    } else {
-      setTimeout(addBadge, 100);
-    }
-  };
-  addBadge();
 }
 
 // Show test candidate with real data from Lever
@@ -965,6 +881,94 @@ function showCandidatePanel(candidate) {
       .academy-link.academy-link-accent .academy-link-icon {
         color: hsl(24, 50%, 45%);
       }
+      
+      /* Auth status section */
+      .academy-auth-status {
+        padding: 12px 16px;
+        background: rgba(245, 246, 243, 0.2);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border-top: 1px solid rgba(227, 229, 222, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      
+      .academy-auth-status.authenticated {
+        background: rgba(220, 252, 231, 0.25);
+      }
+      
+      .academy-auth-status.not-authenticated {
+        background: rgba(254, 226, 226, 0.25);
+      }
+      
+      .academy-auth-icon {
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+      }
+      
+      .academy-auth-info {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+      }
+      
+      .academy-auth-label {
+        font-size: 10px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #8a8a8a;
+      }
+      
+      .academy-auth-status.authenticated .academy-auth-label {
+        color: hsl(140, 50%, 35%);
+      }
+      
+      .academy-auth-status.not-authenticated .academy-auth-label {
+        color: hsl(0, 50%, 45%);
+      }
+      
+      .academy-auth-user {
+        font-size: 11px;
+        font-weight: 500;
+        color: #575757;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      
+      .academy-auth-button {
+        padding: 6px 12px;
+        background: rgba(255, 255, 255, 0.9);
+        color: #ef4444;
+        border: 1px solid rgba(252, 165, 165, 0.5);
+        border-radius: 6px;
+        font-size: 10px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: all 0.2s ease-out;
+        text-decoration: none;
+        display: inline-block;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+      }
+      
+      .academy-auth-button:hover {
+        background: rgba(254, 242, 242, 0.95);
+        border-color: rgba(248, 113, 113, 0.6);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(239, 68, 68, 0.15);
+      }
+      
+      .academy-auth-button:active {
+        transform: scale(0.98);
+      }
     </style>
     
     <div class="academy-panel-header">
@@ -1072,6 +1076,18 @@ function showCandidatePanel(candidate) {
       </div>
     </div>
     
+    <div id="academy-auth-status-container" class="academy-auth-status not-authenticated">
+      <svg class="academy-auth-icon" viewBox="0 0 16 16" fill="none">
+        <circle cx="8" cy="8" r="7" stroke="#ef4444" stroke-width="2"/>
+        <path d="M8 4V9" stroke="#ef4444" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="8" cy="11.5" r="0.5" fill="#ef4444" stroke="#ef4444"/>
+      </svg>
+      <div class="academy-auth-info">
+        <div class="academy-auth-label">Not Logged In</div>
+        <div class="academy-auth-user" style="font-size: 10px; color: #8a8a8a;">Loading...</div>
+      </div>
+    </div>
+    
     <a href="${escapeHtml(candidate.leverUrl)}" target="_blank" class="academy-lever-link">
       Open in Lever
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1089,6 +1105,9 @@ function showCandidatePanel(candidate) {
   
   // Make panel draggable
   makeDraggable(candidateInfoPanel);
+  
+  // Update auth status in panel
+  updateAuthStatusInPanel();
 }
 
 function removeCandidatePanel() {
