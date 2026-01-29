@@ -28,6 +28,12 @@ export async function POST(request: NextRequest) {
     } = body
 
     // 1. Submit to Lever
+    console.log('[Lever submit]', {
+      opportunityId,
+      templateId,
+      fieldValuesCount: Array.isArray(fieldValues) ? fieldValues.length : null,
+      fieldValueIdsPreview: Array.isArray(fieldValues) ? fieldValues.slice(0, 8).map((fv: any) => fv?.id).filter(Boolean) : null,
+    })
     const response = await fetch(
       `https://api.lever.co/v1/opportunities/${encodeURIComponent(opportunityId)}/feedback?perform_as=${encodeURIComponent(leverUserId)}`,
       {

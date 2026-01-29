@@ -979,7 +979,12 @@ function FeedbackContent() {
       if (data.success) {
         setSubmitSuccess(true)
       } else {
-        setError(data.error || data.message || 'Submission failed')
+        const baseMsg = data.error || data.message || 'Submission failed'
+        const details =
+          data.details
+            ? (typeof data.details === 'string' ? data.details : JSON.stringify(data.details, null, 2))
+            : ''
+        setError(details ? `${baseMsg}\n\n${details}` : baseMsg)
       }
     } catch (err: any) {
       setError(err.message)
@@ -1626,7 +1631,7 @@ function FeedbackContent() {
                         )}
 
                         {error && (
-                           <div className="p-4 bg-destructive/10 text-destructive text-sm rounded-lg border border-destructive/20">
+                           <div className="p-4 bg-destructive/10 text-destructive text-sm rounded-lg border border-destructive/20 whitespace-pre-wrap">
                               {error}
                            </div>
                         )}
