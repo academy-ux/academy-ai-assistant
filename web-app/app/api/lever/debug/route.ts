@@ -64,8 +64,8 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       total: opportunities.length,
-      withLinks: debug.filter(d => d.linksCount > 0).length,
-      withResume: debug.filter(d => d.hasResume).length,
+      withLinks: debug.filter((d: any) => d.linksCount > 0).length,
+      withResume: debug.filter((d: any) => d.hasResume).length,
       candidates: debug,
       towsifulDebug,
     }, { 

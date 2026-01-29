@@ -41,7 +41,7 @@ async function markInterviewsSubmitted() {
   const { data: interviews, error } = await supabase
     .from('interviews')
     .select('*')
-    .order('meeting_date', { ascending: true, nullsLast: true })
+    .order('meeting_date', { ascending: true, nullsFirst: false })
     .range(0, (count || 10000) - 1)  // range is inclusive, so subtract 1
 
   if (error) {

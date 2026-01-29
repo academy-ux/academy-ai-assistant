@@ -11,7 +11,7 @@ async function findRachelPosition() {
   const { data: allInterviews, error } = await supabase
     .from('interviews')
     .select('id, candidate_name, meeting_date, created_at')
-    .order('meeting_date', { ascending: true, nullsLast: true })
+    .order('meeting_date', { ascending: true, nullsFirst: false })
 
   if (error) {
     console.error('Error:', error)

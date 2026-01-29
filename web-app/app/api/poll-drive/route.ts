@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 import { supabase } from '@/lib/supabase'
-import { pollFolder } from '@/app/api/cron/poll-drive/route'
+import { pollFolder } from '@/lib/drive-polling'
 
 // Manual poll endpoint - user can trigger from UI
 export async function POST(req: NextRequest) {
