@@ -3,6 +3,7 @@
 import { useSession, signIn } from 'next-auth/react'
 import { useSearchParams } from 'next/navigation'
 import { useEffect, useRef, useState, Suspense } from 'react'
+import { flushSync } from 'react-dom'
 import { Check, ChevronsUpDown, Search, FileText, User, ClipboardList, CheckCircle, ChevronRight, Calendar, X, ThumbsUp, ThumbsDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -630,7 +631,6 @@ function FeedbackContent() {
           }
         }
         
-        console.log('[mergeIncomingAnswers]', { key: mappedKey, type: fieldType, original: v, normalized: normalizedValue })
         ;(next as any)[mappedKey] = normalizedValue
         filledKeys.push(mappedKey)
       }
@@ -664,25 +664,17 @@ function FeedbackContent() {
     const cacheKey = buildAnalysisCacheKey(selectedInterview.id, currentTemplate.id, transcript)
     const cached = analysisCacheRef.current.get(cacheKey)
     if (cached) {
-      console.log('[Auto-analyze] Skipping - already have cached analysis for this interview+template')
       lastAutoAnalyzeKeyRef.current = key
       return
     }
 
     // Only auto-analyze if we don't have results yet
-    console.log('[Auto-analyze] Triggering analysis for:', key)
     analyzeTranscript(transcript, currentTemplate)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedInterview?.id, transcript, currentTemplate?.id])
 
   async function analyzeTranscript(text: string, templateOverride?: Template | null) {
-    console.log('[analyzeTranscript] Called with:', { 
-      textLength: text?.length, 
-      templateOverride: templateOverride?.name, 
-      currentTemplate: currentTemplate?.name,
-      selectedInterview: selectedInterview?.meeting_title 
-    })
-    
+    console.log('[analyzeTranscript] START - analysisLoading:', analysisLoading)
     const effectiveTemplate = templateOverride ?? currentTemplate
     const effectiveInterview = selectedInterview
 
@@ -691,11 +683,14 @@ function FeedbackContent() {
         ? buildAnalysisCacheKey(effectiveInterview.id, effectiveTemplate.id, text)
         : null
 
+    console.log('[analyzeTranscript] cacheKey:', cacheKey)
+    
     // If we've already analyzed this transcript+template once, reuse it.
     if (cacheKey) {
       const cached = analysisCacheRef.current.get(cacheKey)
+      console.log('[analyzeTranscript] Cache lookup result:', cached ? 'FOUND' : 'NOT FOUND')
       if (cached) {
-        console.log('[analyzeTranscript] Using cached analysis')
+        console.log('[analyzeTranscript] Using cached result - NO LOADING STATE')
         setError('')
         setAnalysis(cached.analysis)
         if (effectiveInterview?.id && effectiveTemplate?.id) {
@@ -716,11 +711,24 @@ function FeedbackContent() {
         return
       }
     }
-    
-    console.log('[analyzeTranscript] Starting new analysis, calling API...')
 
-    setAnalysisLoading(true)
-    setError('')
+    // Set loading state IMMEDIATELY for visual feedback
+    // Use flushSync to force React to render the loading state synchronously
+    console.log('[analyzeTranscript] NO CACHE - Setting loading state to TRUE with flushSync')
+    flushSync(() => {
+      setAnalysisLoading(true)
+      setError('')
+    })
+    console.log('[analyzeTranscript] Loading state flushed to DOM')
+    
+    // Track start time for minimum loading duration
+    const startTime = Date.now()
+    const MIN_LOADING_MS = 1000 // Ensure spinner is visible for at least 1 second
+    
+    // Small delay to ensure the spinner is painted to screen
+    await new Promise(resolve => setTimeout(resolve, 100))
+    console.log('[analyzeTranscript] Starting API call')
+    
     try {
       // Abort any previous in-flight analysis to avoid stale results overwriting state.
       analyzeRunIdRef.current += 1
@@ -762,17 +770,12 @@ function FeedbackContent() {
         }),
       })
       const data = await res.json()
-      console.log('[analyzeTranscript] API response:', { ok: res.ok, success: data?.success, error: data?.error })
 
       // If a newer analysis run started, ignore this result.
-      if (runId !== analyzeRunIdRef.current) {
-        console.log('[analyzeTranscript] Ignoring stale result')
-        return
-      }
+      if (runId !== analyzeRunIdRef.current) return
 
       if (!res.ok || !data?.success) {
         const msg = data?.error || data?.message || 'Analysis failed'
-        console.error('[analyzeTranscript] Analysis failed:', msg)
         setError(msg)
         // Allow auto-analysis to retry if it failed (rate-limit, auth, etc.)
         lastAutoAnalyzeKeyRef.current = null
@@ -817,12 +820,8 @@ function FeedbackContent() {
         const incoming = extractIncomingAnswers()
 
         if (incoming) {
-          console.log('[analyzeTranscript] Processing incoming answers:', Object.keys(incoming).length, 'answers')
-          console.log('[analyzeTranscript] Incoming values:', incoming)
           if (effectiveTemplate) {
             const { next, filledKeys } = mergeIncomingAnswers(dynamicAnswers, incoming, effectiveTemplate)
-            console.log('[analyzeTranscript] Merged answers, filled', filledKeys.length, 'fields:', filledKeys)
-            console.log('[analyzeTranscript] Final dynamicAnswers:', next)
             setDynamicAnswers(next)
             if (filledKeys.length > 0) {
               setAiGeneratedFields(prevFlags => {
@@ -832,8 +831,6 @@ function FeedbackContent() {
               })
             }
           }
-        } else {
-          console.log('[analyzeTranscript] No incoming answers to process')
 
           // Back-compat fallback for older analyzer responses
           setDynamicAnswers(prev => ({
@@ -847,11 +844,10 @@ function FeedbackContent() {
           }))
         }
 
-        // Cache for this transcript+template so we don't re-analyze again.
-        if (cacheKey) {
-          console.log('[analyzeTranscript] Caching analysis result')
-          analysisCacheRef.current.set(cacheKey, { analysis: data.analysis, incomingAnswers: incoming })
-        }
+          // Cache for this transcript+template so we don't re-analyze again.
+          if (cacheKey) {
+            analysisCacheRef.current.set(cacheKey, { analysis: data.analysis, incomingAnswers: incoming })
+          }
 
         if (candidateNameFromApi) {
           autoMatchCandidate(candidateNameFromApi)
@@ -860,14 +856,24 @@ function FeedbackContent() {
     } catch (err: any) {
       // Ignore intentional aborts when switching interviews/templates.
       if (err?.name === 'AbortError') {
-        console.log('[analyzeTranscript] Aborted')
-        return
+        // Don't return - let finally block handle cleanup
+      } else {
+        setError('Analysis failed: ' + err.message)
+        lastAutoAnalyzeKeyRef.current = null
       }
-      console.error('[analyzeTranscript] Error:', err)
-      setError('Analysis failed: ' + err.message)
-      lastAutoAnalyzeKeyRef.current = null
     } finally {
-      console.log('[analyzeTranscript] Complete, setting loading to false')
+      // Ensure loading spinner is visible for minimum duration
+      const elapsed = Date.now() - startTime
+      const remaining = MIN_LOADING_MS - elapsed
+      
+      console.log('[analyzeTranscript] Finally block - elapsed:', elapsed, 'ms, remaining:', remaining, 'ms')
+      
+      if (remaining > 0) {
+        console.log('[analyzeTranscript] Waiting', remaining, 'ms for minimum loading time')
+        await new Promise(resolve => setTimeout(resolve, remaining))
+      }
+      
+      console.log('[analyzeTranscript] Setting loading state to FALSE')
       setAnalysisLoading(false)
     }
   }
@@ -1845,18 +1851,24 @@ function FeedbackContent() {
                         variant="outline"
                         size="sm"
                         onClick={() => {
+                          console.log('[Re-analyze] Button clicked, analysisLoading:', analysisLoading)
                           // Clear cache for this interview+template to force fresh analysis
                           if (selectedInterview?.id && currentTemplate?.id) {
                             const cacheKey = buildAnalysisCacheKey(selectedInterview.id, currentTemplate.id, transcript)
+                            console.log('[Re-analyze] Deleting cache key:', cacheKey)
+                            const hadCache = analysisCacheRef.current.has(cacheKey)
                             analysisCacheRef.current.delete(cacheKey)
+                            console.log('[Re-analyze] Cache had entry:', hadCache, 'Now has:', analysisCacheRef.current.has(cacheKey))
                           }
                           lastAutoAnalyzeKeyRef.current = null
+                          console.log('[Re-analyze] Calling analyzeTranscript...')
                           analyzeTranscript(transcript, currentTemplate)
                         }}
                         className="gap-1.5 h-8 text-xs"
+                        disabled={analysisLoading}
                       >
                         <MagicWandIcon className="h-3.5 w-3.5" />
-                        {analysis ? 'Re-analyze' : 'Analyze'}
+                        {analysisLoading ? 'Analyzing...' : (analysis ? 'Re-analyze' : 'Analyze')}
                       </Button>
                     </div>
                   )}
