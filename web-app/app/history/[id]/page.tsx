@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { Spinner } from '@/components/ui/spinner'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { ArrowLeft, Calendar, User, Send, Search, Copy, Check, ClipboardList } from 'lucide-react'
+import { ArrowLeft, Calendar, User, Send, Search, Copy, Check, ClipboardList, RefreshCw } from 'lucide-react'
 import { MagicWandIcon } from '@/components/icons/magic-wand'
 import { VoiceRecorder } from '@/components/voice-recorder'
 import { Message, MessageContent, MessageAvatar } from '@/components/ui/message'
@@ -40,6 +40,7 @@ interface ConversationMessage {
   role: 'user' | 'assistant'
   content: string
   timestamp: Date
+  sources?: { id: string; candidateName: string }[]
 }
 
 export default function InterviewDetailPage() {
@@ -126,6 +127,7 @@ export default function InterviewDetailPage() {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
         content: data.answer,
+        sources: data.sources || [],
         timestamp: new Date()
       }
 
@@ -135,7 +137,7 @@ export default function InterviewDetailPage() {
       const errorMessage: ConversationMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: 'Sorry, I encountered an error. Please try again.',
+        content: 'Sorry, I encountered an error processing your question. Please try again.',
         timestamp: new Date()
       }
       setMessages(prev => [...prev, errorMessage])
@@ -577,15 +579,15 @@ export default function InterviewDetailPage() {
           <div className="animate-fade-in flex flex-col" style={{ height: 'calc(100vh - 320px)' }}>
             {/* Conversation Area */}
             <div className="flex-1 overflow-y-auto pb-32">
-              <div className="max-w-3xl mx-auto">
+              <div className="max-w-3xl mx-auto px-4">
                 {messages.length === 0 && !asking ? (
                   <div className="flex flex-col items-center justify-center text-center py-24 min-h-[50vh]">
-                    <div className="mb-6 h-16 w-16 rounded-full bg-peach/20 flex items-center justify-center border border-peach/30 animate-float">
+                    <div className="mb-6 h-16 w-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/10 animate-float">
                       <MagicWandIcon size={28} className="text-primary" />
                     </div>
-                    <h3 className="text-2xl font-normal text-foreground mb-3 animate-fade-in" style={{ animationDelay: '100ms' }}>Ask about this interview</h3>
-                    <p className="text-muted-foreground max-w-md mb-6 font-light animate-fade-in" style={{ animationDelay: '200ms' }}>
-                      Get insights about {interview.candidate_name}'s interview
+                    <h3 className="text-2xl font-semibold text-foreground mb-3 animate-fade-in" style={{ animationDelay: '100ms' }}>Ask about this interview</h3>
+                    <p className="text-muted-foreground max-w-md mb-6 animate-fade-in" style={{ animationDelay: '200ms' }}>
+                      Get instant insights about {interview.candidate_name}'s interview.
                     </p>
                     <div className="flex flex-wrap gap-2 justify-center animate-fade-in" style={{ animationDelay: '300ms' }}>
                       {[
@@ -596,7 +598,7 @@ export default function InterviewDetailPage() {
                         <button
                           key={suggestion}
                           onClick={() => setAiQuestion(suggestion)}
-                          className="px-4 py-2 text-sm text-muted-foreground bg-card/40 hover:bg-muted border border-border/40 rounded-full transition-all duration-300 hover:border-primary/30 hover:text-foreground hover:scale-105 hover:shadow-md active:scale-95"
+                          className="px-4 py-2 text-sm text-muted-foreground bg-card/40 hover:bg-muted border border-border/50 rounded-full transition-all duration-300 hover:border-primary/30 hover:text-foreground hover:scale-105 hover:shadow-md active:scale-95"
                         >
                           {suggestion}
                         </button>
@@ -607,20 +609,37 @@ export default function InterviewDetailPage() {
                   <div className="space-y-6 py-6">
                     {messages.map((message, index) => (
                       message.role === 'user' ? (
-                        <Message key={message.id} from="user" className={index >= messages.length - 2 ? "animate-fade-in-left" : ""}>
+                        <Message key={message.id} from="user" className={index === messages.length - 1 || index === messages.length - 2 ? "animate-fade-in-left" : ""}>
                           <MessageContent>
                             <p className="text-sm">{message.content}</p>
                           </MessageContent>
-                          <MessageAvatar name="You" className="bg-muted" />
+                          <MessageAvatar 
+                            name={session?.user?.name || "You"} 
+                            src={session?.user?.image || undefined}
+                            className="bg-muted" 
+                          />
                         </Message>
                       ) : (
                         <Message key={message.id} from="assistant" className={index === messages.length - 1 ? "animate-fade-in-right" : ""}>
-                          <div className="h-8 w-8 rounded-full bg-peach/20 flex items-center justify-center flex-shrink-0 border border-peach/30">
+                          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center flex-shrink-0 border border-primary/10 transition-all duration-300 hover:scale-110">
                             <MagicWandIcon size={14} className="text-primary" />
                           </div>
-                          <MessageContent>
-                            <Response>{message.content}</Response>
-                          </MessageContent>
+                          <div className="flex-1 space-y-4">
+                            <MessageContent>
+                              <Response>{message.content}</Response>
+                            </MessageContent>
+                            
+                            {message.sources && message.sources.length > 0 && (
+                              <div className="flex gap-2 flex-wrap items-center">
+                                <span className="text-xs text-muted-foreground">Based on interviews with:</span>
+                                {message.sources.map(source => (
+                                  <Badge key={source.id} variant="secondary" className="text-xs">
+                                    {source.candidateName}
+                                  </Badge>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </Message>
                       )
                     ))}
@@ -634,7 +653,7 @@ export default function InterviewDetailPage() {
                           <div className="flex items-center gap-3 py-2">
                             <ShimmeringText 
                               text="Analyzing interview..." 
-                              className="text-sm text-muted-foreground font-light"
+                              className="text-sm text-muted-foreground"
                             />
                           </div>
                         </MessageContent>
@@ -647,7 +666,8 @@ export default function InterviewDetailPage() {
                           onClick={clearConversation}
                           className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
                         >
-                          Clear conversation
+                          <RefreshCw className="h-3.5 w-3.5" />
+                          Start new conversation
                         </button>
                       </div>
                     )}
@@ -659,64 +679,66 @@ export default function InterviewDetailPage() {
             </div>
 
             {/* Input Area */}
-            <div className="fixed bottom-4 left-0 right-0 px-4 pb-4 pt-8" style={{ background: 'linear-gradient(to top, hsl(var(--background)) 60%, transparent)' }}>
-              <div className="max-w-2xl mx-auto group">
-                <div className="relative bg-card/60 backdrop-blur-md border border-border/30 rounded-xl shadow-lg transition-all duration-300 group-focus-within:border-primary/30 group-focus-within:shadow-xl overflow-hidden">
-                  <form onSubmit={handleAskQuestion} className="flex items-end gap-2">
-                    <div className="flex items-center pl-3 pb-2.5">
-                      <VoiceRecorder 
-                        onTranscriptionComplete={(text) => setAiQuestion(prev => prev ? `${prev} ${text}` : text)}
-                        onRecordingChange={setIsRecording}
-                      />
-                    </div>
-                    
-                    {!isRecording && (
-                      <>
-                        <div className="flex-1 py-1.5">
-                          <Textarea
-                            value={aiQuestion}
-                            onChange={(e) => {
-                              setAiQuestion(e.target.value)
-                              e.target.style.height = 'auto'
-                              e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px'
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && !e.shiftKey) {
-                                e.preventDefault()
-                                if (aiQuestion.trim() && !asking) {
-                                  handleAskQuestion(e as any)
+            <div className="fixed bottom-0 left-0 right-0 z-40 px-4 pb-6 pt-8" style={{ background: 'linear-gradient(to top, hsl(var(--background)) 70%, transparent)' }}>
+              <div className="max-w-2xl mx-auto">
+                <div className="relative group">
+                  <div className="relative bg-card/60 backdrop-blur-md border border-border/30 rounded-xl shadow-lg transition-all duration-300 group-focus-within:border-primary/30 group-focus-within:shadow-xl overflow-hidden">
+                    <form onSubmit={handleAskQuestion} className="flex items-end gap-2">
+                      <div className="flex items-center pl-3 pb-2.5">
+                        <VoiceRecorder 
+                          onTranscriptionComplete={(text) => setAiQuestion(prev => prev ? `${prev} ${text}` : text)}
+                          onRecordingChange={setIsRecording}
+                        />
+                      </div>
+                      
+                      {!isRecording && (
+                        <>
+                          <div className="flex-1 py-1.5">
+                            <Textarea
+                              value={aiQuestion}
+                              onChange={(e) => {
+                                setAiQuestion(e.target.value)
+                                e.target.style.height = 'auto'
+                                e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px'
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                  e.preventDefault()
+                                  if (aiQuestion.trim() && !asking) {
+                                    handleAskQuestion(e as any)
+                                  }
                                 }
-                              }
-                            }}
-                            placeholder={messages.length > 0 ? "Ask follow-up..." : `Ask about ${interview.candidate_name}...`}
-                            className="min-h-[44px] max-h-[160px] py-2.5 px-4 border-0 bg-input focus-visible:ring-0 focus-visible:ring-offset-0 resize-none overflow-y-auto text-[15px] placeholder:text-muted-foreground/50"
-                            rows={1}
-                          />
-                        </div>
-                        
-                        <div className="flex items-center justify-center pr-2.5 pb-2.5">
-                          <button 
-                            type="submit"
-                            disabled={asking || !aiQuestion.trim()}
-                            className={cn(
-                              "h-9 w-9 rounded-xl inline-flex items-center justify-center flex-shrink-0 transition-all duration-200",
-                              aiQuestion.trim() 
-                                ? "bg-peach text-foreground hover:bg-peach/80" 
-                                : "text-muted-foreground/30"
-                            )}
-                          >
-                            <Send 
-                              className={cn(
-                                "h-[18px] w-[18px] transition-transform duration-200",
-                                aiQuestion.trim() && "-rotate-45 translate-y-[2px]"
-                              )}
-                              strokeWidth={2}
+                              }}
+                              placeholder={messages.length > 0 ? "Ask follow-up..." : `Ask about ${interview.candidate_name}...`}
+                              className="min-h-[44px] max-h-[160px] py-2.5 px-4 border-0 bg-input focus-visible:ring-0 focus-visible:ring-offset-0 resize-none overflow-y-auto text-[15px] placeholder:text-muted-foreground/50"
+                              rows={1}
                             />
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </form>
+                          </div>
+                          
+                          <div className="flex items-center justify-center pr-2.5 pb-2.5">
+                            <button 
+                              type="submit"
+                              disabled={asking || !aiQuestion.trim()}
+                              className={cn(
+                                "h-9 w-9 rounded-xl inline-flex items-center justify-center flex-shrink-0 transition-all duration-200",
+                                aiQuestion.trim() 
+                                  ? "bg-peach text-foreground hover:bg-peach/80" 
+                                  : "text-muted-foreground/30"
+                              )}
+                            >
+                              <Send 
+                                className={cn(
+                                  "h-[18px] w-[18px] transition-transform duration-200",
+                                  aiQuestion.trim() && "-rotate-45 translate-y-[2px]"
+                                )}
+                                strokeWidth={2}
+                              />
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </form>
+                  </div>
                 </div>
               </div>
             </div>

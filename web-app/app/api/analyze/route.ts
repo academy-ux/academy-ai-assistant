@@ -143,16 +143,26 @@ Be objective and CONCISE. Keep responses brief and focused. No lengthy explanati
       return repaired
     }
 
+    // Helper: Fix smart/curly quotes that break JSON parsing
+    const fixSmartQuotes = (str: string): string => {
+      return str
+        .replace(/[\u201C\u201D]/g, '\\"') // " " → \"
+        .replace(/[\u2018\u2019]/g, "'")    // ' ' → '
+        .replace(/[\u2013\u2014]/g, '-')    // – — → -
+    }
+
     // Parse JSON from response
     let analysis
+    const cleanedText = fixSmartQuotes(text)
+    
     try {
-      analysis = JSON.parse(text)
+      analysis = JSON.parse(cleanedText)
     } catch (e) {
       console.error('[Analyze API] Failed to parse JSON response:', e)
       console.error('[Analyze API] Raw response text:', text.substring(0, 2000))
       
       // Try to extract and repair JSON if parsing fails
-      const jsonMatch = text.match(/\{[\s\S]*\}/)
+      const jsonMatch = cleanedText.match(/\{[\s\S]*\}/)
       if (jsonMatch) {
         try {
           // First try parsing as-is

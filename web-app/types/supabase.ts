@@ -12,8 +12,8 @@ export interface Database {
       interviews: {
         Row: {
           id: string
-          created_at: string
-          updated_at: string
+          created_at: string | null
+          updated_at: string | null
           meeting_code: string | null
           meeting_title: string | null
           meeting_date: string | null
@@ -32,8 +32,8 @@ export interface Database {
         }
         Insert: {
           id?: string
-          created_at?: string
-          updated_at?: string
+          created_at?: string | null
+          updated_at?: string | null
           meeting_code?: string | null
           meeting_title?: string | null
           meeting_date?: string | null
@@ -52,8 +52,8 @@ export interface Database {
         }
         Update: {
           id?: string
-          created_at?: string
-          updated_at?: string
+          created_at?: string | null
+          updated_at?: string | null
           meeting_code?: string | null
           meeting_title?: string | null
           meeting_date?: string | null
@@ -72,7 +72,9 @@ export interface Database {
         }
       }
     }
-    Views: Record<string, never>
+    Views: {
+      [_ in never]: never
+    }
     Functions: {
       match_interviews: {
         Args: {
@@ -91,6 +93,8 @@ export interface Database {
         }[]
       }
     }
-    Enums: Record<string, never>
+    Enums: {
+      [_ in never]: never
+    }
   }
 }

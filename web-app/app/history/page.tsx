@@ -26,6 +26,7 @@ import { Response } from '@/components/ui/response'
 import { ShimmeringText } from '@/components/ui/shimmering-text'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Progress } from '@/components/ui/progress'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { SetupGuideDialog } from '@/components/setup-guide-dialog'
 import { ConfirmDialog } from '@/components/confirm-dialog'
@@ -841,7 +842,8 @@ export default function HistoryPage() {
   const someFilteredSelected = filteredMeetings.some(m => selectedMeetings.has(m.id))
 
   return (
-    <div className="min-h-screen bg-background">
+    <TooltipProvider>
+      <div className="min-h-screen bg-background">
       {/* Filters Sidebar */}
       <div 
         className={cn(
@@ -2130,7 +2132,9 @@ export default function HistoryPage() {
                           {/* Submission Status Badge - Only for Interviews */}
                           {meeting.meeting_type === 'Interview' && (() => {
                             const isSubmitted = Boolean((meeting as any)?.submitted_at || (meeting as any)?.candidate_id)
-                            return (
+                            const submittedAt = (meeting as any)?.submitted_at
+                            
+                            const badge = (
                               <div className={cn(
                                 "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium",
                                 "border transition-all duration-300",
@@ -2146,6 +2150,31 @@ export default function HistoryPage() {
                                 {isSubmitted ? 'Submitted' : 'Not Submitted'}
                               </div>
                             )
+                            
+                            if (isSubmitted && submittedAt) {
+                              const date = new Date(submittedAt)
+                              const formattedDate = date.toLocaleDateString('en-US', { 
+                                month: 'short', 
+                                day: 'numeric', 
+                                year: 'numeric',
+                                hour: 'numeric',
+                                minute: '2-digit'
+                              })
+                              
+                              return (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    {badge}
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p className="text-xs">Feedback submitted</p>
+                                    <p className="text-xs font-medium">{formattedDate}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              )
+                            }
+                            
+                            return badge
                           })()}
                           {meeting.interviewer && meeting.interviewer !== 'Unknown' && (
                             <span className="text-xs text-muted-foreground flex items-center gap-1.5">
@@ -2265,6 +2294,7 @@ export default function HistoryPage() {
         onConfirm={handleBulkDelete}
         loading={bulkDeleting}
       />
-    </div>
+      </div>
+    </TooltipProvider>
   )
 }
