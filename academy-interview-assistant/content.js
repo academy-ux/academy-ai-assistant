@@ -95,6 +95,13 @@ function addTestButton() {
 async function showTestCandidate() {
   console.log('[Academy] Fetching Towsiful from Lever...');
   
+  // Check if extension context is valid
+  if (!chrome || !chrome.runtime || !chrome.runtime.sendMessage) {
+    console.error('[Academy] Extension context lost - please reload the extension');
+    alert('Extension disconnected. Please reload the extension in chrome://extensions');
+    return;
+  }
+  
   // Show loading state
   const loadingCandidate = {
     id: 'loading',
@@ -437,6 +444,12 @@ function isLikelyTeamMember(name) {
 
 function searchAndShowCandidate(name) {
   console.log('[Academy] Searching for candidate:', name);
+  
+  // Check if extension context is valid
+  if (!chrome || !chrome.runtime || !chrome.runtime.sendMessage) {
+    console.error('[Academy] Extension context lost - skipping search');
+    return;
+  }
   
   chrome.runtime.sendMessage({
     action: 'searchCandidate',
