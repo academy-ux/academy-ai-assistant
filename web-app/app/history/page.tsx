@@ -140,6 +140,7 @@
     const [pollResult, setPollResult] = useState<{imported: number, skipped: number, errors: number} | null>(null)
     const [settingsFolderOpen, setSettingsFolderOpen] = useState(false)
     const [settingsSelectedFolder, setSettingsSelectedFolder] = useState('')
+    const hasAutoPolled = useRef(false)
     
     // Regenerate summaries state
     const [regenerating, setRegenerating] = useState(false)
@@ -292,6 +293,13 @@
       if (session) {
         fetchMeetings()
         loadSettings()
+        
+        // Auto-poll for new transcripts on page load (but only once per session)
+        if (!hasAutoPolled.current) {
+          hasAutoPolled.current = true
+          // Silent poll in the background (fast mode)
+          handleManualPoll(true)
+        }
       }
     }, [session, fetchMeetings, loadSettings])
 
@@ -473,25 +481,31 @@
       setSettingsSelectedFolder('')
     }
 
-    async function handleManualPoll() {
-      setPolling(true)
-      setPollResult(null)
+    async function handleManualPoll(silent: boolean = false) {
+      if (!silent) {
+        setPolling(true)
+        setPollResult(null)
+      }
       try {
         const res = await fetch('/api/poll-drive', {
-          method: 'POST'
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fastMode: true })
         })
         const data = await res.json()
         if (res.ok) {
-          setPollResult({
-            imported: data.imported,
-            skipped: data.skipped,
-            errors: data.errors
-          })
-          
-          if (data.imported > 0) {
-            toast.success(`Imported ${data.imported} new meetings`)
-          } else {
-            toast.info('No new meetings found')
+          if (!silent) {
+            setPollResult({
+              imported: data.imported,
+              skipped: data.skipped,
+              errors: data.errors
+            })
+            
+            if (data.imported > 0) {
+              toast.success(`Imported ${data.imported} new meetings`)
+            } else {
+              toast.info('No new meetings found')
+            }
           }
 
           // Reload settings to get updated lastPollTime
@@ -500,14 +514,18 @@
           if (data.imported > 0) {
             await fetchMeetings(0, false)
           }
-        } else {
+        } else if (!silent) {
           toast.error(data.error || 'Failed to poll Drive folder')
         }
       } catch (e) {
         console.error('Failed to poll Drive', e)
-        toast.error('Failed to poll Drive folder')
+        if (!silent) {
+          toast.error('Failed to poll Drive folder')
+        }
       } finally {
-        setPolling(false)
+        if (!silent) {
+          setPolling(false)
+        }
       }
     }
 
@@ -1691,7 +1709,7 @@
                               <Button
                                 variant="outline"
                                 className="w-full gap-2"
-                                onClick={handleManualPoll}
+                                onClick={() => handleManualPoll()}
                                 disabled={polling}
                               >
                                 {polling ? (

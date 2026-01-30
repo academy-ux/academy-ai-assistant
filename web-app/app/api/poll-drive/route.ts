@@ -24,12 +24,17 @@ export async function POST(req: NextRequest) {
       }, { status: 400 })
     }
 
-    console.log(`[Manual Poll] Polling folder for ${token.email}`)
+    // Check for fastMode parameter (default to true for quick polls)
+    const body = await req.json().catch(() => ({}))
+    const fastMode = body.fastMode !== false // Default to true
+
+    console.log(`[Manual Poll] Polling folder for ${token.email} (fast mode: ${fastMode})`)
 
     const result = await pollFolder(
       token.accessToken as string,
       settings.drive_folder_id,
-      token.email
+      token.email,
+      fastMode
     )
 
     return NextResponse.json({

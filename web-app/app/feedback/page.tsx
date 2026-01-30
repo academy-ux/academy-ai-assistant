@@ -341,27 +341,29 @@ function FeedbackContent() {
       loadPostings()
       loadTemplates()
       
-      // If opened from extension (has meeting/ts params), poll for new transcripts
-      const meetingCode = searchParams.get('meeting')
-      const timestamp = searchParams.get('ts')
-      
-      if ((meetingCode || timestamp) && !hasPolledForNewTranscriptRef.current) {
+      // Auto-poll for new transcripts on page load (but only once per session)
+      if (!hasPolledForNewTranscriptRef.current) {
         hasPolledForNewTranscriptRef.current = true
-        pollForNewTranscript()
+        // Silent poll in the background (fast mode)
+        pollForNewTranscript(true)
       }
     }
   }, [session])
 
-  // Poll Drive for new transcripts (called when opened from extension)
-  async function pollForNewTranscript() {
+  // Poll Drive for new transcripts
+  // @param silent - If true, don't show loading UI or errors (for background polling)
+  async function pollForNewTranscript(silent: boolean = false) {
     console.log('[Feedback] Polling Drive for new transcripts...')
-    setPollingForTranscript(true)
-    setPollingError(null)
+    if (!silent) {
+      setPollingForTranscript(true)
+      setPollingError(null)
+    }
     
     try {
       const res = await fetch('/api/poll-drive', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fastMode: true })
       })
       
       if (res.ok) {
@@ -389,13 +391,19 @@ function FeedbackContent() {
         const errorData = await res.json().catch(() => ({}))
         const errorMsg = errorData.error || 'Drive poll failed'
         console.log('[Feedback] Drive poll not configured or failed:', res.status, errorMsg)
-        setPollingError(errorMsg)
+        if (!silent) {
+          setPollingError(errorMsg)
+        }
       }
     } catch (err: any) {
       console.log('[Feedback] Drive poll error:', err)
-      setPollingError('Network error while polling Drive')
+      if (!silent) {
+        setPollingError('Network error while polling Drive')
+      }
     } finally {
-      setPollingForTranscript(false)
+      if (!silent) {
+        setPollingForTranscript(false)
+      }
     }
   }
 
@@ -1434,7 +1442,7 @@ function FeedbackContent() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={pollForNewTranscript}
+                            onClick={() => pollForNewTranscript()}
                             disabled={pollingForTranscript}
                             className="flex-1"
                           >
@@ -1465,7 +1473,7 @@ function FeedbackContent() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={pollForNewTranscript}
+                              onClick={() => pollForNewTranscript()}
                               disabled={pollingForTranscript}
                             >
                               Check for new transcripts
@@ -1519,7 +1527,7 @@ function FeedbackContent() {
                             variant="ghost"
                             size="sm"
                             className="h-6 px-2 text-xs"
-                            onClick={pollForNewTranscript}
+                            onClick={() => pollForNewTranscript()}
                             disabled={pollingForTranscript}
                           >
                             <RefreshCw className="h-3 w-3" />
