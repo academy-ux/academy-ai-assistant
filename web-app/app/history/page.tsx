@@ -1,7 +1,7 @@
   'use client'
 
   import { useSession } from 'next-auth/react'
-  import { useState, useEffect, useRef } from 'react'
+  import { useState, useEffect, useRef, useCallback } from 'react'
   import { useRouter } from 'next/navigation'
   import Link from 'next/link'
   import { Button } from '@/components/ui/button'
@@ -205,7 +205,7 @@
       return { role: a, company: b }
     }
 
-    async function fetchMeetings(pageNum = 0, append = false) {
+    const fetchMeetings = useCallback(async (pageNum = 0, append = false) => {
       try {
         if (append) {
           setLoadingMore(true)
@@ -242,7 +242,7 @@
         setLoading(false)
         setLoadingMore(false)
       }
-    }
+    }, [viewMode])
     
     function loadMoreMeetings() {
       if (!loadingMore && hasMore) {
@@ -251,6 +251,21 @@
         fetchMeetings(nextPage, true)
       }
     }
+    
+    const loadSettings = useCallback(async () => {
+      setSettingsLoading(true)
+      try {
+        const res = await fetch('/api/settings')
+        const data = await res.json()
+        if (data) {
+          setSettings(data)
+        }
+      } catch (e) {
+        console.error('Failed to load settings', e)
+      } finally {
+        setSettingsLoading(false)
+      }
+    }, [])
     
     // Debounce folder search
     useEffect(() => {
@@ -276,7 +291,7 @@
         fetchMeetings()
         loadSettings()
       }
-    }, [session, viewMode])
+    }, [session, fetchMeetings, loadSettings])
 
     // Refresh meetings when page becomes visible (user returns from another tab/page)
     useEffect(() => {
@@ -377,21 +392,6 @@
         console.error('Failed to load preview files', e)
       } finally {
         setPreviewLoading(false)
-      }
-    }
-
-    async function loadSettings() {
-      setSettingsLoading(true)
-      try {
-        const res = await fetch('/api/settings')
-        const data = await res.json()
-        if (data) {
-          setSettings(data)
-        }
-      } catch (e) {
-        console.error('Failed to load settings', e)
-      } finally {
-        setSettingsLoading(false)
       }
     }
 
@@ -1983,6 +1983,7 @@
                   {/* Meeting Type Filters */}
                   <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
                     <button
+                      type="button"
                       onClick={() => setSelectedMeetingType('all')}
                       className={cn(
                         "px-4 py-1.5 text-xs rounded-full transition-all font-medium whitespace-nowrap",
@@ -2023,6 +2024,7 @@
                       return (
                         <button
                           key={type}
+                          type="button"
                           onClick={() => setSelectedMeetingType(type)}
                           className={cn(
                             "px-4 py-1.5 text-xs rounded-full transition-all font-medium whitespace-nowrap",

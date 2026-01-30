@@ -11,12 +11,13 @@ import { Badge } from '@/components/ui/badge'
 import { Spinner } from '@/components/ui/spinner'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { ArrowLeft, Calendar, User, Send, Search, Copy, Check, ClipboardList, RefreshCw } from 'lucide-react'
+import { ArrowLeft, Calendar, User, Send, Search, Copy, Check, ClipboardList, RefreshCw, Plus } from 'lucide-react'
 import { MagicWandIcon } from '@/components/icons/magic-wand'
 import { VoiceRecorder } from '@/components/voice-recorder'
 import { Message, MessageContent, MessageAvatar } from '@/components/ui/message'
 import { Response } from '@/components/ui/response'
 import { ShimmeringText } from '@/components/ui/shimmering-text'
+import { ConversationsSidebar } from '@/components/conversations-sidebar'
 import { cn } from '@/lib/utils'
 import { toast } from "sonner"
 
@@ -56,6 +57,7 @@ export default function InterviewDetailPage() {
   const [messages, setMessages] = useState<ConversationMessage[]>([])
   const [asking, setAsking] = useState(false)
   const [isRecording, setIsRecording] = useState(false)
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null)
   const conversationEndRef = useRef<HTMLDivElement>(null)
   
   // Search state
@@ -91,6 +93,41 @@ export default function InterviewDetailPage() {
       console.error('Failed to fetch interview:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function saveConversation(updatedMessages: ConversationMessage[]) {
+    if (!interview) return
+    
+    try {
+      // Generate title from first user message
+      const firstUserMessage = updatedMessages.find(m => m.role === 'user')
+      const title = firstUserMessage ? firstUserMessage.content.slice(0, 100) : 'Conversation'
+      
+      const res = await fetch('/api/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: currentConversationId,
+          interview_id: interview.id, // Link to this specific interview
+          title,
+          messages: updatedMessages.map(m => ({
+            id: m.id,
+            role: m.role,
+            content: m.content,
+            timestamp: m.timestamp.toISOString(),
+            sources: m.sources
+          }))
+        })
+      })
+      
+      if (!res.ok) throw new Error('Failed to save conversation')
+      
+      const data = await res.json()
+      setCurrentConversationId(data.conversation.id)
+    } catch (error) {
+      console.error('Failed to save conversation:', error)
+      // Don't show error to user - saving is automatic
     }
   }
 
@@ -136,7 +173,11 @@ export default function InterviewDetailPage() {
         timestamp: new Date()
       }
 
-      setMessages(prev => [...prev, assistantMessage])
+      const updatedMessages = [...messages, userMessage, assistantMessage]
+      setMessages(updatedMessages)
+      
+      // Save conversation after getting response
+      await saveConversation(updatedMessages)
     } catch (error) {
       console.error('Ask failed', error)
       const errorMessage: ConversationMessage = {
@@ -154,6 +195,26 @@ export default function InterviewDetailPage() {
   function clearConversation() {
     setMessages([])
     setAiQuestion('')
+    setCurrentConversationId(null)
+  }
+  
+  function handleSelectConversation(conversation: any) {
+    // Load the conversation messages
+    const loadedMessages = conversation.messages.map((m: any) => ({
+      id: m.id,
+      role: m.role,
+      content: m.content,
+      sources: m.sources || [],
+      timestamp: new Date(m.timestamp)
+    }))
+    setMessages(loadedMessages)
+    setCurrentConversationId(conversation.id)
+  }
+  
+  function handleNewConversation() {
+    setMessages([])
+    setAiQuestion('')
+    setCurrentConversationId(null)
   }
 
   function copyTranscript() {
@@ -585,6 +646,28 @@ export default function InterviewDetailPage() {
         {/* Ask AI Tab */}
         {activeTab === 'ask' && (
           <div className="animate-fade-in flex flex-col" style={{ height: 'calc(100vh - 320px)' }}>
+            {/* Conversation History Header */}
+            <div className="flex items-center justify-end gap-2 mb-4 px-4">
+              <ConversationsSidebar
+                interviewId={interview.id}
+                currentConversationId={currentConversationId}
+                onSelectConversation={handleSelectConversation}
+                onNewConversation={handleNewConversation}
+              />
+              
+              {messages.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearConversation}
+                  className="gap-2 text-muted-foreground hover:text-foreground"
+                >
+                  <Plus className="h-4 w-4" />
+                  New Chat
+                </Button>
+              )}
+            </div>
+            
             {/* Conversation Area */}
             <div className="flex-1 overflow-y-auto pb-32">
               <div className="max-w-3xl mx-auto px-4">
@@ -668,17 +751,6 @@ export default function InterviewDetailPage() {
                       </Message>
                     )}
 
-                    {messages.length > 0 && !asking && (
-                      <div className="flex justify-center pt-4">
-                        <button
-                          onClick={clearConversation}
-                          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          <RefreshCw className="h-3.5 w-3.5" />
-                          Start new conversation
-                        </button>
-                      </div>
-                    )}
                     
                     <div ref={conversationEndRef} />
                   </div>
