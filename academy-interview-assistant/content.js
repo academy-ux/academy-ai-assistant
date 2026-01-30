@@ -176,7 +176,7 @@ function updateAuthStatusInPanel() {
 
 // Show test candidate with real data from Lever
 async function showTestCandidate() {
-  console.log('[Academy] Fetching Towsiful from Lever...');
+  console.log('[Academy] Fetching Olga from Lever...');
   
   // Check if extension context is valid
   if (!chrome || !chrome.runtime || !chrome.runtime.sendMessage) {
@@ -191,7 +191,7 @@ async function showTestCandidate() {
     name: 'Loading...',
     email: '',
     phone: '',
-    headline: 'Fetching Towsiful from Lever',
+    headline: 'Fetching Olga from Lever',
     location: '',
     position: 'Please wait',
     stage: 'Loading',
@@ -201,11 +201,11 @@ async function showTestCandidate() {
   
   showCandidatePanel(loadingCandidate);
   
-  // Search for Towsiful Chowdhury
-  console.log('[Academy Content] Requesting search for Towsiful...');
+  // Search for Olga
+  console.log('[Academy Content] Requesting search for Olga...');
   chrome.runtime.sendMessage({
     action: 'searchCandidate',
-    name: 'Towsiful'
+    name: 'Olga'
   }, (response) => {
     console.log('[Academy Content] Got response:', response);
     
@@ -242,7 +242,7 @@ async function showTestCandidate() {
       const errorMsg = response?.error || 'Not found in Lever'
       const noCandidate = {
         id: 'none',
-        name: 'Towsiful Not Found',
+        name: 'Olga Not Found',
         email: '',
         headline: errorMsg,
         location: '',

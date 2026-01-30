@@ -424,31 +424,27 @@ export default function InterviewDetailPage() {
                     : interview.candidate_name || 'Unknown Candidate'}
                 </h1>
                 <div className="mt-3 flex items-center gap-2 flex-wrap">
-                  {(!interview.meeting_title || interview.meeting_title === 'Interview') && (
-                    <>
-                      {interview.position && (
-                        <Badge
-                          variant="secondary"
-                          className="text-xs font-medium px-2.5 py-1 bg-peach/20 text-foreground border-0 rounded-full"
-                        >
-                          {interview.position}
-                        </Badge>
-                      )}
-                      {interview.interviewer && interview.interviewer !== 'Unknown' && (
-                        <Badge variant="outline" className="inline-flex items-center gap-1.5 text-xs truncate px-2.5 py-1 rounded-full">
-                          <Avatar className="h-4 w-4 border border-border/40">
-                            <AvatarImage
-                              src={session?.user?.image || undefined}
-                              alt={session?.user?.name || 'User'}
-                            />
-                            <AvatarFallback className="text-[8px] font-semibold bg-muted/50 text-foreground/70">
-                              {viewerInitials || 'U'}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="font-medium">{interview.interviewer}</span>
-                        </Badge>
-                      )}
-                    </>
+                  {interview.meeting_type && (
+                    <Badge
+                      variant="secondary"
+                      className="text-xs font-medium px-2.5 py-1 bg-peach/20 text-foreground border-0 rounded-full"
+                    >
+                      {interview.meeting_type}
+                    </Badge>
+                  )}
+                  {interview.interviewer && interview.interviewer !== 'Unknown' && (
+                    <Badge variant="outline" className="inline-flex items-center gap-1.5 text-xs truncate px-2.5 py-1 rounded-full">
+                      <Avatar className="h-4 w-4 border border-border/40">
+                        <AvatarImage
+                          src={session?.user?.image || undefined}
+                          alt={session?.user?.name || 'User'}
+                        />
+                        <AvatarFallback className="text-[8px] font-semibold bg-muted/50 text-foreground/70">
+                          {viewerInitials || 'U'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="font-medium">{interview.interviewer}</span>
+                    </Badge>
                   )}
                   {isInterview && (
                     <div

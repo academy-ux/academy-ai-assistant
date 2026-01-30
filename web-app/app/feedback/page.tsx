@@ -13,7 +13,6 @@ import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
-import { ParsedTitle } from '@/components/ui/parsed-title'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
@@ -1627,7 +1626,9 @@ function FeedbackContent() {
                                   "text-sm font-medium truncate",
                                   selectedInterview?.id === interview.id ? "text-primary" : "text-foreground"
                                 )}>
-                                  {interview.candidate_name || 'Unknown Candidate'}
+                                  {interview.meeting_title && interview.meeting_title !== 'Interview' 
+                                    ? interview.meeting_title 
+                                    : interview.candidate_name || 'Unknown Candidate'}
                                 </h3>
                                 {!!role && (
                                   <p className="mt-1 text-xs text-muted-foreground truncate">
@@ -1653,11 +1654,19 @@ function FeedbackContent() {
                                 </Badge>
                               )}
 
-                              {interview.meeting_title && interview.meeting_title !== 'Interview' && interview.meeting_title !== interview.meeting_type && (
-                                <ParsedTitle 
-                                  title={interview.meeting_title}
-                                  badgeClassName="px-2.5 py-0.5"
-                                />
+                              {interview.interviewer && (
+                                <Badge variant="outline" className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium">
+                                  <Avatar className="h-4 w-4 border border-border/40">
+                                    <AvatarImage
+                                      src={session?.user?.image || undefined}
+                                      alt={session?.user?.name || 'User'}
+                                    />
+                                    <AvatarFallback className="text-[9px] font-semibold bg-muted/50 text-foreground/70">
+                                      {viewerInitials || 'U'}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  {interview.interviewer}
+                                </Badge>
                               )}
 
                               {isInterview && (
@@ -1675,21 +1684,6 @@ function FeedbackContent() {
                                   )} />
                                   {isSubmitted ? 'Submitted' : 'Not Submitted'}
                                 </div>
-                              )}
-
-                              {interview.interviewer && (
-                                <Badge variant="outline" className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium">
-                                  <Avatar className="h-4 w-4 border border-border/40">
-                                    <AvatarImage
-                                      src={session?.user?.image || undefined}
-                                      alt={session?.user?.name || 'User'}
-                                    />
-                                    <AvatarFallback className="text-[9px] font-semibold bg-muted/50 text-foreground/70">
-                                      {viewerInitials || 'U'}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  {interview.interviewer}
-                                </Badge>
                               )}
                             </div>
                           </div>

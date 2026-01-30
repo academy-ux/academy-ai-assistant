@@ -621,6 +621,17 @@
                 flushUpdates() // Ensure final updates are shown
                 setImportComplete(true)
                 fetchMeetings()
+                
+                // Save the imported folder to settings for future sessions
+                if (selectedFolder) {
+                  const selectedFolderData = folders.find(f => f.id === selectedFolder)
+                  if (selectedFolderData) {
+                    saveSettings({
+                      driveFolderId: selectedFolder,
+                      folderName: selectedFolderData.name
+                    })
+                  }
+                }
               } else if (data.type === 'error') {
                 console.error('Import error:', data.message)
               }
@@ -1195,6 +1206,10 @@
                     setImportComplete(false)
                     setImportResults([])
                   }
+                  // Pre-populate folder from saved settings when opening
+                  if (open && !selectedFolder && settings.driveFolderId) {
+                    setSelectedFolder(settings.driveFolderId)
+                  }
                 }}>
                   <DialogTrigger asChild>
                     <Button variant="default" className="gap-2">
@@ -1489,7 +1504,13 @@
                 </Dialog>
 
                 {/* Settings Dialog */}
-                <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+                <Dialog open={settingsOpen} onOpenChange={(open) => {
+                  setSettingsOpen(open)
+                  // Pre-populate folder from saved settings when opening
+                  if (open && !settingsSelectedFolder && settings.driveFolderId) {
+                    setSettingsSelectedFolder(settings.driveFolderId)
+                  }
+                }}>
                   <DialogTrigger asChild>
                     <Button variant="outline" className="gap-2">
                       <SlidersHorizontal className="h-4 w-4" />
@@ -2474,6 +2495,25 @@
                         {/* Tags & Meta Row */}
                         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2 border-t border-border/30">
                           <div className="flex flex-wrap gap-2 items-center w-full sm:w-auto">
+                            {meeting.meeting_type && (
+                              <Badge variant="secondary" className="text-xs font-medium px-3 py-1 bg-peach/20 text-foreground border-0 rounded-full h-7">
+                                {meeting.meeting_type}
+                              </Badge>
+                            )}
+                            {meeting.interviewer && meeting.interviewer !== 'Unknown' && (
+                              <Badge variant="outline" className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium h-7">
+                                <Avatar className="h-4 w-4 border border-border/40">
+                                  <AvatarImage
+                                    src={session?.user?.image || undefined}
+                                    alt={session?.user?.name || 'User'}
+                                  />
+                                  <AvatarFallback className="text-[8px] font-semibold bg-muted/50 text-foreground/70">
+                                    {viewerInitials || 'U'}
+                                  </AvatarFallback>
+                                </Avatar>
+                                {meeting.interviewer}
+                              </Badge>
+                            )}
                             {/* Submission Status Badge - Only for Interviews */}
                             {meeting.meeting_type === 'Interview' && (() => {
                               const isSubmitted = Boolean((meeting as any)?.submitted_at || (meeting as any)?.candidate_id)
