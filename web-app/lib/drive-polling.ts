@@ -44,7 +44,7 @@ async function getSubfolderIds(
  * Helper function to poll a single Drive folder for new transcripts
  * Used by both the cron job and manual polling endpoints
  * 
- * @param fastMode - If true, only checks the 30 most recent files for faster polling
+ * @param fastMode - If true, only checks files from the past 48 hours (max 30 files) for faster polling
  * @param includeSubfolders - If true, searches in subfolders recursively (up to 2 levels deep)
  */
 export async function pollFolder(
@@ -81,12 +81,12 @@ export async function pollFolder(
   
   let query = `${folderQuery} and mimeType = 'application/vnd.google-apps.document' and trashed = false`
   
-  // If we have a last poll time, only look for files modified after that
-  if (fastMode && lastPollTime) {
-    const lastPollDate = new Date(lastPollTime)
-    // Go back 5 minutes before last poll to account for any timing issues
-    lastPollDate.setMinutes(lastPollDate.getMinutes() - 5)
-    query += ` and modifiedTime > '${lastPollDate.toISOString()}'`
+  // In fast mode, only look at files from the past 48 hours (regardless of last poll time)
+  if (fastMode) {
+    const twoDaysAgo = new Date()
+    twoDaysAgo.setHours(twoDaysAgo.getHours() - 48)
+    query += ` and modifiedTime > '${twoDaysAgo.toISOString()}'`
+    console.log(`[Poll] Fast mode: checking files modified since ${twoDaysAgo.toISOString()}`)
   }
 
   // Get files in folder, ordered by modified time (most recent first)

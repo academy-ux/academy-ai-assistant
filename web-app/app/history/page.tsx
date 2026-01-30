@@ -137,7 +137,7 @@
       .map((p) => p[0]!.toUpperCase())
       .join('')
     const [settingsSaving, setSettingsSaving] = useState(false)
-    const [polling, setPolling] = useState(false)
+    const [polling, setPolling] = useState<'quick' | 'full' | null>(null)
     const [pollResult, setPollResult] = useState<{imported: number, skipped: number, errors: number} | null>(null)
     const [settingsFolderOpen, setSettingsFolderOpen] = useState(false)
     const [settingsSelectedFolder, setSettingsSelectedFolder] = useState('')
@@ -484,7 +484,7 @@
 
     async function handleManualPoll(silent: boolean = false, fullSync: boolean = false) {
       if (!silent) {
-        setPolling(true)
+        setPolling(fullSync ? 'full' : 'quick')
         setPollResult(null)
       }
       try {
@@ -528,7 +528,7 @@
         }
       } finally {
         if (!silent) {
-          setPolling(false)
+          setPolling(null)
         }
       }
     }
@@ -1715,9 +1715,9 @@
                                   variant="outline"
                                   className="flex-1 gap-2"
                                   onClick={() => handleManualPoll(false, false)}
-                                  disabled={polling}
+                                  disabled={polling !== null}
                                 >
-                                  {polling ? (
+                                  {polling === 'quick' ? (
                                     <>
                                       <Spinner size={16} className="text-primary" />
                                       Checking...
@@ -1733,9 +1733,9 @@
                                   variant="outline"
                                   className="flex-1 gap-2"
                                   onClick={() => handleManualPoll(false, true)}
-                                  disabled={polling}
+                                  disabled={polling !== null}
                                 >
-                                  {polling ? (
+                                  {polling === 'full' ? (
                                     <>
                                       <Spinner size={16} className="text-primary" />
                                       Checking...
