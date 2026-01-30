@@ -4,6 +4,23 @@ import GoogleProvider from 'next-auth/providers/google'
 let didLogProfileOnce = false
 let didLogSessionOnce = false
 
+export function isAdmin(email?: string | null) {
+  if (!email) return false
+  
+  // Debug logging
+  console.log('[isAdmin] Checking email:', email)
+  console.log('[isAdmin] ADMIN_EMAILS env:', process.env.ADMIN_EMAILS)
+  console.log('[isAdmin] All env keys containing ADMIN:', Object.keys(process.env).filter(k => k.includes('ADMIN')))
+  
+  const adminEmails = process.env.ADMIN_EMAILS?.split(',').map(e => e.trim().toLowerCase()) || []
+  const result = adminEmails.includes(email.toLowerCase())
+  
+  console.log('[isAdmin] Admin emails list:', adminEmails)
+  console.log('[isAdmin] Is admin result:', result)
+  
+  return result
+}
+
 async function refreshAccessToken(token: any) {
   try {
     const response = await fetch('https://oauth2.googleapis.com/token', {

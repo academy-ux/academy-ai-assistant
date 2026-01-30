@@ -1,11 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions, isAdmin } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { parseTranscriptMetadata } from '@/lib/transcript-parser'
 import { errorResponse } from '@/lib/validation'
 
-// POST: Force re-parse ALL interviews to extract metadata
+// POST: Force re-parse ALL interviews to extract metadata (Admin only)
 export async function POST(request: NextRequest) {
   try {
+    // Admin-only endpoint
+    const session = await getServerSession(authOptions)
+    const userEmail = session?.user?.email
+    const isUserAdmin = isAdmin(userEmail)
+    
+    console.log('[reparse-all] User email:', userEmail)
+    console.log('[reparse-all] Is admin:', isUserAdmin)
+    console.log('[reparse-all] ADMIN_EMAILS env:', process.env.ADMIN_EMAILS)
+    
+    if (!isUserAdmin) {
+      return NextResponse.json({ 
+        error: 'Admin access required',
+        debug: {
+          userEmail,
+          adminEmails: process.env.ADMIN_EMAILS
+        }
+      }, { status: 403 })
+    }
+
     // Fetch ALL interviews (removed limit to process all)
     const { data: interviews, error } = await supabase
       .from('interviews')

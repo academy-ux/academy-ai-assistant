@@ -68,6 +68,11 @@ export default function InterviewDetailPage() {
     }
   }, [params.id])
 
+  // Scroll to top when page loads or interview changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' })
+  }, [params.id])
+
   // Auto-scroll to bottom when conversation updates
   useEffect(() => {
     if (conversationEndRef.current) {
@@ -355,16 +360,19 @@ export default function InterviewDetailPage() {
                 <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground leading-tight">
                   {interview.candidate_name || 'Unknown Candidate'}
                 </h1>
-                <div className="mt-2 flex items-center gap-2 flex-wrap">
+                <div className="mt-3 flex items-center gap-2 flex-wrap">
                   {interview.position && (
-                    <span className="text-sm text-muted-foreground font-medium px-3 py-1 border border-border/50 rounded-full bg-muted/30">
+                    <Badge
+                      variant="secondary"
+                      className="text-xs font-medium px-2.5 py-1 bg-peach/20 text-foreground border-0 rounded-full"
+                    >
                       {interview.position}
-                    </span>
+                    </Badge>
                   )}
                   {interview.meeting_title && interview.meeting_title !== 'Interview' && (
                     <Badge
                       variant="outline"
-                      className="text-xs px-2.5 py-0.5 border-border/40 text-muted-foreground rounded-full"
+                      className="text-xs px-2.5 py-1 border-border/40 text-muted-foreground rounded-full"
                     >
                       {interview.meeting_title}
                     </Badge>
@@ -390,13 +398,13 @@ export default function InterviewDetailPage() {
                     </div>
                   )}
                   {interview.interviewer && interview.interviewer !== 'Unknown' && (
-                    <span className="inline-flex items-center gap-2 text-sm text-muted-foreground font-light truncate">
-                      <Avatar className="h-5 w-5 border border-border/40">
+                    <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground truncate px-2.5 py-1 bg-muted/30 rounded-full border border-border/40">
+                      <Avatar className="h-4 w-4 border border-border/40">
                         <AvatarImage
                           src={session?.user?.image || undefined}
                           alt={session?.user?.name || 'User'}
                         />
-                        <AvatarFallback className="text-[10px] font-semibold bg-muted/50 text-foreground/70">
+                        <AvatarFallback className="text-[8px] font-semibold bg-muted/50 text-foreground/70">
                           {viewerInitials || 'U'}
                         </AvatarFallback>
                       </Avatar>

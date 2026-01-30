@@ -20,6 +20,7 @@ export interface Database {
           candidate_id: string | null
           candidate_name: string | null
           candidate_email: string | null
+          owner_email: string | null
           position: string | null
           interviewer: string | null
           submitted_at: string | null

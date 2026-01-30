@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions, isAdmin } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { generateEmbedding } from '@/lib/embeddings'
 import { GoogleGenerativeAI } from '@google/generative-ai'
@@ -6,6 +8,9 @@ import { askQuestionSchema, validateBody, errorResponse } from '@/lib/validation
 import { checkRateLimit } from '@/lib/rate-limit'
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
+
+// Allowed meeting types for non-admins
+const ALLOWED_TYPES = ['Status Update', 'Client Call', 'Interview']
 
 // Check if question is asking about recent/last interviews
 function isTemporalQuestion(question: string): boolean {
@@ -48,8 +53,23 @@ export async function POST(request: NextRequest) {
     if (validationError) return validationError
 
     const { question, history, interviewId } = body
+    const session = await getServerSession(authOptions)
+    
+    // Determine access level and filters
+    const isUserAdmin = isAdmin(session?.user?.email)
+    const userEmail = session?.user?.email
 
     let interviews: any[] = []
+    
+    // Helper function to filter interviews for non-admins (allowed types OR owned)
+    const filterForAccess = (items: any[]) => {
+      if (isUserAdmin) return items
+      return items.filter((i: any) => {
+        const isAllowedType = i.meeting_type && ALLOWED_TYPES.includes(i.meeting_type)
+        const isOwner = userEmail && i.owner_email === userEmail
+        return isAllowedType || isOwner
+      })
+    }
     
     // If a specific interview ID is provided, focus on that interview
     if (interviewId) {
@@ -59,6 +79,18 @@ export async function POST(request: NextRequest) {
         .eq('id', interviewId)
         .single()
       
+      // Additional security check for direct ID access
+      if (interview && !isUserAdmin) {
+        const isAllowedType = interview.meeting_type && ALLOWED_TYPES.includes(interview.meeting_type)
+        const isOwner = userEmail && interview.owner_email === userEmail
+        if (!isAllowedType && !isOwner) {
+          return NextResponse.json({
+            answer: "I cannot access this interview due to privacy settings.",
+            sources: []
+          })
+        }
+      }
+
       if (interviewError) throw interviewError
       if (interview) interviews = [interview]
     }
@@ -66,32 +98,54 @@ export async function POST(request: NextRequest) {
     else if (isTemporalQuestion(question)) {
       const count = extractCount(question)
       
-      // Get recent interviews by date
+      // Get recent interviews by date - fetch more for filtering
+      const fetchCount = isUserAdmin ? count : count * 3
+      
       const { data: recentInterviews, error: recentError } = await supabase
         .from('interviews')
         .select('*')
         .order('meeting_date', { ascending: false })
-        .limit(Math.min(count, 20))
+        .limit(Math.min(fetchCount, 60))
       
       if (recentError) throw recentError
-      interviews = recentInterviews || []
+      interviews = filterForAccess(recentInterviews || []).slice(0, count)
     } else {
       // Use semantic search for other questions
       try {
         const questionEmbedding = await generateEmbedding(question)
 
+        // Fetch more results for client-side filtering to include owned meetings
+        const fetchCount = isUserAdmin ? 10 : 30
+        
         const { data: similarInterviews, error: searchError } = await supabase
           .rpc('match_interviews', {
             query_embedding: questionEmbedding,
             match_threshold: 0.3,
-            match_count: 10
+            match_count: fetchCount,
+            filter_types: null // Fetch all, filter client-side for owner access
           })
 
         if (searchError) {
-          console.error('Semantic search error:', searchError)
+          // Fallback if RPC signature doesn't match
+          console.warn('RPC match_interviews failed, falling back:', searchError.message)
+          
+          const { data: fallbackRpc, error: fallbackRpcError } = await supabase
+          .rpc('match_interviews', {
+            query_embedding: questionEmbedding,
+            match_threshold: 0.3,
+            match_count: fetchCount
+          })
+          
+          if (!fallbackRpcError && fallbackRpc) {
+            interviews = fallbackRpc
+          }
         } else {
           interviews = similarInterviews || []
         }
+        
+        // Filter for access and limit
+        interviews = filterForAccess(interviews).slice(0, 10)
+        
       } catch (embeddingError) {
         console.error('Embedding generation error:', embeddingError)
       }
@@ -102,10 +156,10 @@ export async function POST(request: NextRequest) {
           .from('interviews')
           .select('*')
           .order('meeting_date', { ascending: false })
-          .limit(10)
+          .limit(30)
         
         if (!fallbackError && fallbackInterviews) {
-          interviews = fallbackInterviews
+          interviews = filterForAccess(fallbackInterviews).slice(0, 10)
         }
       }
     }
@@ -150,14 +204,16 @@ ${conversationContext}
 Current User Question: ${question}
 
 Instructions:
-- Answer the question directly and concisely based on the interview data above
-- If this is a follow-up question, use the conversation context to understand what the user is referring to
-- If asking about specific people, list their names
-- If asking about counts, give the exact number
-- If asking for comparisons, highlight key differences
-- Format your response nicely with bullet points or lists when appropriate
-- Be specific and cite names when relevant
-- If the user asks "tell me more" or similar, elaborate on your previous response`
+- Answer the question directly and concisely based on the interview data above.
+- If this is a follow-up question, use the conversation context to understand what the user is referring to.
+- If asking about specific people, list their names.
+- If asking about counts, give the exact number.
+- If asking for comparisons, highlight key differences.
+- Format your response nicely with bullet points or lists when appropriate.
+- Be specific and cite names when relevant.
+- If the user asks "tell me more" or similar, elaborate on your previous response.
+- PRIVACY GUARDRAIL: If the user asks about sensitive personal information (salaries, employee reviews, internal complaints, passwords) or topics not related to the provided meeting contexts, politely decline to answer, stating that you cannot share sensitive or unauthorized information.
+- Only use information provided in the context above.`
 
     const result = await model.generateContent(prompt)
     const response = await result.response

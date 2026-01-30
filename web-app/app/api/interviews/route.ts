@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions, isAdmin } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { paginationSchema, validateSearchParams, errorResponse } from '@/lib/validation'
+
+// Allowed meeting types for non-admins when viewing others' meetings
+const ALLOWED_TYPES = ['Status Update', 'Client Call', 'Interview']
 
 // GET: List recent interviews
 export async function GET(request: NextRequest) {
@@ -13,10 +18,28 @@ export async function GET(request: NextRequest) {
     if (validationError) return validationError
     
     const { limit, offset } = params
+    
+    const session = await getServerSession(authOptions)
+    const view = request.nextUrl.searchParams.get('view') || 'mine'
+    const isUserAdmin = isAdmin(session?.user?.email)
+    const userEmail = session?.user?.email
 
-    const { data, error, count } = await supabase
+    let query = supabase
       .from('interviews')
       .select('*', { count: 'exact' })
+
+    // Filter by owner if viewing 'mine' (default)
+    if (view === 'mine' && userEmail) {
+      // Show all of user's own meetings (no type restriction for your own meetings)
+      // Include NULL owner_email for legacy records (before owner tracking was added)
+      query = query.or(`owner_email.eq.${userEmail},owner_email.is.null`)
+    } else if (view === 'all' && !isUserAdmin && userEmail) {
+      // Non-admins viewing "All History": show allowed types OR their own meetings
+      query = query.or(`meeting_type.in.(${ALLOWED_TYPES.join(',')}),owner_email.eq.${userEmail},owner_email.is.null`)
+    }
+    // Admins viewing 'all' get everything (no filter)
+
+    const { data, error, count } = await query
       .order('meeting_date', { ascending: false })
       .range(offset, offset + limit - 1)
 

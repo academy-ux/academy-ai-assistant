@@ -247,6 +247,7 @@ export async function POST(req: NextRequest) {
                 rating: 'Not Analyzed',
                 candidate_name: metadata.candidateName,
                 interviewer: metadata.interviewer,
+                owner_email: token.email,
                 position: metadata.position || ''
               })
 

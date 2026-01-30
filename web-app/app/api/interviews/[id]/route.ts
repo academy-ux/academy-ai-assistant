@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions, isAdmin } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { uuidSchema, errorResponse } from '@/lib/validation'
+
+// Allowed meeting types for non-admins
+const ALLOWED_TYPES = ['Status Update', 'Client Call', 'Interview']
 
 export async function GET(
   request: NextRequest,
@@ -24,6 +29,16 @@ export async function GET(
         return NextResponse.json({ error: 'Interview not found' }, { status: 404 })
       }
       throw error
+    }
+
+    // Security check: non-admins cannot access restricted meeting types (unless they're the owner)
+    const session = await getServerSession(authOptions)
+    const isUserAdmin = isAdmin(session?.user?.email)
+    const userEmail = session?.user?.email
+    const isOwner = userEmail && interview.owner_email === userEmail
+    
+    if (!isUserAdmin && !isOwner && interview.meeting_type && !ALLOWED_TYPES.includes(interview.meeting_type)) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
     return NextResponse.json(interview)

@@ -1,11 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions, isAdmin } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { parseTranscriptMetadata } from '@/lib/transcript-parser'
 import { errorResponse } from '@/lib/validation'
 
-// POST: Re-parse existing interviews to extract metadata
+// POST: Re-parse existing interviews to extract metadata (Admin only)
 export async function POST(request: NextRequest) {
   try {
+    // Admin-only endpoint
+    const session = await getServerSession(authOptions)
+    if (!isAdmin(session?.user?.email)) {
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
+    }
+
     // Fetch all interviews that need reparsing (Unknown Candidate or no summary)
     const { data: interviews, error } = await supabase
       .from('interviews')
