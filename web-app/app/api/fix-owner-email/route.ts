@@ -14,13 +14,11 @@ export async function POST(req: NextRequest) {
 
     console.log(`[Fix Owner] Setting owner_email for records imported by ${userEmail}`)
 
-    // Update records that:
-    // 1. Have a drive_file_id (were imported from Drive)
-    // 2. Have NULL owner_email (not yet assigned)
+    // Update records that have a drive_file_id (were imported from Drive)
+    // This will update all Drive-imported records, regardless of current owner_email value
     const { data, error } = await supabase
       .from('interviews')
       .update({ owner_email: userEmail })
-      .is('owner_email', null)
       .not('drive_file_id', 'is', null)
       .select('id, meeting_title')
 
