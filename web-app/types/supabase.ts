@@ -55,6 +55,7 @@ export interface Database {
           meeting_code: string | null
           meeting_title: string | null
           meeting_date: string | null
+          meeting_type: string | null
           candidate_id: string | null
           candidate_name: string | null
           candidate_email: string | null
@@ -76,9 +77,11 @@ export interface Database {
           meeting_code?: string | null
           meeting_title?: string | null
           meeting_date?: string | null
+          meeting_type?: string | null
           candidate_id?: string | null
           candidate_name?: string | null
           candidate_email?: string | null
+          owner_email?: string | null
           position?: string | null
           interviewer?: string | null
           submitted_at?: string | null
@@ -96,9 +99,11 @@ export interface Database {
           meeting_code?: string | null
           meeting_title?: string | null
           meeting_date?: string | null
+          meeting_type?: string | null
           candidate_id?: string | null
           candidate_name?: string | null
           candidate_email?: string | null
+          owner_email?: string | null
           position?: string | null
           interviewer?: string | null
           submitted_at?: string | null
@@ -108,6 +113,41 @@ export interface Database {
           rating?: string | null
           summary?: string | null
           embedding?: number[] | null
+        }
+      }
+      user_settings: {
+        Row: {
+          user_email: string
+          drive_folder_id: string | null
+          folder_name: string | null
+          auto_poll_enabled: boolean
+          poll_interval_minutes: number
+          last_poll_time: string | null
+          last_poll_file_count: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          user_email: string
+          drive_folder_id?: string | null
+          folder_name?: string | null
+          auto_poll_enabled?: boolean
+          poll_interval_minutes?: number
+          last_poll_time?: string | null
+          last_poll_file_count?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          user_email?: string
+          drive_folder_id?: string | null
+          folder_name?: string | null
+          auto_poll_enabled?: boolean
+          poll_interval_minutes?: number
+          last_poll_time?: string | null
+          last_poll_file_count?: number
+          created_at?: string
+          updated_at?: string
         }
       }
     }
@@ -120,6 +160,7 @@ export interface Database {
           query_embedding: number[]
           match_threshold: number
           match_count: number
+          filter_types?: string[] | null
         }
         Returns: {
           id: string
