@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
     for (const user of users) {
       try {
         // Check if enough time has passed since last poll
-        if (user.last_poll_time) {
+        if (user.last_poll_time && user.poll_interval_minutes) {
           const timeSinceLastPoll = Date.now() - new Date(user.last_poll_time).getTime()
           const intervalMs = user.poll_interval_minutes * 60 * 1000
           

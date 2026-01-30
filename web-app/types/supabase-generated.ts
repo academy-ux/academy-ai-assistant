@@ -1,4 +1,3 @@
-Initialising login role...
 export type Json =
   | string
   | number
@@ -40,15 +39,56 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_conversations: {
+        Row: {
+          id: string
+          user_email: string
+          user_name: string | null
+          interview_id: string | null
+          title: string
+          messages: Json
+          message_count: number
+          created_at: string
+          updated_at: string
+          last_message_at: string
+        }
+        Insert: {
+          id?: string
+          user_email: string
+          user_name?: string | null
+          interview_id?: string | null
+          title: string
+          messages: Json
+          message_count?: number
+          created_at?: string
+          updated_at?: string
+          last_message_at?: string
+        }
+        Update: {
+          id?: string
+          user_email?: string
+          user_name?: string | null
+          interview_id?: string | null
+          title?: string
+          messages?: Json
+          message_count?: number
+          created_at?: string
+          updated_at?: string
+          last_message_at?: string
+        }
+        Relationships: []
+      }
       interviews: {
         Row: {
           candidate_id: string | null
           candidate_name: string | null
+          candidate_email: string | null
           created_at: string | null
           drive_file_id: string | null
-          embedding: string | null
+          embedding: number[] | null
           id: string
           interviewer: string | null
+          meeting_code: string | null
           meeting_date: string | null
           meeting_title: string | null
           meeting_type: string | null
@@ -57,18 +97,20 @@ export type Database = {
           rating: string | null
           submitted_at: string | null
           summary: string | null
-          transcript: string | null
+          transcript: string
           transcript_file_name: string | null
           updated_at: string | null
         }
         Insert: {
           candidate_id?: string | null
           candidate_name?: string | null
+          candidate_email?: string | null
           created_at?: string | null
           drive_file_id?: string | null
-          embedding?: string | null
+          embedding?: number[] | null
           id?: string
           interviewer?: string | null
+          meeting_code?: string | null
           meeting_date?: string | null
           meeting_title?: string | null
           meeting_type?: string | null
@@ -77,18 +119,20 @@ export type Database = {
           rating?: string | null
           submitted_at?: string | null
           summary?: string | null
-          transcript?: string | null
+          transcript: string
           transcript_file_name?: string | null
           updated_at?: string | null
         }
         Update: {
           candidate_id?: string | null
           candidate_name?: string | null
+          candidate_email?: string | null
           created_at?: string | null
           drive_file_id?: string | null
-          embedding?: string | null
+          embedding?: number[] | null
           id?: string
           interviewer?: string | null
+          meeting_code?: string | null
           meeting_date?: string | null
           meeting_title?: string | null
           meeting_type?: string | null
@@ -97,7 +141,7 @@ export type Database = {
           rating?: string | null
           submitted_at?: string | null
           summary?: string | null
-          transcript?: string | null
+          transcript?: string
           transcript_file_name?: string | null
           updated_at?: string | null
         }
@@ -149,10 +193,10 @@ export type Database = {
     Functions: {
       match_interviews: {
         Args: {
-          filter_types?: string[]
+          filter_types?: string[] | null
           match_count: number
           match_threshold: number
-          query_embedding: string
+          query_embedding: number[]
         }
         Returns: {
           candidate_name: string
