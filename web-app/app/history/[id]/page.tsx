@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ParsedTitle } from '@/components/ui/parsed-title'
 import { Spinner } from '@/components/ui/spinner'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -419,20 +418,11 @@ export default function InterviewDetailPage() {
                 </span>
               </div>
               <div className="min-w-0">
-                {interview.meeting_title && interview.meeting_title !== 'Interview' ? (
-                  // Show parsed meeting title as the main heading
-                  <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground leading-tight mb-3">
-                    <ParsedTitle 
-                      title={interview.meeting_title}
-                      badgeClassName="px-2.5 py-1 text-sm"
-                    />
-                  </h1>
-                ) : (
-                  // Fallback to candidate name
-                  <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground leading-tight">
-                    {interview.candidate_name || 'Unknown Candidate'}
-                  </h1>
-                )}
+                <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground leading-tight">
+                  {interview.meeting_title && interview.meeting_title !== 'Interview' 
+                    ? interview.meeting_title 
+                    : interview.candidate_name || 'Unknown Candidate'}
+                </h1>
                 <div className="mt-3 flex items-center gap-2 flex-wrap">
                   {(!interview.meeting_title || interview.meeting_title === 'Interview') && (
                     <>
