@@ -29,7 +29,12 @@ export async function POST(req: NextRequest) {
     const fastMode = body.fastMode !== false // Default to true
     const includeSubfolders = body.includeSubfolders !== false // Default to true
 
-    console.log(`[Manual Poll] Polling folder for ${token.email} (fast: ${fastMode}, subfolders: ${includeSubfolders})`)
+    console.log(`[Manual Poll] ========================================`)
+    console.log(`[Manual Poll] User: ${token.email}`)
+    console.log(`[Manual Poll] Mode: ${fastMode ? 'Fast (48 hours)' : 'Full Sync'}`)
+    console.log(`[Manual Poll] Subfolders: ${includeSubfolders}`)
+    console.log(`[Manual Poll] Folder ID: ${settings.drive_folder_id}`)
+    console.log(`[Manual Poll] ========================================`)
 
     const result = await pollFolder(
       token.accessToken as string,
@@ -38,6 +43,8 @@ export async function POST(req: NextRequest) {
       fastMode,
       includeSubfolders
     )
+
+    console.log(`[Manual Poll] Poll completed for ${token.email}`)
 
     return NextResponse.json({
       success: true,

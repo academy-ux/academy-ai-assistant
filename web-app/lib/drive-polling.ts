@@ -87,6 +87,8 @@ export async function pollFolder(
     twoDaysAgo.setHours(twoDaysAgo.getHours() - 48)
     query += ` and modifiedTime > '${twoDaysAgo.toISOString()}'`
     console.log(`[Poll] Fast mode: checking files modified since ${twoDaysAgo.toISOString()}`)
+  } else {
+    console.log(`[Poll] Full sync mode: checking ALL files`)
   }
 
   // Get files in folder, ordered by modified time (most recent first)
@@ -114,6 +116,11 @@ export async function pollFolder(
     allFiles.push(...files)
     filesChecked += files.length
     
+    console.log(`[Poll] Found ${files.length} files in this page (total so far: ${allFiles.length})`)
+    if (files.length > 0) {
+      console.log(`[Poll] Sample files:`, files.slice(0, 3).map(f => ({ name: f.name, modified: f.modifiedTime })))
+    }
+    
     nextPageToken = listResponse.nextPageToken
     hasMore = !!nextPageToken && filesChecked < maxFilesToCheck
     
@@ -122,6 +129,8 @@ export async function pollFolder(
       break
     }
   }
+  
+  console.log(`[Poll] Total files to process: ${allFiles.length}`)
 
   let imported = 0
   let skipped = 0
@@ -165,9 +174,12 @@ export async function pollFolder(
         }
 
         if (existing) {
+          console.log(`[Poll] Skipping already imported: ${file.name}`)
           return 'skipped'
         }
 
+        console.log(`[Poll] Processing new file: ${file.name}`)
+        
         // Download and process
         const exportRes = await drive.files.export({
           fileId: file.id!,
@@ -176,6 +188,7 @@ export async function pollFolder(
         const text = exportRes.data as string
 
         if (!text || text.length < 50) {
+          console.log(`[Poll] Skipping (too short): ${file.name}`)
           return 'skipped'
         }
 
@@ -216,9 +229,12 @@ export async function pollFolder(
         })
 
         if (error) {
-          console.error('Insert error:', error)
+          console.error(`[Poll] ❌ Insert error for "${file.name}":`, error)
+          console.error(`[Poll] Failed data: meetingType="${metadata.meetingCategory}", candidateName="${metadata.candidateName}"`)
           return 'error'
         } else {
+          console.log(`[Poll] ✅ Successfully imported: ${generatedTitle}`)
+          
           // Rename the file in Google Drive to use the intelligent title
           try {
             await drive.files.update({
@@ -227,10 +243,10 @@ export async function pollFolder(
                 name: generatedTitle
               }
             })
-            console.log(`Renamed Drive file: "${file.name}" -> "${generatedTitle}"`)
+            console.log(`[Poll] Renamed Drive file: "${file.name}" -> "${generatedTitle}"`)
           } catch (renameError: any) {
             // Log but don't fail the import if rename fails
-            console.error('Failed to rename Drive file:', file.name, renameError.message || renameError)
+            console.error('[Poll] Failed to rename Drive file:', file.name, renameError.message || renameError)
           }
           
           return 'imported'
@@ -270,6 +286,13 @@ export async function pollFolder(
       last_poll_file_count: allFiles.length
     })
     .eq('user_email', userEmail)
+
+  console.log(`[Poll] ========== RESULTS ==========`)
+  console.log(`[Poll] Total files checked: ${allFiles.length}`)
+  console.log(`[Poll] ✅ Imported: ${imported}`)
+  console.log(`[Poll] ⏭️  Skipped: ${skipped}`)
+  console.log(`[Poll] ❌ Errors: ${errors}`)
+  console.log(`[Poll] ================================`)
 
   return { imported, skipped, errors }
 }
