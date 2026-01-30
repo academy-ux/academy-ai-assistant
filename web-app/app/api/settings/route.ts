@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
       // Create new settings
       const { error } = await supabase
         .from('user_settings')
-        .insert(settingsData)
+        .insert(settingsData as any)
 
       if (error) throw error
     }

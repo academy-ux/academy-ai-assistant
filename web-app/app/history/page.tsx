@@ -350,8 +350,9 @@
             let filteredResults = data.results
             if (viewMode === 'mine' && session?.user?.email) {
               // Show only user's own meetings
+              const userEmail = session.user.email
               filteredResults = data.results.filter((m: any) => 
-                m.owner_email === session.user.email || !m.owner_email
+                m.owner_email === userEmail || !m.owner_email
               )
             }
             setMeetings(filteredResults)

@@ -41,8 +41,8 @@ export async function POST(request: NextRequest) {
 
       const { data: kwResults, error: kwError } = await keywordQuery
 
-      if (!kwError && kwResults) {
-        keywordResults = kwResults.map(r => ({ ...r, searchType: 'keyword' }))
+      if (!kwError && kwResults && Array.isArray(kwResults)) {
+        keywordResults = kwResults.map((r: any) => ({ ...r, searchType: 'keyword' }))
       }
     }
 

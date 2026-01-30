@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
         .select('transcript_file_name')
         .in('transcript_file_name', fileNames)
 
-      importedSet = new Set(existingFiles?.map(f => f.transcript_file_name) || [])
+      importedSet = new Set(existingFiles?.map(f => f.transcript_file_name).filter((name): name is string => name !== null) || [])
     }
 
     // Add imported status to each file
