@@ -47,24 +47,33 @@ export async function GET(req: NextRequest) {
 
     // Check which files are already imported
     const fileDetails = await Promise.all(files.map(async (file) => {
-      const { data: existingById } = await supabase
-        .from('interviews')
-        .select('id, meeting_title')
-        .eq('drive_file_id', file.id)
-        .maybeSingle()
+      let existingById = null
+      let existingByName = null
+      
+      if (file.id) {
+        const { data } = await supabase
+          .from('interviews')
+          .select('id, meeting_title')
+          .eq('drive_file_id', file.id)
+          .maybeSingle()
+        existingById = data
+      }
 
-      const { data: existingByName } = await supabase
-        .from('interviews')
-        .select('id, meeting_title')
-        .eq('transcript_file_name', file.name)
-        .maybeSingle()
+      if (file.name) {
+        const { data } = await supabase
+          .from('interviews')
+          .select('id, meeting_title')
+          .eq('transcript_file_name', file.name)
+          .maybeSingle()
+        existingByName = data
+      }
 
       return {
-        name: file.name,
-        id: file.id,
-        created: file.createdTime,
-        modified: file.modifiedTime,
-        link: file.webViewLink,
+        name: file.name || 'Untitled',
+        id: file.id || 'unknown',
+        created: file.createdTime || '',
+        modified: file.modifiedTime || '',
+        link: file.webViewLink || '',
         alreadyImported: !!(existingById || existingByName),
         importedAs: existingById?.meeting_title || existingByName?.meeting_title || null
       }
