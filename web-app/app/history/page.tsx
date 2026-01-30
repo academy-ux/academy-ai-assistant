@@ -10,6 +10,7 @@
   import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
   import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
   import { Badge } from '@/components/ui/badge'
+  import { ParsedTitle } from '@/components/ui/parsed-title'
   import { Separator } from '@/components/ui/separator'
   import { Switch } from '@/components/ui/switch'
   import { Label } from '@/components/ui/label'
@@ -2478,9 +2479,10 @@
                               </Badge>
                             )}
                             {meeting.meeting_title && meeting.meeting_title !== 'Interview' && meeting.meeting_title !== meeting.meeting_type && (
-                              <Badge variant="outline" className="text-xs font-medium px-3 py-1 border-border/40 text-muted-foreground rounded-full h-7">
-                                {meeting.meeting_title}
-                              </Badge>
+                              <ParsedTitle 
+                                title={meeting.meeting_title}
+                                badgeClassName="px-3 py-1 h-7"
+                              />
                             )}
                             {/* Submission Status Badge - Only for Interviews */}
                             {meeting.meeting_type === 'Interview' && (() => {
@@ -2530,7 +2532,7 @@
                               return badge
                             })()}
                             {meeting.interviewer && meeting.interviewer !== 'Unknown' && (
-                              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium text-muted-foreground bg-muted/30 border border-border/40 h-7">
+                              <Badge variant="outline" className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium h-7">
                                 <Avatar className="h-4 w-4 border border-border/40">
                                   <AvatarImage
                                     src={session?.user?.image || undefined}
@@ -2540,8 +2542,8 @@
                                     {viewerInitials || 'U'}
                                   </AvatarFallback>
                                 </Avatar>
-                                {meeting.interviewer.split(' ')[0]}
-                              </div>
+                                {meeting.interviewer}
+                              </Badge>
                             )}
                             {meeting.similarity && (
                               <Badge variant="secondary" className="text-xs px-2.5 py-0.5 bg-primary/10 text-primary border-0 rounded-full">

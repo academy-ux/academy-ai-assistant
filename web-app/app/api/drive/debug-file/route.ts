@@ -41,11 +41,13 @@ export async function POST(req: NextRequest) {
       .eq('drive_file_id', fileId)
       .maybeSingle()
 
-    const { data: existingByName } = await supabase
-      .from('interviews')
-      .select('id, meeting_title, created_at')
-      .eq('transcript_file_name', file.name)
-      .maybeSingle()
+    const { data: existingByName } = file.name
+      ? await supabase
+          .from('interviews')
+          .select('id, meeting_title, created_at')
+          .eq('transcript_file_name', file.name)
+          .maybeSingle()
+      : { data: null }
 
     // Get parent folder details if parents exist
     let parentDetails = []

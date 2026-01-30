@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
+import { ParsedTitle } from '@/components/ui/parsed-title'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
@@ -1653,9 +1654,10 @@ function FeedbackContent() {
                               )}
 
                               {interview.meeting_title && interview.meeting_title !== 'Interview' && interview.meeting_title !== interview.meeting_type && (
-                                <Badge variant="outline" className="text-xs px-2.5 py-0.5 border-border/40 text-muted-foreground rounded-full">
-                                  {interview.meeting_title}
-                                </Badge>
+                                <ParsedTitle 
+                                  title={interview.meeting_title}
+                                  badgeClassName="px-2.5 py-0.5"
+                                />
                               )}
 
                               {isInterview && (
@@ -1676,7 +1678,7 @@ function FeedbackContent() {
                               )}
 
                               {interview.interviewer && (
-                                <span className="inline-flex items-center gap-1.5">
+                                <Badge variant="outline" className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium">
                                   <Avatar className="h-4 w-4 border border-border/40">
                                     <AvatarImage
                                       src={session?.user?.image || undefined}
@@ -1686,8 +1688,8 @@ function FeedbackContent() {
                                       {viewerInitials || 'U'}
                                     </AvatarFallback>
                                   </Avatar>
-                                  {interview.interviewer.split(' ')[0]}
-                                </span>
+                                  {interview.interviewer}
+                                </Badge>
                               )}
                             </div>
                           </div>

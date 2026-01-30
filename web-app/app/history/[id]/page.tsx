@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { ParsedTitle } from '@/components/ui/parsed-title'
 import { Spinner } from '@/components/ui/spinner'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -431,12 +432,10 @@ export default function InterviewDetailPage() {
                     </Badge>
                   )}
                   {interview.meeting_title && interview.meeting_title !== 'Interview' && (
-                    <Badge
-                      variant="outline"
-                      className="text-xs px-2.5 py-1 border-border/40 text-muted-foreground rounded-full"
-                    >
-                      {interview.meeting_title}
-                    </Badge>
+                    <ParsedTitle 
+                      title={interview.meeting_title}
+                      badgeClassName="px-2.5 py-1"
+                    />
                   )}
                   {isInterview && (
                     <div
@@ -459,7 +458,7 @@ export default function InterviewDetailPage() {
                     </div>
                   )}
                   {interview.interviewer && interview.interviewer !== 'Unknown' && (
-                    <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground truncate px-2.5 py-1 bg-muted/30 rounded-full border border-border/40">
+                    <Badge variant="outline" className="inline-flex items-center gap-1.5 text-xs truncate px-2.5 py-1 rounded-full">
                       <Avatar className="h-4 w-4 border border-border/40">
                         <AvatarImage
                           src={session?.user?.image || undefined}
@@ -469,8 +468,8 @@ export default function InterviewDetailPage() {
                           {viewerInitials || 'U'}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="text-foreground/80 font-medium">{interview.interviewer}</span>
-                    </span>
+                      <span className="font-medium">{interview.interviewer}</span>
+                    </Badge>
                   )}
                 </div>
               </div>
