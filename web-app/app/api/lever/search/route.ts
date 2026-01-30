@@ -58,11 +58,14 @@ export async function GET(request: NextRequest) {
     let offset: string | null = null
     let pageCount = 0
     // Lever API limits to 100/page, so we need more pages for larger datasets
-    const MAX_PAGES = isEmailSearch ? 1 : 50 // Email search should return exact match, name search needs more
+    const MAX_PAGES = isEmailSearch ? 1 : 10 // Email search should return exact match, name search limited to 1000 candidates
 
     // For name searches, we need to search candidates created in the last 6 months
     // This is because the Lever API doesn't return results in a predictable order without date filters
     const sixMonthsAgo = Date.now() - (180 * 24 * 60 * 60 * 1000) // 180 days ago
+    
+    // Track matches for early exit optimization
+    let matchCount = 0
     
     while (hasMore && pageCount < MAX_PAGES) {
       const leverParams = new URLSearchParams()
@@ -107,6 +110,36 @@ export async function GET(request: NextRequest) {
       offset = data.next || null
       
       console.log(`[Lever Search] Page ${pageCount}: Got ${pageOpps.length} opportunities (total: ${allOpportunities.length}, hasMore: ${hasMore})`)
+      
+      // Early exit for name searches if we found matches
+      if (!isEmailSearch && pageOpps.length > 0) {
+        // Check if this page has any matches
+        const pageMatches = pageOpps.filter((opp: any) => {
+          const name = (opp.name || '').toLowerCase()
+          
+          // Direct substring match
+          if (name.includes(searchQuery)) return true
+          
+          // All words in query appear in name
+          const queryWords = searchQuery.split(/\s+/).filter(w => w.length > 0)
+          if (queryWords.every((word: string) => name.includes(word))) return true
+          
+          // First word match
+          const firstQueryWord = queryWords[0]
+          const firstNameWord = name.split(/\s+/)[0]
+          if (firstQueryWord && firstNameWord && firstNameWord.startsWith(firstQueryWord)) return true
+          
+          return false
+        })
+        
+        matchCount += pageMatches.length
+        
+        // If we found 5+ matches, stop fetching (we only return top 5 anyway)
+        if (matchCount >= 5) {
+          console.log(`[Lever Search] Early exit: Found ${matchCount} matches`)
+          hasMore = false
+        }
+      }
     }
 
     console.log(`[Lever Search] Fetched ${allOpportunities.length} total opportunities across ${pageCount} pages${isEmailSearch ? ' (email filter)' : ''}`)

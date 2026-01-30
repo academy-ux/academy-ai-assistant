@@ -79,28 +79,31 @@ chrome.notifications.onClicked.addListener(async (notificationId) => {
 })
 
 // Search for candidate in Lever
-async function searchCandidate(name) {
-  if (!name || name.length < 2) {
-    return { success: false, error: 'Name too short' }
+async function searchCandidate(name, email) {
+  // Prioritize email search (much faster!)
+  const searchQuery = email || name
+  
+  if (!searchQuery || searchQuery.length < 2) {
+    return { success: false, error: 'Search query too short' }
   }
   
   // Check cache first
-  const cacheKey = name.toLowerCase().trim()
+  const cacheKey = searchQuery.toLowerCase().trim()
   if (candidateCache.has(cacheKey)) {
     const cached = candidateCache.get(cacheKey)
     if (Date.now() - cached.timestamp < 5 * 60 * 1000) { // 5 min cache
-      console.log('[Academy] Using cached candidate info for:', name)
+      console.log('[Academy] Using cached candidate info for:', searchQuery)
       return cached.data
     }
   }
   
   const webAppUrl = await getWebAppUrl()
   
-  console.log('[Academy] 🔍 Searching for:', name)
+  console.log('[Academy] 🔍 Searching for:', email ? `${email} (email)` : `${name} (name)`)
   console.log('[Academy] 🌐 Using URL:', webAppUrl)
   
   try {
-    const searchUrl = `${webAppUrl}/api/lever/search?q=${encodeURIComponent(name)}`
+    const searchUrl = `${webAppUrl}/api/lever/search?q=${encodeURIComponent(searchQuery)}`
     console.log('[Academy] 📡 Full URL:', searchUrl)
     
     const response = await fetch(
@@ -269,7 +272,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
   
   if (request.action === 'searchCandidate') {
-    searchCandidate(request.name)
+    searchCandidate(request.name, request.email)
       .then(result => sendResponse(result))
       .catch(error => sendResponse({ success: false, error: error.message }))
       return true

@@ -189,9 +189,9 @@ async function showTestCandidate() {
   const loadingCandidate = {
     id: 'loading',
     name: 'Loading...',
-    email: '',
+    email: 'olga.dyakova@academyux.com',
     phone: '',
-    headline: 'Fetching Olga from Lever',
+    headline: 'Fetching Olga Dyakova from Lever',
     location: '',
     position: 'Please wait',
     stage: 'Loading',
@@ -201,11 +201,12 @@ async function showTestCandidate() {
   
   showCandidatePanel(loadingCandidate);
   
-  // Search for Olga
-  console.log('[Academy Content] Requesting search for Olga...');
+  // Search for Olga using her email (much faster!)
+  console.log('[Academy Content] Requesting search for Olga Dyakova (olga.dyakova@academyux.com)...');
   chrome.runtime.sendMessage({
     action: 'searchCandidate',
-    name: 'Olga'
+    name: 'Olga Dyakova',
+    email: 'olga.dyakova@academyux.com'
   }, (response) => {
     console.log('[Academy Content] Got response:', response);
     
@@ -242,8 +243,8 @@ async function showTestCandidate() {
       const errorMsg = response?.error || 'Not found in Lever'
       const noCandidate = {
         id: 'none',
-        name: 'Olga Not Found',
-        email: '',
+        name: 'Olga Dyakova Not Found',
+        email: 'olga.dyakova@academyux.com',
         headline: errorMsg,
         location: '',
         position: 'Check: 1) Logged into Academy? 2) Candidate exists in Lever? 3) Extension settings correct?',
@@ -478,45 +479,95 @@ function handleMeetingEnd(trigger) {
 function detectParticipants() {
   if (!isInMeeting) return;
   
-  const participants = new Set();
+  const participants = new Map(); // Map<identifier, {name, email}>
   
-  // Method 1: Get names from video tiles
-  const nameBadges = document.querySelectorAll('[data-self-name], [data-participant-id]');
-  nameBadges.forEach(el => {
-    const name = el.textContent?.trim();
-    if (name && name.length > 1) {
-      participants.add(name);
-    }
-  });
-  
-  // Method 2: Get from participant list (if open)
+  // Method 1: Get from participant list (best source for emails)
   const participantItems = document.querySelectorAll('[role="listitem"]');
   participantItems.forEach(item => {
+    let name = null;
+    let email = null;
+    
+    // Try to get name from various selectors
     const nameEl = item.querySelector('[data-participant-id]') || 
+                   item.querySelector('[data-self-name]') ||
                    item.querySelector('span');
     if (nameEl) {
-      const name = nameEl.textContent?.trim();
-      if (name && name.length > 1 && !name.includes('@')) {
-        participants.add(name);
+      const text = nameEl.textContent?.trim();
+      if (text && text.length > 1) {
+        // Check if it's an email or name
+        if (text.includes('@')) {
+          email = text;
+        } else {
+          name = text;
+        }
+      }
+    }
+    
+    // Try to find email in title attribute (hover text)
+    const emailEl = item.querySelector('[title*="@"]');
+    if (emailEl) {
+      const title = emailEl.getAttribute('title');
+      const emailMatch = title?.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/);
+      if (emailMatch) {
+        email = emailMatch[1];
+      }
+    }
+    
+    // Try to find email in adjacent text elements
+    const allText = item.textContent || '';
+    const emailMatch = allText.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/);
+    if (emailMatch) {
+      email = emailMatch[1];
+    }
+    
+    // Store if we found something useful
+    if (name || email) {
+      const identifier = email || name;
+      if (identifier) {
+        participants.set(identifier, { name: name || email, email });
       }
     }
   });
   
-  // Method 3: Look for names in video overlays
+  // Method 2: Get names from video tiles (usually no email here)
+  const nameBadges = document.querySelectorAll('[data-self-name], [data-participant-id]');
+  nameBadges.forEach(el => {
+    const name = el.textContent?.trim();
+    if (name && name.length > 1 && !name.includes('@')) {
+      // Only add if we don't already have this person
+      if (!participants.has(name)) {
+        participants.set(name, { name, email: null });
+      }
+    }
+    
+    // Check for email in title/tooltip
+    const title = el.getAttribute('title');
+    if (title) {
+      const emailMatch = title.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/);
+      if (emailMatch) {
+        const email = emailMatch[1];
+        const identifier = email;
+        participants.set(identifier, { name: name || email, email });
+      }
+    }
+  });
+  
+  // Method 3: Look in video overlays
   const videoContainers = document.querySelectorAll('[data-requested-participant-id]');
   videoContainers.forEach(container => {
     const nameSpan = container.querySelector('span');
     if (nameSpan) {
       const name = nameSpan.textContent?.trim();
-      if (name && name.length > 1) {
-        participants.add(name);
+      if (name && name.length > 1 && !name.includes('@')) {
+        if (!participants.has(name)) {
+          participants.set(name, { name, email: null });
+        }
       }
     }
   });
   
   // Method 4: Check meeting title for candidate name
   if (meetingTitle) {
-    // Often meeting titles are like "Interview with John Smith" or "John Smith - Technical Interview"
     const titlePatterns = [
       /(?:interview|call|meeting)\s+(?:with|:)\s+(.+)/i,
       /(.+?)\s+(?:-|–|—)\s+(?:interview|call|screen)/i,
@@ -528,18 +579,20 @@ function detectParticipants() {
       if (match && match[1]) {
         const name = match[1].trim();
         if (name.length > 2 && name.split(' ').length <= 4) {
-          participants.add(name);
+          if (!participants.has(name)) {
+            participants.set(name, { name, email: null });
+          }
         }
       }
     }
   }
   
   // Check for new participants
-  for (const name of participants) {
-    if (!detectedParticipants.has(name) && !isLikelyTeamMember(name)) {
-      detectedParticipants.add(name);
-      console.log('[Academy] New participant detected:', name);
-      searchAndShowCandidate(name);
+  for (const [identifier, info] of participants.entries()) {
+    if (!detectedParticipants.has(identifier) && !isLikelyTeamMember(info.name)) {
+      detectedParticipants.add(identifier);
+      console.log('[Academy] New participant detected:', info.name, info.email ? `(${info.email})` : '(no email)');
+      searchAndShowCandidate(info.name, info.email);
     }
   }
 }
@@ -560,8 +613,8 @@ function isLikelyTeamMember(name) {
   return false;
 }
 
-function searchAndShowCandidate(name) {
-  console.log('[Academy] Searching for candidate:', name);
+function searchAndShowCandidate(name, email) {
+  console.log('[Academy] Searching for candidate:', name, email ? `(${email})` : '(no email)');
   
   // Check if extension context is valid
   if (!chrome || !chrome.runtime || !chrome.runtime.sendMessage) {
@@ -571,7 +624,8 @@ function searchAndShowCandidate(name) {
   
   chrome.runtime.sendMessage({
     action: 'searchCandidate',
-    name: name
+    name: name,
+    email: email // Pass email to background script for faster search
   }, (response) => {
     if (chrome.runtime.lastError) {
       console.error('[Academy] Search error:', chrome.runtime.lastError);
