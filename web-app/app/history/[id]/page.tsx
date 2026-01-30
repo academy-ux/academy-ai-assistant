@@ -419,18 +419,22 @@ export default function InterviewDetailPage() {
                 </span>
               </div>
               <div className="min-w-0">
-                <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground leading-tight">
-                  {interview.candidate_name || 'Unknown Candidate'}
-                </h1>
-                <div className="mt-3 flex items-center gap-2 flex-wrap">
-                  {interview.meeting_title && interview.meeting_title !== 'Interview' ? (
-                    // Show only parsed title if we have a proper meeting title
+                {interview.meeting_title && interview.meeting_title !== 'Interview' ? (
+                  // Show parsed meeting title as the main heading
+                  <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground leading-tight mb-3">
                     <ParsedTitle 
                       title={interview.meeting_title}
-                      badgeClassName="px-2.5 py-1"
+                      badgeClassName="px-2.5 py-1 text-sm"
                     />
-                  ) : (
-                    // Otherwise show position and interviewer separately
+                  </h1>
+                ) : (
+                  // Fallback to candidate name
+                  <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground leading-tight">
+                    {interview.candidate_name || 'Unknown Candidate'}
+                  </h1>
+                )}
+                <div className="mt-3 flex items-center gap-2 flex-wrap">
+                  {(!interview.meeting_title || interview.meeting_title === 'Interview') && (
                     <>
                       {interview.position && (
                         <Badge

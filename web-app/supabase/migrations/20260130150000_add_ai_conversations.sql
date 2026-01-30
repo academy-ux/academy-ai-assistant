@@ -60,6 +60,15 @@ create index if not exists idx_ai_conversations_created_at
 create index if not exists idx_ai_conversations_messages_gin 
   on ai_conversations using gin(messages);
 
+-- Function to auto-update updated_at timestamp
+create or replace function update_updated_at_column()
+returns trigger as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$ language plpgsql;
+
 -- Trigger to update updated_at
 drop trigger if exists update_ai_conversations_updated_at on ai_conversations;
 create trigger update_ai_conversations_updated_at
