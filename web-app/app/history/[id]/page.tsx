@@ -724,9 +724,11 @@ export default function InterviewDetailPage() {
                               <div className="flex gap-2 flex-wrap items-center">
                                 <span className="text-xs text-muted-foreground">Based on interviews with:</span>
                                 {message.sources.map(source => (
-                                  <Badge key={source.id} variant="secondary" className="text-xs">
-                                    {source.candidateName}
-                                  </Badge>
+                                  <Link key={source.id} href={`/history/${source.id}`}>
+                                    <Badge variant="secondary" className="text-xs cursor-pointer hover:bg-secondary/80 transition-colors">
+                                      {source.candidateName}
+                                    </Badge>
+                                  </Link>
                                 ))}
                               </div>
                             )}

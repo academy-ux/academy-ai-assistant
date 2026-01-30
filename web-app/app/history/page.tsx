@@ -325,6 +325,47 @@
       }
     }, [messages, asking])
 
+    // Live search with debouncing
+    useEffect(() => {
+      // If search query is empty, fetch all meetings
+      if (!searchQuery.trim()) {
+        const timer = setTimeout(() => {
+          fetchMeetings()
+        }, 300)
+        return () => clearTimeout(timer)
+      }
+
+      // Debounce search API calls
+      const timer = setTimeout(async () => {
+        try {
+          setLoading(true)
+          const res = await fetch('/api/interviews/search', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: searchQuery, searchType: 'keyword' })
+          })
+          const data = await res.json()
+          if (data.results) {
+            // Apply viewMode filter client-side
+            let filteredResults = data.results
+            if (viewMode === 'mine' && session?.user?.email) {
+              // Show only user's own meetings
+              filteredResults = data.results.filter((m: any) => 
+                m.owner_email === session.user.email || !m.owner_email
+              )
+            }
+            setMeetings(filteredResults)
+          }
+        } catch (error) {
+          console.error('Search failed', error)
+        } finally {
+          setLoading(false)
+        }
+      }, 500) // Wait 500ms after user stops typing
+
+      return () => clearTimeout(timer)
+    }, [searchQuery, viewMode, session?.user?.email])
+
     // Intersection observer for infinite scroll
     useEffect(() => {
       const observer = new IntersectionObserver(
@@ -579,7 +620,7 @@
         const res = await fetch('/api/interviews/search', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query: searchQuery })
+          body: JSON.stringify({ query: searchQuery, searchType: 'keyword' })
         })
         const data = await res.json()
         if (data.results) {
@@ -1567,34 +1608,52 @@
             </div>
           </div>
 
-          {/* Meetings View Toggle - only show when on meetings tab */}
+          {/* Meetings View Toggle + Ask AI Button - only show when on meetings tab */}
           {activeTab === 'meetings' && (
-            <div className="flex items-center gap-2 mb-6 p-1 bg-card/40 backdrop-blur border border-border/40 rounded-full w-fit shadow-sm">
-              <button
-                onClick={() => setViewMode('mine')}
-                className={cn(
-                  "relative px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-2",
-                  viewMode === 'mine'
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground hover:bg-background/40"
-                )}
+            <div className="flex items-center justify-between mb-6 gap-4">
+              <div className="flex items-center gap-2 p-1 bg-card/40 backdrop-blur border border-border/40 rounded-full w-fit shadow-sm">
+                <button
+                  onClick={() => setViewMode('mine')}
+                  className={cn(
+                    "relative px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-2",
+                    viewMode === 'mine'
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground hover:bg-background/40"
+                  )}
+                >
+                  <User className={cn("h-4 w-4 transition-transform duration-200", viewMode === 'mine' && "scale-110")} />
+                  My Meetings
+                </button>
+                <button
+                  onClick={() => setViewMode('all')}
+                  className={cn(
+                    "relative px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-2",
+                    viewMode === 'all'
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground hover:bg-background/40"
+                  )}
+                >
+                  <FileText className={cn("h-4 w-4 transition-transform duration-200", viewMode === 'all' && "scale-110")} />
+                  All Meetings
+                  <Badge variant="secondary" className={cn("ml-1 text-xs transition-all duration-200", viewMode === 'all' && "bg-primary/10")}>{totalCount}</Badge>
+                </button>
+              </div>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setActiveTab('ask')}
+                className="group rounded-full h-12 px-5 border border-peach/70 hover:border-peach text-foreground gap-2.5 transition-all duration-300 shadow-sm hover:shadow-[0_0_15px_hsl(var(--peach)/0.6),0_0_30px_hsl(var(--peach)/0.3),0_4px_20px_hsl(var(--peach)/0.25)] !bg-gradient-to-br from-peach/60 via-peach/35 to-peach/15 hover:from-peach/70 hover:via-peach/45 hover:to-peach/20 relative overflow-hidden"
+                title="Ask AI about your meetings"
+                style={{ transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}
               >
-                <User className={cn("h-4 w-4 transition-transform duration-200", viewMode === 'mine' && "scale-110")} />
-                My Meetings
-              </button>
-              <button
-                onClick={() => setViewMode('all')}
-                className={cn(
-                  "relative px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-2",
-                  viewMode === 'all'
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground hover:bg-background/40"
-                )}
-              >
-                <FileText className={cn("h-4 w-4 transition-transform duration-200", viewMode === 'all' && "scale-110")} />
-                All Meetings
-                <Badge variant="secondary" className={cn("ml-1 text-xs transition-all duration-200", viewMode === 'all' && "bg-primary/10")}>{totalCount}</Badge>
-              </button>
+                <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/15 to-white/25 opacity-30 group-hover:opacity-50 transition-opacity duration-500" />
+                <MagicWandIcon 
+                  size={18} 
+                  className="transition-all duration-300 ease-out group-hover:scale-110 group-hover:rotate-12 relative z-10" 
+                />
+                <span className="sr-only sm:not-sr-only font-medium relative z-10 tracking-tight">Ask AI</span>
+              </Button>
             </div>
           )}
 
@@ -1695,9 +1754,11 @@
                                 <div className="flex gap-2 flex-wrap items-center">
                                   <span className="text-xs text-muted-foreground">Based on interviews with:</span>
                                   {message.sources.map(source => (
-                                    <Badge key={source.id} variant="secondary" className="text-xs">
-                                      {source.candidateName}
-                                    </Badge>
+                                    <Link key={source.id} href={`/history/${source.id}`}>
+                                      <Badge variant="secondary" className="text-xs cursor-pointer hover:bg-secondary/80 transition-colors">
+                                        {source.candidateName}
+                                      </Badge>
+                                    </Link>
                                   ))}
                                 </div>
                               )}
@@ -1891,12 +1952,6 @@
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault()
-                            handleSearch(e as unknown as React.FormEvent)
-                          }
-                        }}
                         placeholder="Search by name, position, or keywords..."
                         className="pl-11 pr-4 h-12 bg-input border-transparent rounded-full transition-all focus:bg-background focus:shadow-sm focus:border-primary/30 text-base"
                       />
@@ -1916,26 +1971,9 @@
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setActiveTab('ask')}
-                        className="group rounded-full h-10 px-4 border-peach/50 hover:border-peach/70 text-muted-foreground hover:text-foreground gap-2 transition-all duration-300 shadow-[0_0_15px_hsl(var(--peach)/0.25),0_0_30px_hsl(var(--peach)/0.1)] hover:shadow-[0_0_25px_hsl(var(--peach)/0.4),0_0_50px_hsl(var(--peach)/0.2)] hover:bg-peach/5 relative overflow-hidden"
-                        title="Ask AI about your meetings"
-                        style={{ transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}
-                      >
-                        <MagicWandIcon 
-                          size={16} 
-                          className="transition-all duration-300 ease-out group-hover:scale-110 group-hover:rotate-12 relative z-10" 
-                        />
-                        <span className="sr-only sm:not-sr-only font-medium relative z-10">Ask AI</span>
-                      </Button>
-                      
-                      <div className="h-6 w-px bg-border/40 mx-1 hidden sm:block" />
-                      
-                      <Button
-                        variant="outline"
-                        size="sm"
                         onClick={() => setFiltersOpen(true)}
                         className={cn(
-                          "rounded-full h-10 px-4 border-border/60 hover:bg-secondary/30 hover:border-border gap-2",
+                          "rounded-full h-12 px-4 border-border/60 hover:bg-secondary/30 hover:border-border gap-2",
                           hasActiveFilters && "bg-primary/10 border-primary/30 text-primary hover:text-primary"
                         )}
                       >
@@ -1948,7 +1986,7 @@
                         size="sm"
                         onClick={() => fetchMeetings()}
                         disabled={loading}
-                        className="rounded-full h-10 px-4 border-border/60 hover:bg-secondary/30 hover:border-border text-muted-foreground hover:text-foreground gap-2"
+                        className="rounded-full h-12 px-4 border-border/60 hover:bg-secondary/30 hover:border-border text-muted-foreground hover:text-foreground gap-2"
                         title="Refresh meetings list"
                       >
                         <RefreshCw className={cn("h-4 w-4", loading && "animate-spin-slow")} />
@@ -1959,7 +1997,7 @@
                         size="sm"
                         onClick={() => setShowRegenerateConfirm(true)}
                         disabled={regenerating}
-                        className="rounded-full h-10 px-4 border-border/60 hover:bg-secondary/30 hover:border-border text-muted-foreground hover:text-foreground gap-2 ml-auto sm:ml-0"
+                        className="rounded-full h-12 px-4 border-border/60 hover:bg-secondary/30 hover:border-border text-muted-foreground hover:text-foreground gap-2 ml-auto sm:ml-0"
                         title="Regenerate all summaries"
                       >
                         <RefreshCw className={cn("h-4 w-4", regenerating && "animate-spin-slow")} />
@@ -1986,13 +2024,21 @@
                       type="button"
                       onClick={() => setSelectedMeetingType('all')}
                       className={cn(
-                        "px-4 py-1.5 text-xs rounded-full transition-all font-medium whitespace-nowrap",
+                        "px-4 py-1.5 text-xs rounded-full transition-all font-medium whitespace-nowrap flex items-center gap-2",
                         selectedMeetingType === 'all'
                           ? "bg-peach text-foreground"
                           : "bg-card/40 text-muted-foreground hover:bg-card/60 hover:text-foreground border border-border/40"
                       )}
                     >
-                      All ({hasActiveFilters ? filteredMeetings.length : totalCount})
+                      <span>All</span>
+                      <span className={cn(
+                        "h-5 min-w-5 px-1.5 rounded-full flex items-center justify-center text-[10px] font-semibold transition-all",
+                        selectedMeetingType === 'all'
+                          ? "bg-foreground/15 text-foreground"
+                          : "bg-muted/60 text-muted-foreground"
+                      )}>
+                        {hasActiveFilters ? filteredMeetings.length : totalCount}
+                      </span>
                     </button>
                     {['Interview', 'Client Debrief', 'Sales Meeting', 'Status Update', 'Team Sync', '1-on-1', 'Client Call', 'Other'].map(type => {
                       const count = meetings
@@ -2027,13 +2073,21 @@
                           type="button"
                           onClick={() => setSelectedMeetingType(type)}
                           className={cn(
-                            "px-4 py-1.5 text-xs rounded-full transition-all font-medium whitespace-nowrap",
+                            "px-4 py-1.5 text-xs rounded-full transition-all font-medium whitespace-nowrap flex items-center gap-2",
                             selectedMeetingType === type
                               ? "bg-peach text-foreground"
                               : "bg-card/40 text-muted-foreground hover:bg-card/60 hover:text-foreground border border-border/40"
                           )}
                         >
-                          {type} ({count})
+                          <span>{type}</span>
+                          <span className={cn(
+                            "h-5 min-w-5 px-1.5 rounded-full flex items-center justify-center text-[10px] font-semibold transition-all",
+                            selectedMeetingType === type
+                              ? "bg-foreground/15 text-foreground"
+                              : "bg-muted/60 text-muted-foreground"
+                          )}>
+                            {count}
+                          </span>
                         </button>
                       )
                     })}

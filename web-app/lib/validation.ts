@@ -14,7 +14,7 @@ export const uuidSchema = z.string().uuid('Invalid ID format')
 
 export const searchQuerySchema = z.object({
   query: z.string().min(1, 'Query is required').max(1000, 'Query too long'),
-  searchType: z.enum(['semantic', 'hybrid', 'keyword']).default('hybrid'),
+  searchType: z.enum(['semantic', 'hybrid', 'keyword']).default('keyword'),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 })
 

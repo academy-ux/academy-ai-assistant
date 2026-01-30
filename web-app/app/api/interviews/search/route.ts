@@ -24,58 +24,87 @@ export async function POST(request: NextRequest) {
     const session = await getServerSession(authOptions)
     const isUserAdmin = isAdmin(session?.user?.email)
     const userEmail = session?.user?.email
-    // Note: RPC filter_types doesn't support owner_email yet, so we do client-side filtering for owner access
-    const filterTypes = isUserAdmin ? null : ALLOWED_TYPES
 
     let results: any[] = []
+    let keywordResults: any[] = []
+    let semanticResults: any[] = []
 
-    if (searchType === 'semantic' || searchType === 'hybrid') {
-      // Generate embedding for the search query
-      const queryEmbedding = await generateEmbedding(query)
-
-      // Semantic search using vector similarity
-      // For non-admins, we fetch more results and filter client-side to include owned meetings
-      const fetchCount = isUserAdmin ? limit : limit * 3
+    // Keyword search (exact text matching)
+    if (searchType === 'keyword' || searchType === 'hybrid') {
+      const searchPattern = `%${query}%`
       
-      const { data: semanticResults, error: semanticError } = await supabase
-        .rpc('match_interviews', {
-          query_embedding: queryEmbedding,
-          match_threshold: 0.5,
-          match_count: fetchCount,
-          filter_types: null // Fetch all, filter client-side to include owner access
-        })
+      let keywordQuery = supabase
+        .from('interviews')
+        .select('*, similarity:1') // Add dummy similarity for consistent interface
+        .or(`candidate_name.ilike.${searchPattern},position.ilike.${searchPattern},meeting_title.ilike.${searchPattern},transcript.ilike.${searchPattern}`)
+        .limit(limit * 2)
 
-      if (semanticError) {
-        // Fallback if RPC signature doesn't match
-        console.warn('RPC match_interviews failed, falling back:', semanticError.message)
+      const { data: kwResults, error: kwError } = await keywordQuery
+
+      if (!kwError && kwResults) {
+        keywordResults = kwResults.map(r => ({ ...r, searchType: 'keyword' }))
+      }
+    }
+
+    // Semantic search (vector similarity)
+    if (searchType === 'semantic' || searchType === 'hybrid') {
+      try {
+        const queryEmbedding = await generateEmbedding(query)
+        const fetchCount = limit * 2
         
-        const { data: fallbackResults, error: fallbackError } = await supabase
+        const { data: semResults, error: semanticError } = await supabase
           .rpc('match_interviews', {
             query_embedding: queryEmbedding,
             match_threshold: 0.5,
-            match_count: fetchCount
+            match_count: fetchCount,
+            filter_types: null
           })
-        
-        if (!fallbackError && fallbackResults) {
-          results = fallbackResults
-        } else {
-          throw fallbackError || semanticError
+
+        if (!semanticError && semResults) {
+          semanticResults = semResults.map((r: any) => ({ ...r, searchType: 'semantic' }))
         }
-      } else {
-        results = semanticResults || []
+      } catch (err) {
+        console.warn('Semantic search failed, using keyword results only:', err)
+      }
+    }
+
+    // Combine results for hybrid search
+    if (searchType === 'hybrid') {
+      // Merge results, prioritizing keyword matches
+      const seenIds = new Set<string>()
+      
+      // Add keyword results first (they're more relevant for exact matches)
+      for (const result of keywordResults) {
+        if (!seenIds.has(result.id)) {
+          results.push({ ...result, hybrid: true, keywordMatch: true })
+          seenIds.add(result.id)
+        }
       }
       
-      // Client-side filtering: non-admins can see allowed types OR their own meetings
-      if (!isUserAdmin && userEmail) {
-        results = results.filter((r: any) => {
-          const isAllowedType = r.meeting_type && ALLOWED_TYPES.includes(r.meeting_type)
-          const isOwner = r.owner_email === userEmail
-          return isAllowedType || isOwner
-        })
+      // Then add semantic results that aren't duplicates
+      for (const result of semanticResults) {
+        if (!seenIds.has(result.id) && results.length < limit * 2) {
+          results.push({ ...result, hybrid: true, keywordMatch: false })
+          seenIds.add(result.id)
+        }
       }
-      
-      results = results.slice(0, limit)
-    } 
+    } else if (searchType === 'keyword') {
+      results = keywordResults
+    } else {
+      results = semanticResults
+    }
+    
+    // Apply permission filters
+    if (!isUserAdmin && userEmail) {
+      results = results.filter((r: any) => {
+        const isAllowedType = r.meeting_type && ALLOWED_TYPES.includes(r.meeting_type)
+        const isOwner = r.owner_email === userEmail
+        return isAllowedType || isOwner || !r.owner_email
+      })
+    }
+    
+    // Limit final results
+    results = results.slice(0, limit)
 
     return NextResponse.json({ results })
   } catch (error) {

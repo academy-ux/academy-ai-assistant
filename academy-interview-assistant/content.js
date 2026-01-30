@@ -599,57 +599,45 @@ function showCandidatePanel(candidate) {
   candidateInfoPanel.id = 'academy-candidate-panel';
   candidateInfoPanel.innerHTML = `
     <style>
-      /* Academy Design System - Olive/Green tones with glass effect */
+      /* Academy Design System - Olive/Green tones with peach accents */
       #academy-candidate-panel {
         position: fixed;
         top: 80px;
         right: 20px;
         width: 300px;
-        /* Much more transparent to show background */
-        background: rgba(255, 255, 255, 0.22);
-        backdrop-filter: blur(40px) saturate(180%) brightness(110%);
-        -webkit-backdrop-filter: blur(40px) saturate(180%) brightness(110%);
-        border-radius: 16px;
+        background: #ffffff;
+        border-radius: 12px;
         box-shadow: 
-          0 8px 32px rgba(0, 0, 0, 0.15),
-          0 2px 16px rgba(0, 0, 0, 0.08),
-          inset 0 1px 0 rgba(255, 255, 255, 0.5),
-          inset 0 -1px 0 rgba(255, 255, 255, 0.3),
-          0 0 0 1px rgba(255, 255, 255, 0.4);
+          0 4px 6px -1px rgba(39, 39, 39, 0.08),
+          0 10px 20px -5px rgba(39, 39, 39, 0.12),
+          0 0 0 1px rgba(181, 184, 169, 0.3);
         z-index: 9999;
         font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
         color: #272727;
         overflow: hidden;
         animation: academyFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
         -webkit-font-smoothing: antialiased;
-        /* More transparent border */
-        border: 1px solid rgba(255, 255, 255, 0.35);
       }
       
       @keyframes academyFadeIn {
         from {
           opacity: 0;
-          transform: translateX(20px) scale(0.95);
+          transform: translateX(20px);
           filter: blur(10px);
         }
         to {
           opacity: 1;
-          transform: translateX(0) scale(1);
+          transform: translateX(0);
           filter: blur(0);
         }
       }
       
-      
       .academy-panel-header {
-        /* Keep this very transparent so Meet UI shows through */
-        background: linear-gradient(135deg, rgba(143, 145, 127, 0.18) 0%, rgba(122, 124, 107, 0.18) 100%);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
+        background: #8f917f;
         padding: 12px 16px;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.14);
       }
       
       .academy-panel-title {
@@ -670,13 +658,11 @@ function showCandidatePanel(candidate) {
       }
       
       .academy-panel-close {
-        background: rgba(255, 255, 255, 0.12);
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.15);
+        border: none;
         color: white;
-        width: 24px;
-        height: 24px;
+        width: 22px;
+        height: 22px;
         border-radius: 6px;
         cursor: pointer;
         display: flex;
@@ -684,13 +670,11 @@ function showCandidatePanel(candidate) {
         justify-content: center;
         font-size: 12px;
         transition: all 0.2s ease-out;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
       }
       
       .academy-panel-close:hover {
-        background: rgba(255, 255, 255, 0.22);
-        transform: scale(1.08);
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        background: rgba(255, 255, 255, 0.25);
+        transform: scale(1.05);
       }
       
       .academy-panel-close:active {
@@ -699,33 +683,6 @@ function showCandidatePanel(candidate) {
       
       .academy-candidate-info {
         padding: 16px;
-        position: relative;
-        /* Make center content area more opaque for readability */
-        background: rgba(255, 255, 255, 0.28);
-        backdrop-filter: blur(20px) saturate(140%);
-        -webkit-backdrop-filter: blur(20px) saturate(140%);
-      }
-      
-      .academy-candidate-info::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: linear-gradient(
-          135deg,
-          rgba(255, 255, 255, 0.1) 0%,
-          rgba(255, 255, 255, 0) 50%,
-          rgba(143, 145, 127, 0.03) 100%
-        );
-        pointer-events: none;
-        z-index: 0;
-      }
-      
-      .academy-candidate-info > * {
-        position: relative;
-        z-index: 1;
       }
       
       .academy-candidate-name {
@@ -738,7 +695,7 @@ function showCandidatePanel(candidate) {
       
       .academy-candidate-position {
         font-size: 13px;
-        color: #5b5b53;
+        color: #575757;
         margin-bottom: 8px;
         line-height: 1.4;
       }
@@ -750,7 +707,7 @@ function showCandidatePanel(candidate) {
         text-transform: uppercase;
         letter-spacing: 0.5px;
         padding: 4px 10px;
-        background: rgba(227, 229, 222, 0.5);
+        background: #e3e5de;
         color: #5b5b53;
         border-radius: 6px;
         margin-bottom: 12px;
@@ -771,12 +728,7 @@ function showCandidatePanel(candidate) {
       
       .academy-divider {
         height: 1px;
-        background: linear-gradient(90deg, 
-          rgba(227, 229, 222, 0) 0%,
-          rgba(227, 229, 222, 0.5) 20%,
-          rgba(227, 229, 222, 0.5) 80%,
-          rgba(227, 229, 222, 0) 100%
-        );
+        background: #e3e5de;
         margin: 12px 0;
       }
       
@@ -800,10 +752,8 @@ function showCandidatePanel(candidate) {
         align-items: center;
         gap: 6px;
         padding: 8px 12px;
-        background: rgba(245, 246, 243, 0.45);
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-        border: 1px solid rgba(227, 229, 222, 0.5);
+        background: #f5f6f3;
+        border: 1px solid #e3e5de;
         border-radius: 8px;
         color: #272727;
         text-decoration: none;
@@ -813,10 +763,10 @@ function showCandidatePanel(candidate) {
       }
       
       .academy-link:hover {
-        background: rgba(227, 229, 222, 0.6);
-        border-color: rgba(205, 208, 195, 0.7);
+        background: #e3e5de;
+        border-color: #cdd0c3;
         transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(39, 39, 39, 0.08);
+        box-shadow: 0 2px 4px rgba(39, 39, 39, 0.08);
       }
       
       .academy-link:active {
@@ -830,22 +780,33 @@ function showCandidatePanel(candidate) {
       }
       
       .academy-link.academy-link-primary {
-        background: rgba(143, 145, 127, 0.65);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        border-color: rgba(143, 145, 127, 0.35);
+        background: #8f917f;
+        border-color: #8f917f;
         color: #ffffff;
-        box-shadow: 0 2px 8px rgba(143, 145, 127, 0.15);
       }
       
       .academy-link.academy-link-primary:hover {
-        background: rgba(122, 124, 107, 0.75);
-        border-color: rgba(122, 124, 107, 0.45);
-        box-shadow: 0 4px 16px rgba(143, 145, 127, 0.2);
+        background: #7a7c6b;
+        border-color: #7a7c6b;
       }
       
       .academy-link.academy-link-primary .academy-link-icon {
         color: #ffffff;
+      }
+      
+      .academy-link.academy-link-accent {
+        background: hsl(24, 66%, 96%);
+        border-color: hsl(24, 66%, 86%);
+        color: hsl(24, 50%, 35%);
+      }
+      
+      .academy-link.academy-link-accent:hover {
+        background: hsl(24, 66%, 90%);
+        border-color: hsl(24, 66%, 76%);
+      }
+      
+      .academy-link.academy-link-accent .academy-link-icon {
+        color: hsl(24, 50%, 45%);
       }
       
       .academy-lever-link {
@@ -854,27 +815,23 @@ function showCandidatePanel(candidate) {
         justify-content: center;
         gap: 6px;
         padding: 12px 16px;
-        /* Keep this very transparent so Meet UI shows through */
-        background: rgba(250, 250, 249, 0.18);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        color: #ffffff;
+        background: linear-gradient(to bottom, #fafaf9, #f5f6f3);
+        color: #8f917f;
         text-decoration: none;
         font-size: 12px;
         font-weight: 500;
-        border-top: 1px solid rgba(227, 229, 222, 0.18);
+        border-top: 1px solid #e3e5de;
         transition: all 0.2s ease-out;
       }
       
       .academy-lever-link:hover {
-        background: rgba(227, 229, 222, 0.5);
-        color: #ffffff;
+        background: #e3e5de;
+        color: #575757;
       }
       
       .academy-lever-link svg {
         width: 14px;
         height: 14px;
-        color: #ffffff;
         transition: transform 0.2s ease-out;
       }
       
@@ -882,33 +839,11 @@ function showCandidatePanel(candidate) {
         transform: translateX(2px);
       }
       
-      /* Peach accent for special highlights */
-      .academy-link.academy-link-accent {
-        background: hsla(24, 66%, 96%, 0.5);
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-        border-color: hsla(24, 66%, 86%, 0.5);
-        color: hsl(24, 50%, 35%);
-        box-shadow: 0 2px 8px hsla(24, 66%, 76%, 0.15);
-      }
-      
-      .academy-link.academy-link-accent:hover {
-        background: hsla(24, 66%, 90%, 0.65);
-        border-color: hsla(24, 66%, 76%, 0.6);
-        box-shadow: 0 4px 12px hsla(24, 66%, 76%, 0.2);
-      }
-      
-      .academy-link.academy-link-accent .academy-link-icon {
-        color: hsl(24, 50%, 45%);
-      }
-      
       /* Auth status section */
       .academy-auth-status {
         padding: 14px 18px;
-        background: rgba(255, 255, 255, 0.15);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border-top: 1px solid rgba(255, 255, 255, 0.25);
+        background: linear-gradient(to bottom, #f5f6f3, #e8eae3);
+        border-top: 1px solid #d4d7cc;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -924,8 +859,8 @@ function showCandidatePanel(candidate) {
       
       .academy-auth-status.not-authenticated {
         background: rgba(239, 68, 68, 0.75);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
         border-top-color: rgba(239, 68, 68, 0.5);
       }
       
@@ -945,10 +880,9 @@ function showCandidatePanel(candidate) {
       
       .academy-auth-label {
         font-size: 12px;
-        font-weight: 400;
+        font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
       }
       
       .academy-auth-status.authenticated .academy-auth-label {
@@ -987,14 +921,13 @@ function showCandidatePanel(candidate) {
         transition: all 0.2s ease-out;
         text-decoration: none;
         display: inline-block;
-        box-shadow: 0 2px 8px rgba(220, 38, 38, 0.25);
-        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+        box-shadow: 0 2px 6px rgba(220, 38, 38, 0.2);
       }
       
       .academy-auth-button:hover {
         background: #b91c1c;
         transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(220, 38, 38, 0.35);
+        box-shadow: 0 4px 10px rgba(220, 38, 38, 0.3);
       }
       
       .academy-auth-button:active {
