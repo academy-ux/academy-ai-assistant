@@ -16,15 +16,19 @@ module.exports = {
   			md: 'calc(var(--radius) - 2px)',
   			sm: 'calc(var(--radius) - 4px)'
   		},
-  		keyframes: {
-  			shimmer: {
-  				'0%': { backgroundPosition: '200% 0' },
-  				'100%': { backgroundPosition: '-200% 0' }
-  			},
-  			'spin-slow': {
-  				'0%': { transform: 'rotate(0deg)' },
-  				'100%': { transform: 'rotate(360deg)' }
-  			},
+		keyframes: {
+			shimmer: {
+				'0%': { backgroundPosition: '200% 0' },
+				'100%': { backgroundPosition: '-200% 0' }
+			},
+			'spin-slow': {
+				'0%': { transform: 'rotate(0deg)' },
+				'100%': { transform: 'rotate(360deg)' }
+			},
+			'spin-medium': {
+				'0%': { transform: 'rotate(0deg)' },
+				'100%': { transform: 'rotate(360deg)' }
+			},
   			'bounce-subtle': {
   				'0%, 100%': { transform: 'translateY(0)' },
   				'50%': { transform: 'translateY(-5%)' }
@@ -79,10 +83,11 @@ module.exports = {
   				'100%': { transform: 'scale(1)' }
   			}
   		},
-  		animation: {
-  			shimmer: 'shimmer 3s ease-in-out infinite',
-  			'spin-slow': 'spin-slow 40s linear infinite',
-  			'bounce-subtle': 'bounce-subtle 2s ease-in-out infinite',
+		animation: {
+			shimmer: 'shimmer 3s ease-in-out infinite',
+			'spin-slow': 'spin-slow 40s linear infinite',
+			'spin-medium': 'spin-medium 2s linear infinite',
+			'bounce-subtle': 'bounce-subtle 2s ease-in-out infinite',
   			'fade-in': 'fade-in 0.3s ease-out both',
   			'fade-in-up': 'fade-in-up 0.4s ease-out both',
   			'fade-in-down': 'fade-in-down 0.3s ease-out both',

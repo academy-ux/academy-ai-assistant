@@ -21,6 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { VoiceRecorder } from '@/components/voice-recorder'
 import { MagicWandIcon } from '@/components/icons/magic-wand'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 
 type TranscriptLine = { id: string; timestamp: string | null; speaker: string | null; content: string }
 
@@ -353,7 +354,7 @@ function FeedbackContent() {
   // Poll Drive for new transcripts
   // @param silent - If true, don't show loading UI or errors (for background polling)
   async function pollForNewTranscript(silent: boolean = false) {
-    console.log('[Feedback] Polling Drive for new transcripts...')
+    console.log('[Feedback] Polling Drive for new transcripts... (silent:', silent, ')')
     if (!silent) {
       setPollingForTranscript(true)
       setPollingError(null)
@@ -363,12 +364,21 @@ function FeedbackContent() {
       const res = await fetch('/api/poll-drive', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fastMode: true })
+        body: JSON.stringify({ 
+          fastMode: true,
+          includeSubfolders: true 
+        })
       })
       
       if (res.ok) {
         const result = await res.json()
         console.log('[Feedback] Drive poll result:', result)
+        
+        // Show success message if not silent and files were imported
+        if (!silent && result.imported > 0) {
+          console.log(`[Feedback] ✓ Imported ${result.imported} new transcript(s)`)
+          toast.success(`Imported ${result.imported} new transcript${result.imported > 1 ? 's' : ''}`)
+        }
         
         // Always reload interviews after polling to get latest
         const interviewsRes = await fetch('/api/interviews?limit=100&offset=0')
@@ -386,6 +396,12 @@ function FeedbackContent() {
               console.log('[Feedback] Auto-selected newest transcript:', newest.meeting_title)
             }
           }
+        }
+        
+        // Show no new files message if manual poll
+        if (!silent && result.imported === 0) {
+          console.log('[Feedback] No new transcripts found')
+          toast.info('No new transcripts found')
         }
       } else {
         const errorData = await res.json().catch(() => ({}))
@@ -1346,8 +1362,8 @@ function FeedbackContent() {
           {/* Left: Interview List */}
           <div className="lg:col-span-4 h-[calc(100vh-12rem)] min-h-[600px]">
             <div className="h-full flex flex-col border border-border/60 rounded-xl bg-card/30 overflow-hidden">
-              {/* Search */}
-              <div className="p-4 border-b border-border/40 bg-card/20 backdrop-blur-sm">
+              {/* Search and Actions */}
+              <div className="p-4 border-b border-border/40 bg-card/20 backdrop-blur-sm space-y-3">
                 <div className="relative group">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
                   <Input
@@ -1365,6 +1381,36 @@ function FeedbackContent() {
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
+                  )}
+                </div>
+                
+                {/* Refresh Button */}
+                <div className="space-y-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full gap-2"
+                    onClick={() => pollForNewTranscript(false)}
+                    disabled={pollingForTranscript}
+                  >
+                    {pollingForTranscript ? (
+                      <>
+                        <Spinner size={14} className="text-primary" />
+                        Checking Drive...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="h-3.5 w-3.5" />
+                        Check for New Transcripts
+                      </>
+                    )}
+                  </Button>
+                  
+                  {/* Polling status indicator */}
+                  {pollingError && (
+                    <div className="text-xs text-destructive px-1">
+                      ⚠️ {pollingError.includes('No Drive folder') ? 'No Drive folder configured' : 'Check failed'}
+                    </div>
                   )}
                 </div>
               </div>

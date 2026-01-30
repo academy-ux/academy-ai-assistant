@@ -184,7 +184,7 @@ export function ConversationsSidebar({
             {loading ? (
               <div className="flex items-center justify-center py-20">
                 <div className="flex flex-col items-center gap-3">
-                  <div className="h-8 w-8 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
+                  <div className="h-8 w-8 rounded-full border-2 border-primary/20 border-t-primary animate-spin-medium" />
                   <p className="text-sm text-muted-foreground font-medium">Loading conversations...</p>
                 </div>
               </div>

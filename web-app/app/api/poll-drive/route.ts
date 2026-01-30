@@ -24,17 +24,19 @@ export async function POST(req: NextRequest) {
       }, { status: 400 })
     }
 
-    // Check for fastMode parameter (default to true for quick polls)
+    // Check for fastMode and includeSubfolders parameters
     const body = await req.json().catch(() => ({}))
     const fastMode = body.fastMode !== false // Default to true
+    const includeSubfolders = body.includeSubfolders !== false // Default to true
 
-    console.log(`[Manual Poll] Polling folder for ${token.email} (fast mode: ${fastMode})`)
+    console.log(`[Manual Poll] Polling folder for ${token.email} (fast: ${fastMode}, subfolders: ${includeSubfolders})`)
 
     const result = await pollFolder(
       token.accessToken as string,
       settings.drive_folder_id,
       token.email,
-      fastMode
+      fastMode,
+      includeSubfolders
     )
 
     return NextResponse.json({

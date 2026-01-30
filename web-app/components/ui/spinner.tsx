@@ -11,7 +11,7 @@ interface SpinnerProps {
 export function Spinner({ className, size = 24 }: SpinnerProps) {
   return (
     <Loader2 
-      className={cn("animate-spin", className)} 
+      className={cn("animate-spin-medium", className)} 
       size={size}
     />
   )

@@ -4,16 +4,55 @@ import { generateEmbedding } from '@/lib/embeddings'
 import { parseTranscriptMetadata } from '@/lib/transcript-parser'
 
 /**
+ * Helper to get all subfolder IDs recursively (up to 2 levels deep to avoid performance issues)
+ */
+async function getSubfolderIds(
+  drive: drive_v3.Drive,
+  folderId: string,
+  depth: number = 0,
+  maxDepth: number = 2
+): Promise<string[]> {
+  if (depth >= maxDepth) return []
+  
+  const folderIds: string[] = [folderId]
+  
+  try {
+    const response = await drive.files.list({
+      q: `'${folderId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+      fields: 'files(id)',
+      pageSize: 100
+    })
+    
+    const subfolders = response.data.files || []
+    
+    for (const subfolder of subfolders) {
+      if (subfolder.id) {
+        folderIds.push(subfolder.id)
+        // Recursively get subfolders of this subfolder
+        const nestedIds = await getSubfolderIds(drive, subfolder.id, depth + 1, maxDepth)
+        folderIds.push(...nestedIds)
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching subfolders:', error)
+  }
+  
+  return folderIds
+}
+
+/**
  * Helper function to poll a single Drive folder for new transcripts
  * Used by both the cron job and manual polling endpoints
  * 
  * @param fastMode - If true, only checks the 30 most recent files for faster polling
+ * @param includeSubfolders - If true, searches in subfolders recursively (up to 2 levels deep)
  */
 export async function pollFolder(
   accessToken: string,
   folderId: string,
   userEmail: string,
-  fastMode: boolean = true
+  fastMode: boolean = true,
+  includeSubfolders: boolean = true
 ): Promise<{ imported: number; skipped: number; errors: number }> {
   const auth = new google.auth.OAuth2()
   auth.setCredentials({ access_token: accessToken })
@@ -28,8 +67,19 @@ export async function pollFolder(
 
   const lastPollTime = userSettings?.last_poll_time
 
-  // Build query - add time filter if we have a last poll time and are in fast mode
-  let query = `'${folderId}' in parents and mimeType = 'application/vnd.google-apps.document' and trashed = false`
+  // Get all folder IDs to search (including subfolders if enabled)
+  const folderIds = includeSubfolders 
+    ? await getSubfolderIds(drive, folderId)
+    : [folderId]
+  
+  console.log(`[Poll] Searching in ${folderIds.length} folder(s) (includeSubfolders: ${includeSubfolders})`)
+
+  // Build query - search across all folders
+  const folderQuery = folderIds.length === 1
+    ? `'${folderIds[0]}' in parents`
+    : `(${folderIds.map(id => `'${id}' in parents`).join(' or ')})`
+  
+  let query = `${folderQuery} and mimeType = 'application/vnd.google-apps.document' and trashed = false`
   
   // If we have a last poll time, only look for files modified after that
   if (fastMode && lastPollTime) {

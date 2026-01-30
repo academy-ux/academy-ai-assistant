@@ -481,7 +481,7 @@
       setSettingsSelectedFolder('')
     }
 
-    async function handleManualPoll(silent: boolean = false) {
+    async function handleManualPoll(silent: boolean = false, fullSync: boolean = false) {
       if (!silent) {
         setPolling(true)
         setPollResult(null)
@@ -490,7 +490,10 @@
         const res = await fetch('/api/poll-drive', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fastMode: true })
+          body: JSON.stringify({ 
+            fastMode: !fullSync,
+            includeSubfolders: true 
+          })
         })
         const data = await res.json()
         if (res.ok) {
@@ -1171,7 +1174,7 @@
                     className="flex items-center gap-3 px-4 py-2 rounded-full border border-border/60 bg-card/40 hover:bg-card/60 transition-all group"
                   >
                     <div className="relative flex items-center justify-center">
-                      <div className="h-4 w-4 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
+                      <div className="h-4 w-4 rounded-full border-2 border-primary/20 border-t-primary animate-spin-medium" />
                     </div>
                     <div className="flex flex-col items-start">
                       <span className="text-xs font-medium text-foreground">Importing in background</span>
@@ -1706,26 +1709,46 @@
                             {/* Manual Poll */}
                             <div className="space-y-3">
                               <Label>Manual Check</Label>
-                              <Button
-                                variant="outline"
-                                className="w-full gap-2"
-                                onClick={() => handleManualPoll()}
-                                disabled={polling}
-                              >
-                                {polling ? (
-                                  <>
-                                    <Spinner size={16} className="text-primary" />
-                                    Checking Drive...
-                                  </>
-                                ) : (
-                                  <>
-                                    <RefreshCw className="h-4 w-4" />
-                                    Check Now
-                                  </>
-                                )}
-                              </Button>
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="outline"
+                                  className="flex-1 gap-2"
+                                  onClick={() => handleManualPoll(false, false)}
+                                  disabled={polling}
+                                >
+                                  {polling ? (
+                                    <>
+                                      <Spinner size={16} className="text-primary" />
+                                      Checking...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <RefreshCw className="h-4 w-4" />
+                                      Quick Check
+                                    </>
+                                  )}
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  className="flex-1 gap-2"
+                                  onClick={() => handleManualPoll(false, true)}
+                                  disabled={polling}
+                                >
+                                  {polling ? (
+                                    <>
+                                      <Spinner size={16} className="text-primary" />
+                                      Checking...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <RefreshCw className="h-4 w-4" />
+                                      Full Sync
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
                               <p className="text-xs text-muted-foreground">
-                                Manually trigger a check for new files
+                                Quick Check: Recent files only • Full Sync: All files (slower)
                               </p>
                               
                               {pollResult && (
@@ -2550,7 +2573,7 @@
                               title="Delete meeting"
                             >
                               {deletingId === meeting.id ? (
-                                <div className="h-4 w-4 rounded-full border-2 border-destructive/30 border-t-destructive animate-spin" />
+                                <div className="h-4 w-4 rounded-full border-2 border-destructive/30 border-t-destructive animate-spin-medium" />
                               ) : (
                                 <Trash2 className="h-4 w-4" />
                               )}

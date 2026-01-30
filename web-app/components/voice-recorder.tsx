@@ -206,7 +206,7 @@ export function VoiceRecorder({ onTranscriptionComplete, onRecordingChange }: Vo
         type="button"
       >
         {isProcessing ? (
-          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          <Loader2 className="h-4 w-4 animate-spin-medium text-muted-foreground" />
         ) : isRecording ? (
           <Square className="h-4 w-4 text-destructive fill-current" />
         ) : (
