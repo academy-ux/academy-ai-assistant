@@ -9,6 +9,44 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
+      ai_conversations: {
+        Row: {
+          id: string
+          user_email: string
+          user_name: string | null
+          interview_id: string | null
+          title: string
+          messages: Json
+          message_count: number
+          created_at: string
+          updated_at: string
+          last_message_at: string
+        }
+        Insert: {
+          id?: string
+          user_email: string
+          user_name?: string | null
+          interview_id?: string | null
+          title: string
+          messages: Json
+          message_count?: number
+          created_at?: string
+          updated_at?: string
+          last_message_at?: string
+        }
+        Update: {
+          id?: string
+          user_email?: string
+          user_name?: string | null
+          interview_id?: string | null
+          title?: string
+          messages?: Json
+          message_count?: number
+          created_at?: string
+          updated_at?: string
+          last_message_at?: string
+        }
+      }
       interviews: {
         Row: {
           id: string

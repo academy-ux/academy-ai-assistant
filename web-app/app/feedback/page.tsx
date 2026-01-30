@@ -1,9 +1,10 @@
 'use client'
 
 import { useSession, signIn } from 'next-auth/react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useEffect, useRef, useState, Suspense } from 'react'
-import { Check, ChevronsUpDown, Search, FileText, User, ClipboardList, CheckCircle, ChevronRight, Calendar, X, ThumbsUp, ThumbsDown } from 'lucide-react'
+import { Check, ChevronsUpDown, Search, FileText, User, ClipboardList, CheckCircle, ChevronRight, Calendar, X, ThumbsUp, ThumbsDown, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -181,6 +182,7 @@ function formatRoleAndCompany(position?: string) {
 function FeedbackContent() {
   const { data: session, status } = useSession()
   const searchParams = useSearchParams()
+  const router = useRouter()
   const preselectInterviewId = searchParams.get('interviewId')
   const hasAutoSelectedInterviewRef = useRef(false)
   const lastAutoAnalyzeKeyRef = useRef<string | null>(null)
@@ -331,6 +333,7 @@ function FeedbackContent() {
   // Track if we've already polled for new transcripts this session
   const hasPolledForNewTranscriptRef = useRef(false)
   const [pollingForTranscript, setPollingForTranscript] = useState(false)
+  const [pollingError, setPollingError] = useState<string | null>(null)
 
   useEffect(() => {
     if (session) {
@@ -353,6 +356,7 @@ function FeedbackContent() {
   async function pollForNewTranscript() {
     console.log('[Feedback] Polling Drive for new transcripts...')
     setPollingForTranscript(true)
+    setPollingError(null)
     
     try {
       const res = await fetch('/api/poll-drive', {
@@ -383,10 +387,13 @@ function FeedbackContent() {
         }
       } else {
         const errorData = await res.json().catch(() => ({}))
-        console.log('[Feedback] Drive poll not configured or failed:', res.status, errorData.error || '')
+        const errorMsg = errorData.error || 'Drive poll failed'
+        console.log('[Feedback] Drive poll not configured or failed:', res.status, errorMsg)
+        setPollingError(errorMsg)
       }
-    } catch (err) {
+    } catch (err: any) {
       console.log('[Feedback] Drive poll error:', err)
+      setPollingError('Network error while polling Drive')
     } finally {
       setPollingForTranscript(false)
     }
@@ -1383,6 +1390,67 @@ function FeedbackContent() {
                         {/* Animated shimmer effect */}
                         <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
                       </div>
+                    ) : pollingError ? (
+                      /* Show error message with actionable steps */
+                      <div className="space-y-3">
+                        <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+                          <div className="flex gap-3">
+                            <div className="h-10 w-10 rounded-full bg-destructive/20 flex items-center justify-center flex-shrink-0">
+                              <X className="h-5 w-5 text-destructive" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium text-destructive mb-1">
+                                Unable to find transcripts
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                {pollingError}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {pollingError.includes('No Drive folder configured') ? (
+                          <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
+                            <div className="text-sm font-medium mb-2">First-time setup required</div>
+                            <ol className="text-xs text-muted-foreground space-y-1.5 list-decimal list-inside">
+                              <li>Go to <Link href="/history" className="text-primary hover:underline font-medium">History</Link> page</li>
+                              <li>Click "Import from Drive" button</li>
+                              <li>Select your Google Drive folder with meeting transcripts</li>
+                              <li>Return here and click "Check for new transcripts"</li>
+                            </ol>
+                          </div>
+                        ) : (
+                          <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
+                            <div className="text-sm font-medium mb-2">Possible reasons</div>
+                            <ul className="text-xs text-muted-foreground space-y-1.5 list-disc list-inside">
+                              <li>Transcript not yet in Drive (takes 1-2 minutes after meeting)</li>
+                              <li>Meeting transcript not saved to your configured folder</li>
+                              <li>Drive permissions may need to be refreshed</li>
+                            </ul>
+                          </div>
+                        )}
+                        
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={pollForNewTranscript}
+                            disabled={pollingForTranscript}
+                            className="flex-1"
+                          >
+                            <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                            Try again
+                          </Button>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => router.push('/history')}
+                            className="flex-1"
+                          >
+                            Go to History
+                          </Button>
+                        </div>
+                      </div>
                     ) : (
                       <div className="text-center py-12 px-4">
                         <FileText className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
@@ -1429,6 +1497,34 @@ function FeedbackContent() {
                         </div>
                         {/* Animated shimmer effect */}
                         <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                      </div>
+                    )}
+                    
+                    {/* Error message at top of list */}
+                    {pollingError && (searchParams.get('meeting') || searchParams.get('ts')) && (
+                      <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 mb-2">
+                        <div className="flex gap-2.5 items-start">
+                          <X className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs font-medium text-destructive mb-0.5">
+                              Latest transcript not found
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              {pollingError.includes('No Drive folder configured') 
+                                ? 'Import your Drive folder on the History page to auto-load transcripts'
+                                : 'Transcript may take 1-2 minutes after meeting ends'}
+                            </p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2 text-xs"
+                            onClick={pollForNewTranscript}
+                            disabled={pollingForTranscript}
+                          >
+                            <RefreshCw className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
                     )}
                     {filteredInterviews.map((interview) => (
