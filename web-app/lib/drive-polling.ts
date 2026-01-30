@@ -225,7 +225,8 @@ export async function pollFolder(
           rating: 'Not Analyzed',
           candidate_name: metadata.candidateName,
           interviewer: metadata.interviewer,
-          position: metadata.position || ''
+          position: metadata.position || '',
+          owner_email: userEmail
         })
 
         if (error) {
