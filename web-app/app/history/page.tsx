@@ -138,6 +138,8 @@
     const [settingsSaving, setSettingsSaving] = useState(false)
     const [polling, setPolling] = useState(false)
     const [pollResult, setPollResult] = useState<{imported: number, skipped: number, errors: number} | null>(null)
+    const [settingsFolderOpen, setSettingsFolderOpen] = useState(false)
+    const [settingsSelectedFolder, setSettingsSelectedFolder] = useState('')
     
     // Regenerate summaries state
     const [regenerating, setRegenerating] = useState(false)
@@ -269,14 +271,14 @@
     
     // Debounce folder search
     useEffect(() => {
-      if (!importOpen) return
+      if (!importOpen && !settingsOpen) return
 
       const timer = setTimeout(() => {
         fetchFolders(folderSearch)
       }, 300)
 
       return () => clearTimeout(timer)
-    }, [folderSearch, importOpen])
+    }, [folderSearch, importOpen, settingsOpen])
 
     useEffect(() => {
       if (selectedFolder) {
@@ -455,6 +457,20 @@
       } finally {
         setSettingsSaving(false)
       }
+    }
+
+    async function handleSaveFolder() {
+      if (!settingsSelectedFolder) return
+      
+      const selectedFolderData = folders.find(f => f.id === settingsSelectedFolder)
+      if (!selectedFolderData) return
+      
+      await saveSettings({
+        driveFolderId: settingsSelectedFolder,
+        folderName: selectedFolderData.name
+      })
+      
+      setSettingsSelectedFolder('')
     }
 
     async function handleManualPoll() {
@@ -1491,10 +1507,122 @@
                             )}
                           </div>
                         ) : (
-                          <div className="p-4 bg-muted/50 rounded-lg">
-                            <p className="text-sm text-muted-foreground">
-                              No Drive folder configured yet. Import a folder first to enable auto-polling.
-                            </p>
+                          <div className="space-y-3">
+                            <div className="p-4 bg-muted/50 rounded-lg">
+                              <p className="text-sm text-muted-foreground mb-3">
+                                No Drive folder configured yet. Select a folder to enable auto-polling.
+                              </p>
+                            </div>
+                            
+                            {foldersLoading && !folderSearchLoading ? (
+                              <div className="flex items-center justify-center py-8">
+                                <Spinner className="text-primary" />
+                                <span className="ml-2 text-sm text-muted-foreground">Loading folders...</span>
+                              </div>
+                            ) : foldersError ? (
+                              <div className="text-sm text-destructive py-4 px-3 bg-destructive/10 rounded-lg">
+                                {foldersError}
+                              </div>
+                            ) : (
+                              <div className="space-y-3">
+                                <label className="text-sm font-medium leading-none">
+                                  Select Drive Folder
+                                </label>
+                                <Popover open={settingsFolderOpen} onOpenChange={setSettingsFolderOpen}>
+                                  <PopoverTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      role="combobox"
+                                      aria-expanded={settingsFolderOpen}
+                                      className="w-full justify-between h-11"
+                                    >
+                                      {settingsSelectedFolder
+                                        ? folders.find((folder) => folder.id === settingsSelectedFolder)?.name
+                                        : "Select folder..."}
+                                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-[472px] p-0">
+                                    <div className="p-3 border-b border-border">
+                                      <div className="flex items-center gap-2 px-2 bg-muted/50 rounded-lg">
+                                        <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+                                        <Input
+                                          placeholder="Search Drive folders..."
+                                          value={folderSearch}
+                                          onChange={(e) => setFolderSearch(e.target.value)}
+                                          className="h-9 border-0 bg-transparent focus-visible:ring-0 p-0 text-sm shadow-none"
+                                        />
+                                        {folderSearchLoading && <Spinner size={16} />}
+                                      </div>
+                                    </div>
+                                    <div className="h-[300px] overflow-y-auto" onPointerDown={(e) => e.stopPropagation()}>
+                                      {folders.length === 0 ? (
+                                        <div className="p-8 text-sm text-muted-foreground text-center">
+                                          No folders found.
+                                        </div>
+                                      ) : (
+                                        <div className="p-2">
+                                          {folders.map((folder) => (
+                                            <div
+                                              key={folder.id}
+                                              className={cn(
+                                                "flex items-start gap-3 px-3 py-3 rounded-lg cursor-pointer transition-colors",
+                                                "hover:bg-accent",
+                                                settingsSelectedFolder === folder.id && "bg-accent"
+                                              )}
+                                              onClick={() => {
+                                                setSettingsSelectedFolder(folder.id)
+                                                setSettingsFolderOpen(false)
+                                              }}
+                                            >
+                                              <Check
+                                                className={cn(
+                                                  "mt-0.5 h-4 w-4 text-primary shrink-0",
+                                                  settingsSelectedFolder === folder.id ? "opacity-100" : "opacity-0"
+                                                )}
+                                              />
+                                              <div className="flex flex-col min-w-0 flex-1 gap-1">
+                                                <div className="flex items-center gap-2">
+                                                  <span className="font-medium text-sm">{folder.name}</span>
+                                                  {folder.shared && (
+                                                    <Badge variant="outline" className="text-[10px] h-5 px-1.5">Shared</Badge>
+                                                  )}
+                                                </div>
+                                                {folder.owners && folder.owners.length > 0 && (
+                                                  <p className="text-xs text-muted-foreground truncate">
+                                                    {folder.owners[0].displayName}
+                                                  </p>
+                                                )}
+                                                <p className="text-xs text-muted-foreground">
+                                                  Modified {new Date(folder.modifiedTime).toLocaleDateString()}
+                                                </p>
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </PopoverContent>
+                                </Popover>
+                                
+                                {settingsSelectedFolder && (
+                                  <Button
+                                    onClick={handleSaveFolder}
+                                    disabled={settingsSaving}
+                                    className="w-full"
+                                  >
+                                    {settingsSaving ? (
+                                      <>
+                                        <Spinner size={16} className="mr-2" />
+                                        Saving...
+                                      </>
+                                    ) : (
+                                      'Save Folder'
+                                    )}
+                                  </Button>
+                                )}
+                              </div>
+                            )}
                           </div>
                         )}
 
