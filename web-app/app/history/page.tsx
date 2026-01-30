@@ -2473,16 +2473,35 @@
                         {/* Tags & Meta Row */}
                         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2 border-t border-border/30">
                           <div className="flex flex-wrap gap-2 items-center w-full sm:w-auto">
-                            {meeting.meeting_type && (
-                              <Badge variant="secondary" className="text-xs font-medium px-3 py-1 bg-peach/20 text-foreground border-0 rounded-full h-7">
-                                {meeting.meeting_type}
-                              </Badge>
-                            )}
-                            {meeting.meeting_title && meeting.meeting_title !== 'Interview' && meeting.meeting_title !== meeting.meeting_type && (
+                            {meeting.meeting_title && meeting.meeting_title !== 'Interview' && meeting.meeting_title !== meeting.meeting_type ? (
+                              // Show only parsed title if we have a proper meeting title
                               <ParsedTitle 
                                 title={meeting.meeting_title}
                                 badgeClassName="px-3 py-1 h-7"
                               />
+                            ) : (
+                              // Otherwise show meeting type and interviewer separately
+                              <>
+                                {meeting.meeting_type && (
+                                  <Badge variant="secondary" className="text-xs font-medium px-3 py-1 bg-peach/20 text-foreground border-0 rounded-full h-7">
+                                    {meeting.meeting_type}
+                                  </Badge>
+                                )}
+                                {meeting.interviewer && meeting.interviewer !== 'Unknown' && (
+                                  <Badge variant="outline" className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium h-7">
+                                    <Avatar className="h-4 w-4 border border-border/40">
+                                      <AvatarImage
+                                        src={session?.user?.image || undefined}
+                                        alt={session?.user?.name || 'User'}
+                                      />
+                                      <AvatarFallback className="text-[8px] font-semibold bg-muted/50 text-foreground/70">
+                                        {viewerInitials || 'U'}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    {meeting.interviewer}
+                                  </Badge>
+                                )}
+                              </>
                             )}
                             {/* Submission Status Badge - Only for Interviews */}
                             {meeting.meeting_type === 'Interview' && (() => {
@@ -2531,20 +2550,6 @@
                               
                               return badge
                             })()}
-                            {meeting.interviewer && meeting.interviewer !== 'Unknown' && (
-                              <Badge variant="outline" className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium h-7">
-                                <Avatar className="h-4 w-4 border border-border/40">
-                                  <AvatarImage
-                                    src={session?.user?.image || undefined}
-                                    alt={session?.user?.name || 'User'}
-                                  />
-                                  <AvatarFallback className="text-[8px] font-semibold bg-muted/50 text-foreground/70">
-                                    {viewerInitials || 'U'}
-                                  </AvatarFallback>
-                                </Avatar>
-                                {meeting.interviewer}
-                              </Badge>
-                            )}
                             {meeting.similarity && (
                               <Badge variant="secondary" className="text-xs px-2.5 py-0.5 bg-primary/10 text-primary border-0 rounded-full">
                                 {Math.round(meeting.similarity * 100)}% Match
