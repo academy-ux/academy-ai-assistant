@@ -52,17 +52,31 @@ export async function GET(req: NextRequest) {
       hasMore = !!nextPageToken
     }
 
-    // Check which files are already imported
+    // Check which files are already imported (by Drive file ID and filename)
+    const fileIds = allFiles.map(f => f.id).filter(Boolean) as string[]
     const fileNames = allFiles.map(f => f.name).filter(Boolean) as string[]
     
-    let importedSet = new Set<string>()
+    let importedByIdSet = new Set<string>()
+    let importedByNameSet = new Set<string>()
+    
+    // Check by Drive file ID (most reliable)
+    if (fileIds.length > 0) {
+      const { data: existingById } = await supabase
+        .from('interviews')
+        .select('drive_file_id')
+        .in('drive_file_id', fileIds)
+
+      importedByIdSet = new Set(existingById?.map(f => f.drive_file_id).filter((id): id is string => id !== null) || [])
+    }
+    
+    // Check by filename (for backwards compatibility)
     if (fileNames.length > 0) {
-      const { data: existingFiles } = await supabase
+      const { data: existingByName } = await supabase
         .from('interviews')
         .select('transcript_file_name')
         .in('transcript_file_name', fileNames)
 
-      importedSet = new Set(existingFiles?.map(f => f.transcript_file_name).filter((name): name is string => name !== null) || [])
+      importedByNameSet = new Set(existingByName?.map(f => f.transcript_file_name).filter((name): name is string => name !== null) || [])
     }
 
     // Add imported status to each file
@@ -71,7 +85,7 @@ export async function GET(req: NextRequest) {
       name: file.name,
       createdTime: file.createdTime,
       modifiedTime: file.modifiedTime,
-      alreadyImported: file.name ? importedSet.has(file.name) : false
+      alreadyImported: (file.id && importedByIdSet.has(file.id)) || (file.name && importedByNameSet.has(file.name))
     }))
 
     const newCount = filesWithStatus.filter(f => !f.alreadyImported).length
