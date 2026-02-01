@@ -1571,7 +1571,7 @@
                       Settings
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-[520px]">
+                  <DialogContent className="sm:max-w-[520px] max-h-[90vh] flex flex-col">
                     <DialogHeader>
                       <DialogTitle>Auto-Polling Settings</DialogTitle>
                       <DialogDescription>
@@ -1584,7 +1584,106 @@
                         <Spinner className="text-primary" />
                       </div>
                     ) : (
-                      <div className="space-y-6 py-4">
+                      <div className="space-y-6 py-4 overflow-y-auto flex-1">
+                        {/* Drive Sync Diagnostic - PRIORITY SECTION */}
+                        {settings.driveFolderId && (
+                          <div className="space-y-3 p-4 border-2 border-primary/20 rounded-lg bg-primary/5">
+                            <div className="flex items-center gap-2">
+                              <RefreshCw className="h-5 w-5 text-primary" />
+                              <Label className="text-base">Drive Sync Diagnostic</Label>
+                            </div>
+                            
+                            <div className="flex gap-2">
+                              <Button
+                                variant="default"
+                                className="flex-1 gap-2"
+                                onClick={runBackfillDriveIds}
+                                disabled={backfilling || diagnosing}
+                              >
+                                {backfilling ? (
+                                  <>
+                                    <Spinner size={16} className="text-primary-foreground" />
+                                    Linking...
+                                  </>
+                                ) : (
+                                  <>
+                                    <RefreshCw className="h-4 w-4" />
+                                    1. Link Drive IDs
+                                  </>
+                                )}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                className="flex-1 gap-2"
+                                onClick={runDiagnostic}
+                                disabled={diagnosing || backfilling}
+                              >
+                                {diagnosing ? (
+                                  <>
+                                    <Spinner size={16} className="text-primary" />
+                                    Checking...
+                                  </>
+                                ) : (
+                                  <>
+                                    <RefreshCw className="h-4 w-4" />
+                                    2. Check Sync
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Run <strong>Link Drive IDs</strong> first to connect existing records, then <strong>Check Sync</strong> to verify
+                            </p>
+                            
+                            {backfillResult && (
+                              <div className="p-3 bg-blue-500/10 rounded-lg text-sm space-y-1 border border-blue-500/20">
+                                <p className="font-medium text-blue-600 dark:text-blue-400">Backfill Complete:</p>
+                                <p className="text-muted-foreground">
+                                  ✓ Updated {backfillResult.updated} records with Drive IDs
+                                </p>
+                                {backfillResult.unmatched > 0 && (
+                                  <p className="text-muted-foreground text-xs">
+                                    {backfillResult.unmatched} records could not be matched
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                            
+                            {diagnosticResult && (
+                              <div className="p-4 bg-muted/50 rounded-lg text-sm space-y-3 max-h-[300px] overflow-y-auto">
+                                <div className="space-y-2">
+                                  <p className="font-medium">Sync Status:</p>
+                                  <div className="grid grid-cols-2 gap-2 text-muted-foreground">
+                                    <div>In Drive: {diagnosticResult.summary.totalInDrive}</div>
+                                    <div>In Database: {diagnosticResult.summary.totalInDatabase}</div>
+                                    <div className="text-green-600 dark:text-green-400">✓ Synced: {diagnosticResult.summary.matched}</div>
+                                    {diagnosticResult.summary.inDriveNotInDb > 0 && (
+                                      <div className="text-orange-600 dark:text-orange-400">⚠ Not imported: {diagnosticResult.summary.inDriveNotInDb}</div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {diagnosticResult.inDriveNotInDb && diagnosticResult.inDriveNotInDb.length > 0 && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="w-full gap-2 text-orange-600 dark:text-orange-400 border-orange-500/30"
+                                    onClick={() => {
+                                      setSettingsOpen(false)
+                                      setImportOpen(true)
+                                    }}
+                                  >
+                                    <CloudDownload className="h-3 w-3" />
+                                    Import {diagnosticResult.inDriveNotInDb.length} Missing Files
+                                  </Button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        <Separator />
+
                         {/* Folder Info */}
                         {settings.driveFolderId ? (
                           <div className="p-4 bg-muted/50 rounded-lg space-y-2">
@@ -1832,151 +1931,6 @@
                                   <p className="text-muted-foreground">
                                     ✓ {pollResult.imported} imported, {pollResult.skipped} skipped, {pollResult.errors} errors
                                   </p>
-                                </div>
-                              )}
-                            </div>
-
-                            <Separator />
-
-                            {/* Diagnostic Check */}
-                            <div className="space-y-3">
-                              <Label>Drive Sync Diagnostic</Label>
-                              
-                              <div className="flex gap-2">
-                                <Button
-                                  variant="outline"
-                                  className="flex-1 gap-2"
-                                  onClick={runBackfillDriveIds}
-                                  disabled={backfilling || diagnosing}
-                                >
-                                  {backfilling ? (
-                                    <>
-                                      <Spinner size={16} className="text-primary" />
-                                      Linking...
-                                    </>
-                                  ) : (
-                                    <>
-                                      <RefreshCw className="h-4 w-4" />
-                                      Link Drive IDs
-                                    </>
-                                  )}
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  className="flex-1 gap-2"
-                                  onClick={runDiagnostic}
-                                  disabled={diagnosing || backfilling}
-                                >
-                                  {diagnosing ? (
-                                    <>
-                                      <Spinner size={16} className="text-primary" />
-                                      Checking...
-                                    </>
-                                  ) : (
-                                    <>
-                                      <RefreshCw className="h-4 w-4" />
-                                      Check Sync
-                                    </>
-                                  )}
-                                </Button>
-                              </div>
-                              <p className="text-xs text-muted-foreground">
-                                <strong>Step 1:</strong> Link Drive IDs to existing records • <strong>Step 2:</strong> Check sync status
-                              </p>
-                              
-                              {backfillResult && (
-                                <div className="p-3 bg-blue-500/10 rounded-lg text-sm space-y-1 border border-blue-500/20">
-                                  <p className="font-medium text-blue-600 dark:text-blue-400">Backfill Complete:</p>
-                                  <p className="text-muted-foreground">
-                                    ✓ Updated {backfillResult.updated} records with Drive IDs
-                                  </p>
-                                  {backfillResult.unmatched > 0 && (
-                                    <p className="text-muted-foreground text-xs">
-                                      {backfillResult.unmatched} records could not be matched (might be manually created or deleted from Drive)
-                                    </p>
-                                  )}
-                                </div>
-                              )}
-                              
-                              {diagnosticResult && (
-                                <div className="p-4 bg-muted/50 rounded-lg text-sm space-y-3 max-h-[400px] overflow-y-auto">
-                                  <div className="space-y-2">
-                                    <p className="font-medium">Sync Status:</p>
-                                    <div className="grid grid-cols-2 gap-2 text-muted-foreground">
-                                      <div>In Drive: {diagnosticResult.summary.totalInDrive}</div>
-                                      <div>In Database: {diagnosticResult.summary.totalInDatabase}</div>
-                                      <div className="text-green-600 dark:text-green-400">✓ Synced: {diagnosticResult.summary.matched}</div>
-                                      {diagnosticResult.summary.inDriveNotInDb > 0 && (
-                                        <div className="text-orange-600 dark:text-orange-400">⚠ Not imported: {diagnosticResult.summary.inDriveNotInDb}</div>
-                                      )}
-                                      {diagnosticResult.summary.inDbNotInDrive > 0 && (
-                                        <div className="text-red-600 dark:text-red-400">⚠ Not in Drive: {diagnosticResult.summary.inDbNotInDrive}</div>
-                                      )}
-                                    </div>
-                                  </div>
-
-                                  {diagnosticResult.inDriveNotInDb && diagnosticResult.inDriveNotInDb.length > 0 && (
-                                    <div className="space-y-2">
-                                      <p className="font-medium text-orange-600 dark:text-orange-400">
-                                        Files in Drive not imported ({diagnosticResult.inDriveNotInDb.length} total):
-                                      </p>
-                                      
-                                      {/* Show most recent files */}
-                                      <div className="space-y-1">
-                                        <p className="text-xs font-medium text-muted-foreground">Most Recent:</p>
-                                        <div className="max-h-32 overflow-y-auto space-y-1 pr-2">
-                                          {diagnosticResult.inDriveNotInDb.slice(0, 15).map((file: any, i: number) => {
-                                            const date = new Date(file.modifiedTime || file.createdTime)
-                                            const dateStr = date.toLocaleDateString('en-US', { 
-                                              month: 'short', 
-                                              day: 'numeric', 
-                                              year: 'numeric' 
-                                            })
-                                            return (
-                                              <div key={i} className="text-xs pl-2 border-l-2 border-orange-500/30 flex justify-between items-start gap-2">
-                                                <span className="text-muted-foreground flex-1 min-w-0 truncate">{file.name}</span>
-                                                <span className="text-orange-600/60 dark:text-orange-400/60 text-[10px] whitespace-nowrap">{dateStr}</span>
-                                              </div>
-                                            )
-                                          })}
-                                        </div>
-                                        {diagnosticResult.inDriveNotInDb.length > 15 && (
-                                          <p className="text-[10px] text-muted-foreground italic pl-2">
-                                            ...and {diagnosticResult.inDriveNotInDb.length - 15} more
-                                          </p>
-                                        )}
-                                      </div>
-
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="w-full gap-2 text-orange-600 dark:text-orange-400 border-orange-500/30 sticky bottom-0 bg-background"
-                                        onClick={() => {
-                                          setSettingsOpen(false)
-                                          setImportOpen(true)
-                                        }}
-                                      >
-                                        <CloudDownload className="h-3 w-3" />
-                                        Import All {diagnosticResult.inDriveNotInDb.length} Missing Files
-                                      </Button>
-                                    </div>
-                                  )}
-
-                                  {diagnosticResult.inDbNotInDrive && diagnosticResult.inDbNotInDrive.length > 0 && (
-                                    <div className="space-y-1">
-                                      <p className="font-medium text-red-600 dark:text-red-400">Database records not in Drive:</p>
-                                      <div className="max-h-24 overflow-y-auto space-y-1">
-                                        {diagnosticResult.inDbNotInDrive.map((record: any, i: number) => (
-                                          <div key={i} className="text-xs text-muted-foreground pl-2 border-l-2 border-red-500/30">
-                                            {record.title}
-                                          </div>
-                                        ))}
-                                      </div>
-                                      <p className="text-xs text-muted-foreground italic">
-                                        These files were deleted from Drive or moved to another folder
-                                      </p>
-                                    </div>
-                                  )}
                                 </div>
                               )}
                             </div>
