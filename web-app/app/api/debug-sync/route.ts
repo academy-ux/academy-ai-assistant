@@ -80,6 +80,12 @@ export async function GET(req: NextRequest) {
       modifiedTime: f.modifiedTime,
       createdTime: f.createdTime
     }))
+    // Sort by modified time descending (most recent first)
+    .sort((a, b) => {
+      const dateA = new Date(a.modifiedTime || a.createdTime || 0).getTime()
+      const dateB = new Date(b.modifiedTime || b.createdTime || 0).getTime()
+      return dateB - dateA
+    })
 
     // Find files in database but NOT in Drive
     const inDbNotInDrive = (dbInterviews || []).filter(dbInterview => {

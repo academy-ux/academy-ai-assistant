@@ -1857,15 +1857,37 @@
                                   </div>
 
                                   {diagnosticResult.inDriveNotInDb && diagnosticResult.inDriveNotInDb.length > 0 && (
-                                    <div className="space-y-1">
-                                      <p className="font-medium text-orange-600 dark:text-orange-400">Files in Drive not imported:</p>
-                                      <div className="max-h-32 overflow-y-auto space-y-1">
-                                        {diagnosticResult.inDriveNotInDb.map((file: any, i: number) => (
-                                          <div key={i} className="text-xs text-muted-foreground pl-2 border-l-2 border-orange-500/30">
-                                            {file.name}
-                                          </div>
-                                        ))}
+                                    <div className="space-y-2">
+                                      <p className="font-medium text-orange-600 dark:text-orange-400">
+                                        Files in Drive not imported ({diagnosticResult.inDriveNotInDb.length} total):
+                                      </p>
+                                      
+                                      {/* Show most recent 10 */}
+                                      <div className="space-y-1">
+                                        <p className="text-xs font-medium text-muted-foreground">Most Recent:</p>
+                                        <div className="max-h-40 overflow-y-auto space-y-1">
+                                          {diagnosticResult.inDriveNotInDb.slice(0, 20).map((file: any, i: number) => {
+                                            const date = new Date(file.modifiedTime || file.createdTime)
+                                            const dateStr = date.toLocaleDateString('en-US', { 
+                                              month: 'short', 
+                                              day: 'numeric', 
+                                              year: 'numeric' 
+                                            })
+                                            return (
+                                              <div key={i} className="text-xs pl-2 border-l-2 border-orange-500/30 flex justify-between items-start gap-2">
+                                                <span className="text-muted-foreground flex-1 min-w-0 truncate">{file.name}</span>
+                                                <span className="text-orange-600/60 dark:text-orange-400/60 text-[10px] whitespace-nowrap">{dateStr}</span>
+                                              </div>
+                                            )
+                                          })}
+                                        </div>
+                                        {diagnosticResult.inDriveNotInDb.length > 20 && (
+                                          <p className="text-[10px] text-muted-foreground italic pl-2">
+                                            ...and {diagnosticResult.inDriveNotInDb.length - 20} more
+                                          </p>
+                                        )}
                                       </div>
+
                                       <Button
                                         size="sm"
                                         variant="outline"
@@ -1876,7 +1898,7 @@
                                         }}
                                       >
                                         <CloudDownload className="h-3 w-3" />
-                                        Import Missing Files
+                                        Import All {diagnosticResult.inDriveNotInDb.length} Missing Files
                                       </Button>
                                     </div>
                                   )}
