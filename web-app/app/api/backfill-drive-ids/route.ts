@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
-import { google } from 'googleapis'
+import { google, drive_v3 } from 'googleapis'
 import { supabase } from '@/lib/supabase'
 
 export async function POST(req: NextRequest) {
@@ -31,20 +31,20 @@ export async function POST(req: NextRequest) {
     const drive = google.drive({ version: 'v3', auth })
 
     console.log('[Backfill] Fetching Drive files...')
-    const allDriveFiles: Array<{ id?: string | null, name?: string | null }> = []
+    const allDriveFiles: drive_v3.Schema$File[] = []
     let nextPageToken: string | null | undefined = undefined
 
     do {
-      const response = await drive.files.list({
+      const response: drive_v3.Schema$FileList = (await drive.files.list({
         q: `'${settings.drive_folder_id}' in parents and mimeType = 'application/vnd.google-apps.document' and trashed = false`,
         fields: 'nextPageToken, files(id, name)',
         pageSize: 100,
         pageToken: nextPageToken || undefined,
-      })
+      })).data
 
-      const files = response.data.files || []
+      const files = response.files || []
       allDriveFiles.push(...files)
-      nextPageToken = response.data.nextPageToken
+      nextPageToken = response.nextPageToken
     } while (nextPageToken)
 
     console.log(`[Backfill] Found ${allDriveFiles.length} Drive files`)
@@ -61,11 +61,12 @@ export async function POST(req: NextRequest) {
     console.log(`[Backfill] Found ${interviews?.length || 0} records without Drive ID`)
 
     // Create lookup map
-    const driveFilesByName = new Map<string, string>(
-      allDriveFiles
-        .filter(f => f.name && f.id)
-        .map(f => [f.name!, f.id!])
-    )
+    const driveFilesByName = new Map<string, string>()
+    for (const file of allDriveFiles) {
+      if (file.name && file.id) {
+        driveFilesByName.set(file.name, file.id)
+      }
+    }
 
     // Match and update
     let matched = 0
