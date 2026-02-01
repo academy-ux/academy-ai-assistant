@@ -142,6 +142,10 @@
     const [settingsSelectedFolder, setSettingsSelectedFolder] = useState('')
     const hasAutoPolled = useRef(false)
     
+    // Diagnostic state
+    const [diagnosing, setDiagnosing] = useState(false)
+    const [diagnosticResult, setDiagnosticResult] = useState<any>(null)
+    
     // Regenerate summaries state
     const [regenerating, setRegenerating] = useState(false)
     const [regenerateProgress, setRegenerateProgress] = useState({ current: 0, total: 0 })
@@ -479,6 +483,32 @@
       })
       
       setSettingsSelectedFolder('')
+    }
+
+    async function runDiagnostic() {
+      setDiagnosing(true)
+      setDiagnosticResult(null)
+      try {
+        const res = await fetch('/api/debug-sync')
+        const data = await res.json()
+        if (res.ok) {
+          setDiagnosticResult(data)
+          
+          // If there are files in Drive not in DB, offer to import them
+          if (data.inDriveNotInDb && data.inDriveNotInDb.length > 0) {
+            toast.info(`Found ${data.inDriveNotInDb.length} files in Drive not imported yet`)
+          } else if (data.summary.matched === data.summary.totalInDrive) {
+            toast.success('✓ All Drive files are synced!')
+          }
+        } else {
+          toast.error(data.error || 'Failed to run diagnostic')
+        }
+      } catch (error) {
+        console.error('Diagnostic error:', error)
+        toast.error('Failed to run diagnostic')
+      } finally {
+        setDiagnosing(false)
+      }
     }
 
     async function handleManualPoll(silent: boolean = false, fullSync: boolean = false) {
@@ -1778,6 +1808,94 @@
                                   <p className="text-muted-foreground">
                                     ✓ {pollResult.imported} imported, {pollResult.skipped} skipped, {pollResult.errors} errors
                                   </p>
+                                </div>
+                              )}
+                            </div>
+
+                            <Separator />
+
+                            {/* Diagnostic Check */}
+                            <div className="space-y-3">
+                              <Label>Drive Sync Diagnostic</Label>
+                              <Button
+                                variant="outline"
+                                className="w-full gap-2"
+                                onClick={runDiagnostic}
+                                disabled={diagnosing}
+                              >
+                                {diagnosing ? (
+                                  <>
+                                    <Spinner size={16} className="text-primary" />
+                                    Checking...
+                                  </>
+                                ) : (
+                                  <>
+                                    <RefreshCw className="h-4 w-4" />
+                                    Check Drive vs Database
+                                  </>
+                                )}
+                              </Button>
+                              <p className="text-xs text-muted-foreground">
+                                Compare Drive folder with database to ensure 100% sync
+                              </p>
+                              
+                              {diagnosticResult && (
+                                <div className="p-4 bg-muted/50 rounded-lg text-sm space-y-3">
+                                  <div className="space-y-2">
+                                    <p className="font-medium">Sync Status:</p>
+                                    <div className="grid grid-cols-2 gap-2 text-muted-foreground">
+                                      <div>In Drive: {diagnosticResult.summary.totalInDrive}</div>
+                                      <div>In Database: {diagnosticResult.summary.totalInDatabase}</div>
+                                      <div className="text-green-600 dark:text-green-400">✓ Synced: {diagnosticResult.summary.matched}</div>
+                                      {diagnosticResult.summary.inDriveNotInDb > 0 && (
+                                        <div className="text-orange-600 dark:text-orange-400">⚠ Not imported: {diagnosticResult.summary.inDriveNotInDb}</div>
+                                      )}
+                                      {diagnosticResult.summary.inDbNotInDrive > 0 && (
+                                        <div className="text-red-600 dark:text-red-400">⚠ Not in Drive: {diagnosticResult.summary.inDbNotInDrive}</div>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {diagnosticResult.inDriveNotInDb && diagnosticResult.inDriveNotInDb.length > 0 && (
+                                    <div className="space-y-1">
+                                      <p className="font-medium text-orange-600 dark:text-orange-400">Files in Drive not imported:</p>
+                                      <div className="max-h-32 overflow-y-auto space-y-1">
+                                        {diagnosticResult.inDriveNotInDb.map((file: any, i: number) => (
+                                          <div key={i} className="text-xs text-muted-foreground pl-2 border-l-2 border-orange-500/30">
+                                            {file.name}
+                                          </div>
+                                        ))}
+                                      </div>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="w-full mt-2 gap-2 text-orange-600 dark:text-orange-400 border-orange-500/30"
+                                        onClick={() => {
+                                          setSettingsOpen(false)
+                                          setImportOpen(true)
+                                        }}
+                                      >
+                                        <CloudDownload className="h-3 w-3" />
+                                        Import Missing Files
+                                      </Button>
+                                    </div>
+                                  )}
+
+                                  {diagnosticResult.inDbNotInDrive && diagnosticResult.inDbNotInDrive.length > 0 && (
+                                    <div className="space-y-1">
+                                      <p className="font-medium text-red-600 dark:text-red-400">Database records not in Drive:</p>
+                                      <div className="max-h-32 overflow-y-auto space-y-1">
+                                        {diagnosticResult.inDbNotInDrive.map((record: any, i: number) => (
+                                          <div key={i} className="text-xs text-muted-foreground pl-2 border-l-2 border-red-500/30">
+                                            {record.title}
+                                          </div>
+                                        ))}
+                                      </div>
+                                      <p className="text-xs text-muted-foreground italic">
+                                        These files were deleted from Drive or moved to another folder
+                                      </p>
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </div>
