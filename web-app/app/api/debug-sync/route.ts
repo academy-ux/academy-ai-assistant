@@ -95,16 +95,23 @@ export async function GET(req: NextRequest) {
       date: i.meeting_date
     }))
 
-    // Files that match
-    const matched = allDriveFiles.filter(driveFile => {
-      const inDbById = driveFile.id && dbInterviewsById.has(driveFile.id)
-      const inDbByName = driveFile.name && dbInterviewsByName.has(driveFile.name)
-      return inDbById || inDbByName
-    }).map(f => ({
-      driveId: f.id,
-      name: f.name,
-      dbRecord: dbInterviewsById.get(f.id!) || dbInterviewsByName.get(f.name!)
-    }))
+    // Files that match (use a Set to avoid double-counting)
+    const matchedDbIds = new Set<string>()
+    allDriveFiles.forEach(driveFile => {
+      const dbById = driveFile.id && dbInterviewsById.get(driveFile.id!)
+      const dbByName = driveFile.name && dbInterviewsByName.get(driveFile.name!)
+      if (dbById) matchedDbIds.add(dbById.id)
+      else if (dbByName) matchedDbIds.add(dbByName.id)
+    })
+    
+    const matched = Array.from(matchedDbIds).map(dbId => {
+      const dbRecord = dbInterviews?.find(i => i.id === dbId)
+      return {
+        dbId,
+        title: dbRecord?.meeting_title,
+        driveId: dbRecord?.drive_file_id
+      }
+    })
 
     return NextResponse.json({
       folderName: settings.folder_name,
