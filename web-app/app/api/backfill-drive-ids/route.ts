@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     const drive = google.drive({ version: 'v3', auth })
 
     console.log('[Backfill] Fetching Drive files...')
-    const allDriveFiles: any[] = []
+    const allDriveFiles: Array<{ id?: string | null, name?: string | null }> = []
     let nextPageToken: string | null | undefined = undefined
 
     do {
@@ -42,7 +42,8 @@ export async function POST(req: NextRequest) {
         pageToken: nextPageToken || undefined,
       })
 
-      allDriveFiles.push(...(response.data.files || []))
+      const files = response.data.files || []
+      allDriveFiles.push(...files)
       nextPageToken = response.data.nextPageToken
     } while (nextPageToken)
 
@@ -60,8 +61,10 @@ export async function POST(req: NextRequest) {
     console.log(`[Backfill] Found ${interviews?.length || 0} records without Drive ID`)
 
     // Create lookup map
-    const driveFilesByName = new Map(
-      allDriveFiles.map(f => [f.name, f.id])
+    const driveFilesByName = new Map<string, string>(
+      allDriveFiles
+        .filter(f => f.name && f.id)
+        .map(f => [f.name!, f.id!])
     )
 
     // Match and update
