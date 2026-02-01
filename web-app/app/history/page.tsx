@@ -145,6 +145,8 @@
     // Diagnostic state
     const [diagnosing, setDiagnosing] = useState(false)
     const [diagnosticResult, setDiagnosticResult] = useState<any>(null)
+    const [backfilling, setBackfilling] = useState(false)
+    const [backfillResult, setBackfillResult] = useState<any>(null)
     
     // Regenerate summaries state
     const [regenerating, setRegenerating] = useState(false)
@@ -508,6 +510,28 @@
         toast.error('Failed to run diagnostic')
       } finally {
         setDiagnosing(false)
+      }
+    }
+
+    async function runBackfillDriveIds() {
+      setBackfilling(true)
+      setBackfillResult(null)
+      try {
+        const res = await fetch('/api/backfill-drive-ids', { method: 'POST' })
+        const data = await res.json()
+        if (res.ok) {
+          setBackfillResult(data)
+          toast.success(`✓ Updated ${data.updated} records with Drive IDs!`)
+          // Refresh diagnostic after backfill
+          setTimeout(() => runDiagnostic(), 1000)
+        } else {
+          toast.error(data.error || 'Failed to backfill Drive IDs')
+        }
+      } catch (error) {
+        console.error('Backfill error:', error)
+        toast.error('Failed to backfill Drive IDs')
+      } finally {
+        setBackfilling(false)
       }
     }
 
@@ -1817,27 +1841,62 @@
                             {/* Diagnostic Check */}
                             <div className="space-y-3">
                               <Label>Drive Sync Diagnostic</Label>
-                              <Button
-                                variant="outline"
-                                className="w-full gap-2"
-                                onClick={runDiagnostic}
-                                disabled={diagnosing}
-                              >
-                                {diagnosing ? (
-                                  <>
-                                    <Spinner size={16} className="text-primary" />
-                                    Checking...
-                                  </>
-                                ) : (
-                                  <>
-                                    <RefreshCw className="h-4 w-4" />
-                                    Check Drive vs Database
-                                  </>
-                                )}
-                              </Button>
+                              
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="outline"
+                                  className="flex-1 gap-2"
+                                  onClick={runBackfillDriveIds}
+                                  disabled={backfilling || diagnosing}
+                                >
+                                  {backfilling ? (
+                                    <>
+                                      <Spinner size={16} className="text-primary" />
+                                      Linking...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <RefreshCw className="h-4 w-4" />
+                                      Link Drive IDs
+                                    </>
+                                  )}
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  className="flex-1 gap-2"
+                                  onClick={runDiagnostic}
+                                  disabled={diagnosing || backfilling}
+                                >
+                                  {diagnosing ? (
+                                    <>
+                                      <Spinner size={16} className="text-primary" />
+                                      Checking...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <RefreshCw className="h-4 w-4" />
+                                      Check Sync
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
                               <p className="text-xs text-muted-foreground">
-                                Compare Drive folder with database to ensure 100% sync
+                                <strong>Step 1:</strong> Link Drive IDs to existing records • <strong>Step 2:</strong> Check sync status
                               </p>
+                              
+                              {backfillResult && (
+                                <div className="p-3 bg-blue-500/10 rounded-lg text-sm space-y-1 border border-blue-500/20">
+                                  <p className="font-medium text-blue-600 dark:text-blue-400">Backfill Complete:</p>
+                                  <p className="text-muted-foreground">
+                                    ✓ Updated {backfillResult.updated} records with Drive IDs
+                                  </p>
+                                  {backfillResult.unmatched > 0 && (
+                                    <p className="text-muted-foreground text-xs">
+                                      {backfillResult.unmatched} records could not be matched (might be manually created or deleted from Drive)
+                                    </p>
+                                  )}
+                                </div>
+                              )}
                               
                               {diagnosticResult && (
                                 <div className="p-4 bg-muted/50 rounded-lg text-sm space-y-3 max-h-[400px] overflow-y-auto">
