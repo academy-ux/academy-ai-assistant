@@ -1840,7 +1840,7 @@
                               </p>
                               
                               {diagnosticResult && (
-                                <div className="p-4 bg-muted/50 rounded-lg text-sm space-y-3">
+                                <div className="p-4 bg-muted/50 rounded-lg text-sm space-y-3 max-h-[400px] overflow-y-auto">
                                   <div className="space-y-2">
                                     <p className="font-medium">Sync Status:</p>
                                     <div className="grid grid-cols-2 gap-2 text-muted-foreground">
@@ -1862,11 +1862,11 @@
                                         Files in Drive not imported ({diagnosticResult.inDriveNotInDb.length} total):
                                       </p>
                                       
-                                      {/* Show most recent 10 */}
+                                      {/* Show most recent files */}
                                       <div className="space-y-1">
                                         <p className="text-xs font-medium text-muted-foreground">Most Recent:</p>
-                                        <div className="max-h-40 overflow-y-auto space-y-1">
-                                          {diagnosticResult.inDriveNotInDb.slice(0, 20).map((file: any, i: number) => {
+                                        <div className="max-h-32 overflow-y-auto space-y-1 pr-2">
+                                          {diagnosticResult.inDriveNotInDb.slice(0, 15).map((file: any, i: number) => {
                                             const date = new Date(file.modifiedTime || file.createdTime)
                                             const dateStr = date.toLocaleDateString('en-US', { 
                                               month: 'short', 
@@ -1881,9 +1881,9 @@
                                             )
                                           })}
                                         </div>
-                                        {diagnosticResult.inDriveNotInDb.length > 20 && (
+                                        {diagnosticResult.inDriveNotInDb.length > 15 && (
                                           <p className="text-[10px] text-muted-foreground italic pl-2">
-                                            ...and {diagnosticResult.inDriveNotInDb.length - 20} more
+                                            ...and {diagnosticResult.inDriveNotInDb.length - 15} more
                                           </p>
                                         )}
                                       </div>
@@ -1891,7 +1891,7 @@
                                       <Button
                                         size="sm"
                                         variant="outline"
-                                        className="w-full mt-2 gap-2 text-orange-600 dark:text-orange-400 border-orange-500/30"
+                                        className="w-full gap-2 text-orange-600 dark:text-orange-400 border-orange-500/30 sticky bottom-0 bg-background"
                                         onClick={() => {
                                           setSettingsOpen(false)
                                           setImportOpen(true)
@@ -1906,7 +1906,7 @@
                                   {diagnosticResult.inDbNotInDrive && diagnosticResult.inDbNotInDrive.length > 0 && (
                                     <div className="space-y-1">
                                       <p className="font-medium text-red-600 dark:text-red-400">Database records not in Drive:</p>
-                                      <div className="max-h-32 overflow-y-auto space-y-1">
+                                      <div className="max-h-24 overflow-y-auto space-y-1">
                                         {diagnosticResult.inDbNotInDrive.map((record: any, i: number) => (
                                           <div key={i} className="text-xs text-muted-foreground pl-2 border-l-2 border-red-500/30">
                                             {record.title}
