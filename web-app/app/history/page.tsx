@@ -1669,6 +1669,10 @@
                                     variant="outline"
                                     className="w-full gap-2 text-orange-600 dark:text-orange-400 border-orange-500/30"
                                     onClick={() => {
+                                      // Set the correct folder before opening import dialog
+                                      if (settings.driveFolderId) {
+                                        setSelectedFolder(settings.driveFolderId)
+                                      }
                                       setSettingsOpen(false)
                                       setImportOpen(true)
                                     }}
