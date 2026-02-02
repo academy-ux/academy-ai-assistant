@@ -61,6 +61,9 @@ export async function parseTranscriptMetadata(transcript: string, fileName: stri
     
     const prompt = `You are analyzing a meeting transcript. Read it carefully and extract key information.
 
+ORIGINAL DRIVE FILENAME: "${fileName}"
+(Use this for context - preserve company names and meaningful identifiers from the filename)
+
 TRANSCRIPT:
 ${transcriptSample}
 
@@ -68,6 +71,8 @@ TASK: Analyze this meeting and provide structured information.
 
 IMPORTANT INSTRUCTIONS:
 1. Identify the PRIMARY SUBJECT (person being discussed, interviewed, or presenting) - this is usually NOT Adam Perlis
+   - If the filename contains a company name (e.g., "Superhuman", "Google"), preserve it as the candidate name
+   - Only use "Multiple Candidates" if there's truly no specific subject/company
 2. Identify the PRIMARY FACILITATOR/HOST - often Adam Perlis or company staff
 3. CATEGORIZE the meeting type based on its purpose and content:
    - "Interview" = Direct hiring interview with a candidate, portfolio review, screening call
@@ -92,7 +97,7 @@ DISTINGUISHING KEY MEETING TYPES:
 
 Return your analysis as a JSON object with this exact structure:
 {
-  "candidateName": "Primary subject/participant name (or 'Team' for group meetings, or 'Multiple Candidates' if discussing several)",
+  "candidateName": "Primary subject/participant name. If filename contains a company/person name (e.g., 'Superhuman', 'Google DeepMind'), use that. Only use 'Multiple Candidates' if truly multiple and no specific company mentioned.",
   "interviewer": "Host/facilitator name",
   "meetingType": "Descriptive subtitle like 'Technical Interview' or 'Candidate Review'",
   "meetingCategory": "ONE of: Interview, Client Debrief, Sales Meeting, Status Update, Planning Meeting, Team Sync, Client Call, 1-on-1, All Hands, Standup, Retrospective, Demo, Other",
