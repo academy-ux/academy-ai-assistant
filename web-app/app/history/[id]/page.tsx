@@ -639,9 +639,9 @@ export default function InterviewDetailPage() {
 
         {/* Ask AI Tab */}
         {activeTab === 'ask' && (
-          <div className="animate-fade-in flex flex-col" style={{ height: 'calc(100vh - 320px)' }}>
+          <div className="animate-fade-in flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
             {/* Conversation History Header */}
-            <div className="flex items-center justify-end gap-2 mb-4 px-4">
+            <div className="flex items-center justify-end gap-2 mb-3 px-4">
               <ConversationsSidebar
                 interviewId={interview.id}
                 currentConversationId={currentConversationId}
@@ -663,7 +663,7 @@ export default function InterviewDetailPage() {
             </div>
             
             {/* Conversation Area */}
-            <div className="flex-1 overflow-y-auto pb-32">
+            <div className="flex-1 overflow-y-auto pb-40">
               <div className="max-w-3xl mx-auto px-4">
                 {messages.length === 0 && !asking ? (
                   <div className="flex flex-col items-center justify-center text-center py-24 min-h-[50vh]">
