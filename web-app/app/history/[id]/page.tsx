@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { Spinner } from '@/components/ui/spinner'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { ArrowLeft, Calendar, User, Send, Search, Copy, Check, ClipboardList, RefreshCw, Plus } from 'lucide-react'
+import { ArrowLeft, Calendar, User, Send, Search, Copy, Check, ClipboardList, RefreshCw } from 'lucide-react'
 import { MagicWandIcon } from '@/components/icons/magic-wand'
 import { VoiceRecorder } from '@/components/voice-recorder'
 import { Message, MessageContent, MessageAvatar } from '@/components/ui/message'
@@ -74,6 +74,14 @@ export default function InterviewDetailPage() {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' })
   }, [params.id])
+
+  // Set body overflow hidden for this page
+  useEffect(() => {
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [])
 
   // Auto-scroll to bottom when conversation updates
   useEffect(() => {
@@ -393,53 +401,53 @@ export default function InterviewDetailPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-[1600px] mx-auto px-6 py-8">
+      <div className="max-w-[1600px] mx-auto px-6">
         {/* Header */}
-        <div className="mb-8">
-          <button 
-            onClick={() => router.back()}
-            className={cn(
-              "inline-flex items-center gap-2 text-sm",
-              "text-muted-foreground hover:text-foreground transition-colors",
-              "rounded-full px-3 py-1.5",
-              "hover:bg-muted/40 border border-transparent hover:border-border/40",
-              "mb-6"
-            )}
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to History
-          </button>
-          
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
-            <div className="flex items-start gap-4 min-w-0">
-              <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-full bg-peach/20 flex items-center justify-center flex-shrink-0 border border-peach/30 shadow-sm ring-1 ring-foreground/5">
-                <span className="text-lg font-semibold text-foreground/80">
+        <div className={cn("sticky top-16 z-20 bg-background pt-6 pb-10 mb-0")}>
+          <div className="flex items-center justify-between gap-6">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <button 
+                onClick={() => router.back()}
+                className={cn(
+                  "inline-flex items-center gap-2 text-sm flex-shrink-0",
+                  "text-muted-foreground hover:text-foreground transition-colors",
+                  "rounded-full px-3 py-3",
+                  "hover:bg-muted/40 border border-transparent hover:border-border/40"
+                )}
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </button>
+              
+              <div className="h-9 w-9 rounded-full bg-peach/20 flex items-center justify-center flex-shrink-0 border border-peach/30 shadow-sm ring-1 ring-foreground/5">
+                <span className="text-xs font-semibold text-foreground/80">
                   {(interview.candidate_name || 'U').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
                 </span>
               </div>
-              <div className="min-w-0">
-                <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground leading-tight">
+              
+              <div className="flex flex-col gap-1.5 min-w-0">
+                <h1 className="text-sm font-semibold tracking-tight text-foreground leading-tight truncate">
                   {interview.meeting_title && interview.meeting_title !== 'Interview' 
                     ? interview.meeting_title 
                     : interview.candidate_name || 'Unknown Candidate'}
                 </h1>
-                <div className="mt-3 flex items-center gap-2 flex-wrap">
+                
+                <div className="flex items-center gap-1.5 flex-wrap">
                   {interview.meeting_type && (
                     <Badge
                       variant="secondary"
-                      className="text-xs font-medium px-2.5 py-1 bg-peach/20 text-foreground border-0 rounded-full"
+                      className="text-xs font-medium px-2.5 py-1 border-border/60 bg-peach/20 text-foreground rounded-full"
                     >
                       {interview.meeting_type}
                     </Badge>
                   )}
                   {interview.interviewer && interview.interviewer !== 'Unknown' && (
-                    <Badge variant="outline" className="inline-flex items-center gap-1.5 text-xs truncate px-2.5 py-1 rounded-full">
-                      <Avatar className="h-4 w-4 border border-border/40">
+                    <Badge variant="outline" className="inline-flex items-center gap-1 text-xs truncate px-2.5 py-1 border-border/60 rounded-full">
+                      <Avatar className="h-3 w-3 border border-border/40">
                         <AvatarImage
                           src={session?.user?.image || undefined}
                           alt={session?.user?.name || 'User'}
                         />
-                        <AvatarFallback className="text-[8px] font-semibold bg-muted/50 text-foreground/70">
+                        <AvatarFallback className="text-[6px] font-semibold bg-muted/50 text-foreground/70">
                           {viewerInitials || 'U'}
                         </AvatarFallback>
                       </Avatar>
@@ -449,7 +457,7 @@ export default function InterviewDetailPage() {
                   {isInterview && (
                     <div
                       className={cn(
-                        "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium",
+                        "flex items-center gap-1 px-2.5 py-1 border-border/60 rounded-full text-xs font-medium",
                         "border transition-all duration-300",
                         "shadow-sm hover:shadow",
                         isSubmitted
@@ -459,58 +467,73 @@ export default function InterviewDetailPage() {
                     >
                       <div
                         className={cn(
-                          "h-1.5 w-1.5 rounded-full",
+                          "h-1 w-1 rounded-full",
                           isSubmitted ? "bg-success" : "bg-warning"
                         )}
                       />
                       {isSubmitted ? "Submitted" : "Not Submitted"}
                     </div>
                   )}
+                  
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-card/60 backdrop-blur border border-border/50 px-2.5 py-1 rounded-full flex-shrink-0 shadow-sm">
+                    <Calendar className="h-3 w-3" />
+                    {new Date(interview.meeting_date || interview.created_at).toLocaleDateString('en-US', {
+                      weekday: 'short',
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric'
+                    })}
+                  </div>
                 </div>
               </div>
             </div>
             
-            <div className="flex items-center gap-2 text-sm text-muted-foreground bg-card/60 backdrop-blur border border-border/50 px-4 py-2 rounded-full flex-shrink-0 shadow-sm">
-              <Calendar className="h-4 w-4" />
-              {new Date(interview.meeting_date || interview.created_at).toLocaleDateString('en-US', {
-                weekday: 'short',
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric'
-              })}
+            {/* Tab Navigation */}
+            <div className="flex items-center gap-2 p-1 bg-card/40 backdrop-blur border border-border/40 rounded-full w-fit shadow-sm flex-shrink-0">
+              <button
+                onClick={() => setActiveTab('transcript')}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200",
+                  activeTab === 'transcript'
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/40"
+                )}
+              >
+                <Search className="h-4 w-4" />
+                Transcript
+              </button>
+              <button
+                onClick={() => setActiveTab('ask')}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200",
+                  activeTab === 'ask'
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/40"
+                )}
+              >
+                <MagicWandIcon size={16} />
+                Ask AI
+              </button>
+            </div>
+            
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <ConversationsSidebar
+                interviewId={interview.id}
+                currentConversationId={currentConversationId}
+                onSelectConversation={handleSelectConversation}
+                onNewConversation={handleNewConversation}
+              />
             </div>
           </div>
+          
+          {/* Transcript Fade Gradient */}
+          {activeTab === 'transcript' && (
+            <div className="absolute bottom-0 left-0 right-0 h-12 translate-y-full bg-gradient-to-b from-background to-transparent pointer-events-none" />
+          )}
         </div>
 
-        {/* Tab Navigation */}
-        <div className="flex items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-2 p-1 bg-card/40 backdrop-blur border border-border/40 rounded-full w-fit shadow-sm">
-            <button
-              onClick={() => setActiveTab('transcript')}
-              className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200",
-                activeTab === 'transcript'
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground hover:bg-background/40"
-              )}
-            >
-              <Search className="h-4 w-4" />
-              Transcript
-            </button>
-            <button
-              onClick={() => setActiveTab('ask')}
-              className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200",
-                activeTab === 'ask'
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground hover:bg-background/40"
-              )}
-            >
-              <MagicWandIcon size={16} />
-              Ask AI
-            </button>
-          </div>
-
+        {/* Submit Feedback Section */}
+        <div className="mb-6">
           {isInterview && (
             isSubmitted ? (
               <div className="flex items-center gap-2 text-sm text-success bg-success/10 border border-success/30 px-4 py-2 rounded-full shadow-sm">
@@ -536,7 +559,7 @@ export default function InterviewDetailPage() {
 
         {/* Transcript Tab */}
         {activeTab === 'transcript' && (
-          <div className="space-y-6 animate-fade-in">
+          <div className="space-y-6 animate-fade-in pt-16">
             {/* Summary */}
             {interview.summary && (
               <Card className="p-6 bg-card/30 border-border/60">
@@ -566,7 +589,8 @@ export default function InterviewDetailPage() {
                   </Button>
                 </div>
               </div>
-              <div className="bg-background/30 p-6 rounded-lg border border-border/40 max-h-[60vh] overflow-y-auto">
+              <div className="bg-background/30 p-6 rounded-lg border border-border/40 max-h-[60vh] overflow-y-auto relative">
+                <div className="sticky top-0 left-0 right-0 h-8 -mt-6 -mx-6 pointer-events-none z-10" style={{ background: 'linear-gradient(to bottom, hsl(var(--background) / 0.3) 0%, transparent 100%)' }} />
                 {normalizedQuery && (
                   <div className="mb-4 flex items-center justify-between">
                     <p className="text-xs text-muted-foreground">
@@ -639,32 +663,11 @@ export default function InterviewDetailPage() {
 
         {/* Ask AI Tab */}
         {activeTab === 'ask' && (
-          <div className="animate-fade-in flex flex-col" style={{ height: 'calc(100vh - 320px)' }}>
-            {/* Conversation History Header */}
-            <div className="flex items-center justify-end gap-2 mb-4 px-4">
-              <ConversationsSidebar
-                interviewId={interview.id}
-                currentConversationId={currentConversationId}
-                onSelectConversation={handleSelectConversation}
-                onNewConversation={handleNewConversation}
-              />
-              
-              {messages.length > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={clearConversation}
-                  className="gap-2 text-muted-foreground hover:text-foreground"
-                >
-                  <Plus className="h-4 w-4" />
-                  New Chat
-                </Button>
-              )}
-            </div>
-            
+          <div className="animate-fade-in flex flex-col relative" style={{ height: messages.length > 0 ? 'calc(100vh - 180px)' : 'calc(100vh - 240px)' }}>
             {/* Conversation Area */}
-            <div className="flex-1 overflow-y-auto pb-32">
-              <div className="max-w-3xl mx-auto px-4">
+            <div className="flex-1 overflow-y-auto pb-32 relative">
+              <div className="sticky top-0 left-0 right-0 h-24 bg-gradient-to-b from-background via-background/80 to-transparent pointer-events-none z-30 -mb-24" />
+              <div className="max-w-3xl mx-auto px-4 pt-8">
                 {messages.length === 0 && !asking ? (
                   <div className="flex flex-col items-center justify-center text-center py-24 min-h-[50vh]">
                     <div className="mb-6 h-16 w-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/10 animate-float">
@@ -755,12 +758,12 @@ export default function InterviewDetailPage() {
             </div>
 
             {/* Input Area */}
-            <div className="fixed bottom-0 left-0 right-0 z-40 px-4 pb-6 pt-8" style={{ background: 'linear-gradient(to top, hsl(var(--background)) 70%, transparent)' }}>
+            <div className="fixed bottom-0 left-0 right-0 z-40 px-4 pt-8" style={{ background: 'linear-gradient(to top, hsl(var(--background)) 70%, transparent)' }}>
               <div className="max-w-2xl mx-auto">
                 <div className="relative group">
-                  <div className="relative bg-card/60 backdrop-blur-md border border-border/30 rounded-xl shadow-lg transition-all duration-300 group-focus-within:border-primary/30 group-focus-within:shadow-xl overflow-hidden">
+                  <div className="relative bg-card/60 backdrop-blur-md border border-border/30 rounded-xl shadow-lg transition-all duration-300 group-focus-within:border-primary/30 group-focus-within:shadow-xl overflow-hidden min-h-[54px] flex flex-col justify-end">
                     <form onSubmit={handleAskQuestion} className="flex items-end gap-2">
-                      <div className="flex items-center pl-3 pb-2.5">
+                      <div className="flex items-center pl-3 h-[54px]">
                         <VoiceRecorder 
                           onTranscriptionComplete={(text) => setAiQuestion(prev => prev ? `${prev} ${text}` : text)}
                           onRecordingChange={setIsRecording}
@@ -786,7 +789,7 @@ export default function InterviewDetailPage() {
                                 }
                               }}
                               placeholder={messages.length > 0 ? "Ask follow-up..." : `Ask about ${interview.candidate_name}...`}
-                              className="min-h-[44px] max-h-[160px] py-2.5 px-4 border-0 bg-input focus-visible:ring-0 focus-visible:ring-offset-0 resize-none overflow-y-auto text-[15px] placeholder:text-muted-foreground/50"
+                              className="min-h-[44px] max-h-[160px] py-2.5 px-4 bg-input focus-visible:ring-0 focus-visible:ring-offset-0 resize-none overflow-y-auto text-[15px] placeholder:text-muted-foreground/50"
                               rows={1}
                             />
                           </div>

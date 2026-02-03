@@ -341,6 +341,18 @@
       }
     }, [messages, asking])
 
+    // Handle body overflow for Ask AI tab
+    useEffect(() => {
+      if (activeTab === 'ask') {
+        document.body.style.overflow = 'hidden'
+      } else {
+        document.body.style.overflow = ''
+      }
+      return () => {
+        document.body.style.overflow = ''
+      }
+    }, [activeTab])
+
     // Live search with debouncing
     useEffect(() => {
       // If search query is empty, fetch all meetings
@@ -1217,21 +1229,132 @@
           </div>
         </div>
 
-        <div className="max-w-[1600px] mx-auto px-6 py-8 md:py-12">
-          {/* Header with Navigation */}
-          <div className="mb-10">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-              <div>
-                <p className="text-xs font-medium tracking-[0.2em] text-muted-foreground uppercase mb-2 md:mb-3">Meeting Library</p>
-                <h1 className="text-2xl md:text-2xl font-normal tracking-tight text-foreground mb-3 md:mb-4">
-                  History
-                </h1>
-                <p className="text-muted-foreground font-light text-base md:text-lg">
-                  Browse your meetings or ask AI for insights across all conversations
-                </p>
+        <div className="min-h-screen bg-background">
+          {/* Filters Sidebar */}
+          {/* ... (filters sidebar code remains the same) ... */}
+          
+          <div className="max-w-[1600px] mx-auto px-6 pt-16">
+            {/* Sticky Header */}
+            <div className={cn("sticky top-16 z-20 bg-background pt-6 pb-10 mb-0")}>
+              <div className="flex items-center justify-between gap-6">
+                <div className="flex items-center gap-4 min-w-0 flex-1">
+                  <div className="h-9 w-9 rounded-full bg-peach/20 flex items-center justify-center flex-shrink-0 border border-peach/30 shadow-sm ring-1 ring-foreground/5">
+                    <FileText className="h-4 w-4 text-foreground/80" />
+                  </div>
+                  
+                  <div className="flex flex-col gap-1.5 min-w-0">
+                    <h1 className="text-sm font-semibold tracking-tight text-foreground leading-tight truncate">
+                      History
+                    </h1>
+                    
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <Badge
+                        variant="secondary"
+                        className="text-xs font-medium px-2.5 py-1 border-border/60 bg-peach/20 text-foreground rounded-full"
+                      >
+                        {totalCount} Meetings
+                      </Badge>
+                      
+                      {viewMode === 'mine' && (
+                        <Badge variant="outline" className="text-xs px-2.5 py-1 border-border/60 rounded-full">
+                          My Meetings
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Center Navigation */}
+                <div className="flex items-center gap-2 p-1 bg-card/40 backdrop-blur border border-border/40 rounded-full w-fit shadow-sm flex-shrink-0">
+                  <button
+                    onClick={() => setActiveTab('meetings')}
+                    className={cn(
+                      "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200",
+                      activeTab === 'meetings'
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground hover:bg-background/40"
+                    )}
+                  >
+                    <FileText className="h-4 w-4" />
+                    Meetings
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('ask')}
+                    className={cn(
+                      "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200",
+                      activeTab === 'ask'
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground hover:bg-background/40"
+                    )}
+                  >
+                    <MagicWandIcon size={16} />
+                    Ask AI
+                  </button>
+                </div>
+
+                {/* Right Actions */}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {/* View Mode Toggle (only show on meetings tab) */}
+                  {activeTab === 'meetings' && (
+                    <div className="flex items-center gap-1 bg-card/40 backdrop-blur border border-border/40 rounded-full p-1 mr-2">
+                      <button
+                        onClick={() => setViewMode('mine')}
+                        className={cn(
+                          "px-3 py-1.5 rounded-full text-xs font-medium transition-all",
+                          viewMode === 'mine' 
+                            ? "bg-background shadow-sm text-foreground" 
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        Mine
+                      </button>
+                      <button
+                        onClick={() => setViewMode('all')}
+                        className={cn(
+                          "px-3 py-1.5 rounded-full text-xs font-medium transition-all",
+                          viewMode === 'all' 
+                            ? "bg-background shadow-sm text-foreground" 
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        All
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Import Button */}
+                  {activeTab !== 'ask' && (
+                    <div className="flex gap-2 items-center">
+                      {/* ... dialogs ... */}
+                    </div>
+                  )}
+
+                  {/* Conversation History Sidebar - only show on ask tab */}
+                  {activeTab === 'ask' && (
+                    <ConversationsSidebar
+                      interviewId={null}
+                      currentConversationId={currentConversationId}
+                      onSelectConversation={(conversation) => {
+                        const loadedMessages = conversation.messages.map((m: any) => ({
+                          id: m.id,
+                          role: m.role,
+                          content: m.content,
+                          sources: m.sources || [],
+                          timestamp: new Date(m.timestamp)
+                        }))
+                        setMessages(loadedMessages)
+                        setCurrentConversationId(conversation.id)
+                      }}
+                      onNewConversation={() => {
+                        setMessages([])
+                        setAiQuestion('')
+                        setCurrentConversationId(null)
+                      }}
+                    />
+                  )}
+                </div>
               </div>
-              {activeTab !== 'ask' && (
-              <div className="flex gap-8 items-center">
+            </div>
                 {/* Background Import Indicator */}
                 {importing && !importOpen && (
                   <button
@@ -1955,99 +2078,16 @@
               )}
             </div>
           </div>
-
-          {/* Meetings View Toggle + Ask AI Button - only show when on meetings tab */}
-          {activeTab === 'meetings' && (
-            <div className="flex items-center justify-between mb-6 gap-4">
-              <div className="flex items-center gap-2 p-1 bg-card/40 backdrop-blur border border-border/40 rounded-full w-fit shadow-sm">
-                <button
-                  onClick={() => setViewMode('mine')}
-                  className={cn(
-                    "relative px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-2",
-                    viewMode === 'mine'
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground hover:bg-background/40"
-                  )}
-                >
-                  <User className={cn("h-4 w-4 transition-transform duration-200", viewMode === 'mine' && "scale-110")} />
-                  My Meetings
-                </button>
-                <button
-                  onClick={() => setViewMode('all')}
-                  className={cn(
-                    "relative px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-2",
-                    viewMode === 'all'
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground hover:bg-background/40"
-                  )}
-                >
-                  <FileText className={cn("h-4 w-4 transition-transform duration-200", viewMode === 'all' && "scale-110")} />
-                  All Meetings
-                  <Badge variant="secondary" className={cn("ml-1 text-xs transition-all duration-200", viewMode === 'all' && "bg-primary/10")}>{totalCount}</Badge>
-                </button>
-              </div>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setActiveTab('ask')}
-                className="group rounded-full h-12 px-5 border border-peach/70 hover:border-peach text-foreground gap-2.5 transition-all duration-300 shadow-sm hover:shadow-[0_0_15px_hsl(var(--peach)/0.6),0_0_30px_hsl(var(--peach)/0.3),0_4px_20px_hsl(var(--peach)/0.25)] !bg-gradient-to-br from-peach/60 via-peach/35 to-peach/15 hover:from-peach/70 hover:via-peach/45 hover:to-peach/20 relative overflow-hidden"
-                title="Ask AI about your meetings"
-                style={{ transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/15 to-white/25 opacity-30 group-hover:opacity-50 transition-opacity duration-500" />
-                <MagicWandIcon 
-                  size={18} 
-                  className="transition-all duration-300 ease-out group-hover:scale-110 group-hover:rotate-12 relative z-10" 
-                />
-                <span className="sr-only sm:not-sr-only font-medium relative z-10 tracking-tight">Ask AI</span>
-              </Button>
-            </div>
-          )}
-
-          {/* Ask AI Tab Content */}
-          {activeTab === 'ask' && (
-            <>
-              {/* Back to Meetings Button and Conversation History */}
-              <div className="mb-4 flex items-center justify-between">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setActiveTab('meetings')}
-                  className="gap-2 text-muted-foreground hover:text-foreground"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  Back to Meetings
-                </Button>
-                
-                <div className="flex items-center gap-2">
-                  <ConversationsSidebar
-                    interviewId={null}
-                    currentConversationId={currentConversationId}
-                    onSelectConversation={handleSelectConversation}
-                    onNewConversation={handleNewConversation}
-                  />
-                  
-                  {messages.length > 0 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={clearConversation}
-                      className="gap-2 text-muted-foreground hover:text-foreground"
-                    >
-                      <Plus className="h-4 w-4" />
-                      New Chat
-                    </Button>
-                  )}
-                </div>
-              </div>
-              
-              {/* Scrollable Conversation Area - uses viewport height minus header/tabs */}
-              <div 
-                className="animate-fade-in overflow-y-auto pb-32" 
-                style={{ height: 'calc(100vh - 200px)' }}
-              >
-                <div className="max-w-3xl mx-auto px-4">
+        </div>
+        {/* Ask AI Tab Content */}
+        {activeTab === 'ask' && (
+          <div 
+            className="animate-fade-in flex flex-col relative" 
+            style={{ height: messages.length > 0 ? 'calc(100vh - 180px)' : 'calc(100vh - 240px)' }}
+          >
+            <div className="flex-1 overflow-y-auto pb-32 relative">
+              <div className="sticky top-0 left-0 right-0 h-24 bg-gradient-to-b from-background via-background/80 to-transparent pointer-events-none z-30 -mb-24" />
+              <div className="max-w-3xl mx-auto px-4 pt-8">
                   {/* Empty State */}
                   {messages.length === 0 && !asking ? (
                     <div className="flex flex-col items-center justify-center text-center py-24 min-h-[50vh]">
@@ -2149,10 +2189,9 @@
                       <div ref={conversationEndRef} />
                     </div>
                   )}
-                </div>
-              </div>
-            </>
-          )}
+            </div>
+          </div>
+        )}
           
           {/* Input Area - Fixed at bottom, OUTSIDE the animated container */}
           {activeTab === 'ask' && (
@@ -2160,10 +2199,10 @@
               <div className="max-w-2xl mx-auto">
                 <div className="relative group">
                   {/* Main input container - subtle, integrated styling */}
-                  <div className="relative bg-card/60 backdrop-blur-md border border-border/30 rounded-xl shadow-lg transition-all duration-300 group-focus-within:border-primary/30 group-focus-within:shadow-xl overflow-hidden">
+                  <div className="relative bg-card/60 backdrop-blur-md border border-border/30 rounded-xl shadow-lg transition-all duration-300 group-focus-within:border-primary/30 group-focus-within:shadow-xl overflow-hidden min-h-[54px] flex flex-col justify-end">
                     <form onSubmit={handleAskQuestion} className="flex items-end gap-2">
                       {/* Voice recorder */}
-                      <div className="flex items-end pl-3 pb-2.5">
+                      <div className="flex items-center pl-3 pb-2.5 h-[54px]">
                         <VoiceRecorder 
                           onTranscriptionComplete={(text) => setAiQuestion(prev => prev ? `${prev} ${text}` : text)}
                           onRecordingChange={setIsRecording}
@@ -2289,7 +2328,7 @@
               )}
 
               {/* Search and Toolbar */}
-              <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm pb-4 pt-2 mb-2 border-b border-border/40">
+              <div className="sticky top-40 z-10 bg-background/95 backdrop-blur-sm pb-4 pt-2 mb-2 border-b border-border/40">
                 <div className="flex flex-col gap-4">
                   {/* Top Row: Search and Actions */}
                   <div className="flex flex-col sm:flex-row gap-6 justify-between items-center">
