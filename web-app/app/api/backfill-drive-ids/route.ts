@@ -20,8 +20,8 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (!settings?.drive_folder_id) {
-      return NextResponse.json({ 
-        error: 'No Drive folder configured' 
+      return NextResponse.json({
+        error: 'No Drive folder configured'
       }, { status: 400 })
     }
 
@@ -35,14 +35,15 @@ export async function POST(req: NextRequest) {
     let nextPageToken: string | null | undefined = undefined
 
     do {
-      const res = await drive.files.list({
+      const listPromise: any = drive.files.list({
         q: `'${settings.drive_folder_id}' in parents and mimeType = 'application/vnd.google-apps.document' and trashed = false`,
         fields: 'nextPageToken, files(id, name)',
         pageSize: 100,
         pageToken: nextPageToken || undefined,
       })
+      const driveResponse = await listPromise
 
-      const listData = res.data
+      const listData = driveResponse.data
       const files = listData.files || []
       allDriveFiles.push(...files)
       nextPageToken = listData.nextPageToken
@@ -78,15 +79,15 @@ export async function POST(req: NextRequest) {
       if (!interview.transcript_file_name) continue
 
       const driveId = driveFilesByName.get(interview.transcript_file_name)
-      
+
       if (driveId) {
         matched++
-        
+
         const { error: updateError } = await supabase
           .from('interviews')
           .update({ drive_file_id: driveId })
           .eq('id', interview.id)
-        
+
         if (!updateError) {
           updated++
           updates.push({
@@ -112,9 +113,9 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     console.error('[Backfill] Error:', error)
-    return NextResponse.json({ 
+    return NextResponse.json({
       error: 'Backfill failed',
-      details: error.message 
+      details: error.message
     }, { status: 500 })
   }
 }

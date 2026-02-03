@@ -1055,176 +1055,175 @@ export default function HistoryPage() {
     }
   }
 
+
   // Check selection state for select-all toggle
   const allFilteredSelected = filteredMeetings.length > 0 && filteredMeetings.every(m => selectedMeetings.has(m.id))
   const someFilteredSelected = filteredMeetings.some(m => selectedMeetings.has(m.id))
 
-  return (
-    <TooltipProvider>
-      <div className="min-h-screen bg-background">
-        {/* Filters Sidebar */}
+  return (<TooltipProvider>
+    <div className="min-h-screen bg-background">
+      {/* Filters Sidebar */}
+      <div
+        className={cn(
+          "fixed inset-0 bg-background/60 backdrop-blur-sm z-50 transition-opacity duration-300",
+          filtersOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        )}
+        onClick={() => setFiltersOpen(false)}
+      >
         <div
           className={cn(
-            "fixed inset-0 bg-background/60 backdrop-blur-sm z-50 transition-opacity duration-300",
-            filtersOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+            "fixed right-0 top-0 h-full w-[85vw] sm:w-[400px] bg-card/60 backdrop-blur-md border-l border-border/40 shadow-xl transition-transform duration-300 ease-in-out",
+            filtersOpen ? "translate-x-0" : "translate-x-full"
           )}
-          onClick={() => setFiltersOpen(false)}
+          onClick={(e) => e.stopPropagation()}
         >
-          <div
-            className={cn(
-              "fixed right-0 top-0 h-full w-[85vw] sm:w-[400px] bg-card/60 backdrop-blur-md border-l border-border/40 shadow-xl transition-transform duration-300 ease-in-out",
-              filtersOpen ? "translate-x-0" : "translate-x-full"
-            )}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex flex-col h-full">
-              {/* Header */}
-              <div className="flex items-center justify-between p-6 border-b border-border/40">
-                <div>
-                  <h2 className="text-2xl font-normal text-foreground">Filters</h2>
-                  <p className="text-sm text-muted-foreground mt-1 font-light">Refine your meeting search</p>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setFiltersOpen(false)}
-                  className="h-8 w-8 p-0 hover:bg-muted/50"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
+          <div className="flex flex-col h-full">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-border/40">
+              <div>
+                <h2 className="text-2xl font-normal text-foreground">Filters</h2>
+                <p className="text-sm text-muted-foreground mt-1 font-light">Refine your meeting search</p>
               </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setFiltersOpen(false)}
+                className="h-8 w-8 p-0 hover:bg-muted/50"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
 
-              {/* Filters Content */}
-              <ScrollArea className="flex-1 p-6">
-                <div className="space-y-6">
-                  {/* Date Range */}
-                  <div className="space-y-3">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-                      <Calendar className="h-3.5 w-3.5" />
-                      Date Range
-                    </label>
-                    <Select value={dateRange} onValueChange={setDateRange}>
-                      <SelectTrigger className="w-full h-11 bg-background/50 border-border/60">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Time</SelectItem>
-                        <SelectItem value="7days">Last 7 Days</SelectItem>
-                        <SelectItem value="30days">Last 30 Days</SelectItem>
-                        <SelectItem value="3months">Last 3 Months</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <Separator className="opacity-50" />
-
-                  {/* Position */}
-                  <div className="space-y-3">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-                      <FileText className="h-3.5 w-3.5" />
-                      Position
-                    </label>
-                    <Select value={selectedPosition} onValueChange={setSelectedPosition}>
-                      <SelectTrigger className="w-full h-11 bg-background/50 border-border/60">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Positions</SelectItem>
-                        {positions.map(position => (
-                          <SelectItem key={position} value={position}>
-                            {position}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <Separator className="opacity-50" />
-
-                  {/* Interviewer */}
-                  <div className="space-y-3">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-                      <User className="h-3.5 w-3.5" />
-                      Interviewer
-                    </label>
-                    <Select value={selectedInterviewer} onValueChange={setSelectedInterviewer}>
-                      <SelectTrigger className="w-full h-11 bg-background/50 border-border/60">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Interviewers</SelectItem>
-                        {interviewers.map(interviewer => (
-                          <SelectItem key={interviewer} value={interviewer}>
-                            {interviewer}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <Separator className="opacity-50" />
-
-                  {/* Candidate */}
-                  <div className="space-y-3">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-                      <User className="h-3.5 w-3.5" />
-                      Participant
-                    </label>
-                    <Select value={selectedCandidate} onValueChange={setSelectedCandidate}>
-                      <SelectTrigger className="w-full h-11 bg-background/50 border-border/60">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Participants</SelectItem>
-                        {candidates.map(candidate => (
-                          <SelectItem key={candidate} value={candidate}>
-                            {candidate}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <Separator className="opacity-50" />
-
-                  {/* Sort */}
-                  <div className="space-y-3">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      Sort By
-                    </label>
-                    <Select value={sortBy} onValueChange={setSortBy}>
-                      <SelectTrigger className="w-full h-11 bg-background/50 border-border/60">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="date-desc">Date (Newest First)</SelectItem>
-                        <SelectItem value="date-asc">Date (Oldest First)</SelectItem>
-                        <SelectItem value="name-asc">Name (A-Z)</SelectItem>
-                        <SelectItem value="name-desc">Name (Z-A)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+            {/* Filters Content */}
+            <ScrollArea className="flex-1 p-6">
+              <div className="space-y-6">
+                {/* Date Range */}
+                <div className="space-y-3">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                    <Calendar className="h-3.5 w-3.5" />
+                    Date Range
+                  </label>
+                  <Select value={dateRange} onValueChange={setDateRange}>
+                    <SelectTrigger className="w-full h-11 bg-background/50 border-border/60">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Time</SelectItem>
+                      <SelectItem value="7days">Last 7 Days</SelectItem>
+                      <SelectItem value="30days">Last 30 Days</SelectItem>
+                      <SelectItem value="3months">Last 3 Months</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-              </ScrollArea>
 
-              {/* Footer */}
-              <div className="p-6 border-t border-border/40 space-y-3 bg-card/20">
-                {hasActiveFilters && (
-                  <Button
-                    variant="outline"
-                    className="w-full h-11 border-border/60 hover:bg-muted/50"
-                    onClick={clearFilters}
-                  >
-                    Clear All Filters
-                  </Button>
-                )}
-                <Button
-                  className="w-full h-11 rounded-full"
-                  onClick={() => setFiltersOpen(false)}
-                >
-                  Apply Filters ({filteredMeetings.length})
-                </Button>
+                <Separator className="opacity-50" />
+
+                {/* Position */}
+                <div className="space-y-3">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                    <FileText className="h-3.5 w-3.5" />
+                    Position
+                  </label>
+                  <Select value={selectedPosition} onValueChange={setSelectedPosition}>
+                    <SelectTrigger className="w-full h-11 bg-background/50 border-border/60">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Positions</SelectItem>
+                      {positions.map(position => (
+                        <SelectItem key={position} value={position}>
+                          {position}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Separator className="opacity-50" />
+
+                {/* Interviewer */}
+                <div className="space-y-3">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                    <User className="h-3.5 w-3.5" />
+                    Interviewer
+                  </label>
+                  <Select value={selectedInterviewer} onValueChange={setSelectedInterviewer}>
+                    <SelectTrigger className="w-full h-11 bg-background/50 border-border/60">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Interviewers</SelectItem>
+                      {interviewers.map(interviewer => (
+                        <SelectItem key={interviewer} value={interviewer}>
+                          {interviewer}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Separator className="opacity-50" />
+
+                {/* Candidate */}
+                <div className="space-y-3">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                    <User className="h-3.5 w-3.5" />
+                    Participant
+                  </label>
+                  <Select value={selectedCandidate} onValueChange={setSelectedCandidate}>
+                    <SelectTrigger className="w-full h-11 bg-background/50 border-border/60">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Participants</SelectItem>
+                      {candidates.map(candidate => (
+                        <SelectItem key={candidate} value={candidate}>
+                          {candidate}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Separator className="opacity-50" />
+
+                {/* Sort */}
+                <div className="space-y-3">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Sort By
+                  </label>
+                  <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger className="w-full h-11 bg-background/50 border-border/60">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="date-desc">Date (Newest First)</SelectItem>
+                      <SelectItem value="date-asc">Date (Oldest First)</SelectItem>
+                      <SelectItem value="name-asc">Name (A-Z)</SelectItem>
+                      <SelectItem value="name-desc">Name (Z-A)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
+            </ScrollArea>
+
+            {/* Footer */}
+            <div className="p-6 border-t border-border/40 space-y-3 bg-card/20">
+              {hasActiveFilters && (
+                <Button
+                  variant="outline"
+                  className="w-full h-11 border-border/60 hover:bg-muted/50"
+                  onClick={clearFilters}
+                >
+                  Clear All Filters
+                </Button>
+              )}
+              <Button
+                className="w-full h-11 rounded-full"
+                onClick={() => setFiltersOpen(false)}
+              >
+                Apply Filters ({filteredMeetings.length})
+              </Button>
             </div>
           </div>
         </div>
@@ -2070,794 +2069,792 @@ export default function HistoryPage() {
             </DialogContent>
           </Dialog>
 
-        </div>
-      </div>
-    </div>
-        </div >
-    {/* Ask AI Tab Content */ }
-  {
-    activeTab === 'ask' && (
-      <div
-        className="animate-fade-in flex flex-col relative"
-        style={{ height: messages.length > 0 ? 'calc(100vh - 180px)' : 'calc(100vh - 240px)' }}
-      >
-        <div className="flex-1 overflow-y-auto pb-32 relative">
-          <div className="sticky top-0 left-0 right-0 h-24 bg-gradient-to-b from-background via-background/80 to-transparent pointer-events-none z-30 -mb-24" />
-          <div className="max-w-3xl mx-auto px-4 pt-8">
-            {/* Empty State */}
-            {messages.length === 0 && !asking ? (
-              <div className="flex flex-col items-center justify-center text-center py-24 min-h-[50vh]">
-                <div className="mb-6 h-16 w-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/10 animate-float">
-                  <MagicWandIcon size={28} className="text-primary" />
-                </div>
-                <h3 className="text-2xl font-semibold text-foreground mb-3 animate-fade-in" style={{ animationDelay: '100ms' }}>Ask AI about your candidates</h3>
-                <p className="text-muted-foreground max-w-md mb-6 animate-fade-in" style={{ animationDelay: '200ms' }}>
-                  Get instant insights from all your interviews.
-                </p>
-                <div className="flex flex-wrap gap-2 justify-center animate-fade-in" style={{ animationDelay: '300ms' }}>
-                  {[
-                    "Compare the top candidates",
-                    "Who has the most experience?"
-                  ].map((suggestion) => (
-                    <button
-                      key={suggestion}
-                      onClick={() => setAiQuestion(suggestion)}
-                      className="px-4 py-2 text-sm text-muted-foreground bg-card/40 hover:bg-muted border border-border/50 rounded-full transition-all duration-300 hover:border-primary/30 hover:text-foreground hover:scale-105 hover:shadow-md active:scale-95"
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-6 py-6">
-                {/* Render all messages */}
-                {messages.map((message, index) => (
-                  message.role === 'user' ? (
-                    <Message key={message.id} from="user" className={index === messages.length - 1 || index === messages.length - 2 ? "animate-fade-in-left" : ""}>
-                      <MessageContent>
-                        <p className="text-sm">{message.content}</p>
-                      </MessageContent>
-                      <MessageAvatar
-                        name={session?.user?.name || "You"}
-                        src={session?.user?.image || undefined}
-                        className="bg-muted"
-                      />
-                    </Message>
-                  ) : (
-                    <Message key={message.id} from="assistant" className={index === messages.length - 1 ? "animate-fade-in-right" : ""}>
-                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center flex-shrink-0 border border-primary/10 transition-all duration-300 hover:scale-110">
-                        <MagicWandIcon size={14} className="text-primary" />
+          {/* Ask AI Tab Content */}
+          {activeTab === 'ask' && (
+            <div
+              className="animate-fade-in flex flex-col relative"
+              style={{ height: messages.length > 0 ? 'calc(100vh - 180px)' : 'calc(100vh - 240px)' }}
+            >
+              <div className="flex-1 overflow-y-auto pb-32 relative">
+                <div className="sticky top-0 left-0 right-0 h-24 bg-gradient-to-b from-background via-background/80 to-transparent pointer-events-none z-30 -mb-24" />
+                <div className="max-w-3xl mx-auto px-4 pt-8">
+                  {/* Empty State */}
+                  {messages.length === 0 && !asking ? (
+                    <div className="flex flex-col items-center justify-center text-center py-24 min-h-[50vh]">
+                      <div className="mb-6 h-16 w-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/10 animate-float">
+                        <MagicWandIcon size={28} className="text-primary" />
                       </div>
-                      <div className="flex-1 space-y-4">
-                        <MessageContent>
-                          <Response>{message.content}</Response>
-                        </MessageContent>
-
-                        {message.sources && message.sources.length > 0 && (
-                          <div className="flex gap-2 flex-wrap items-center">
-                            <span className="text-xs text-muted-foreground">Based on interviews with:</span>
-                            {message.sources.map(source => (
-                              <Link key={source.id} href={`/history/${source.id}`}>
-                                <Badge variant="secondary" className="text-xs cursor-pointer hover:bg-secondary/80 transition-colors">
-                                  {source.candidateName}
-                                </Badge>
-                              </Link>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </Message>
-                  )
-                ))}
-
-                {/* Loading indicator for new response */}
-                {asking && (
-                  <Message from="assistant" className="animate-fade-in-right">
-                    <div className="h-8 w-8 rounded-full bg-peach/20 flex items-center justify-center flex-shrink-0 border border-peach/30 animate-glow-pulse">
-                      <MagicWandIcon size={14} className="text-primary animate-pulse" />
-                    </div>
-                    <MessageContent variant="flat">
-                      <div className="flex items-center gap-3 py-2">
-                        <ShimmeringText
-                          text="Analyzing your meetings..."
-                          className="text-sm text-muted-foreground"
-                        />
-                      </div>
-                    </MessageContent>
-                  </Message>
-                )}
-
-                {/* Clear conversation button */}
-                {messages.length > 0 && !asking && (
-                  <div className="flex justify-center pt-4">
-                    <button
-                      onClick={clearConversation}
-                      className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      <RefreshCw className="h-3.5 w-3.5" />
-                      Start new conversation
-                    </button>
-                  </div>
-                )}
-
-                {/* Scroll anchor */}
-                <div ref={conversationEndRef} />
-              </div>
-            )}
-          </div>
-        </div>
-        )}
-
-        {/* Input Area - Fixed at bottom, OUTSIDE the animated container */}
-        {activeTab === 'ask' && (
-          <div className="fixed bottom-0 left-0 right-0 z-40 px-4 pb-6 pt-8" style={{ background: 'linear-gradient(to top, hsl(var(--background)) 70%, transparent)' }}>
-            <div className="max-w-2xl mx-auto">
-              <div className="relative group">
-                {/* Main input container - subtle, integrated styling */}
-                <div className="relative bg-card/60 backdrop-blur-md border border-border/30 rounded-xl shadow-lg transition-all duration-300 group-focus-within:border-primary/30 group-focus-within:shadow-xl overflow-hidden min-h-[54px] flex flex-col justify-end">
-                  <form onSubmit={handleAskQuestion} className="flex items-end gap-2">
-                    {/* Voice recorder */}
-                    <div className="flex items-center pl-3 pb-2.5 h-[54px]">
-                      <VoiceRecorder
-                        onTranscriptionComplete={(text) => setAiQuestion(prev => prev ? `${prev} ${text}` : text)}
-                        onRecordingChange={setIsRecording}
-                      />
-                    </div>
-
-                    {!isRecording && (
-                      <>
-                        {/* Text input */}
-                        <div className="flex-1 py-1.5">
-                          <Textarea
-                            value={aiQuestion}
-                            onChange={(e) => {
-                              setAiQuestion(e.target.value)
-                              e.target.style.height = 'auto'
-                              e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px'
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && !e.shiftKey) {
-                                e.preventDefault()
-                                if (aiQuestion.trim() && !asking) {
-                                  handleAskQuestion(e as any)
-                                }
-                              }
-                            }}
-                            placeholder={messages.length > 0 ? "Ask follow-up..." : "Ask a question about your meetings..."}
-                            className="min-h-[44px] max-h-[160px] py-2.5 px-4 border-0 bg-input focus-visible:ring-0 focus-visible:ring-offset-0 resize-none overflow-y-auto text-[15px] placeholder:text-muted-foreground/50"
-                            rows={1}
-                          />
-                        </div>
-
-                        {/* Send button */}
-                        <div className="flex items-center justify-center pr-2.5 pb-2.5">
+                      <h3 className="text-2xl font-semibold text-foreground mb-3 animate-fade-in" style={{ animationDelay: '100ms' }}>Ask AI about your candidates</h3>
+                      <p className="text-muted-foreground max-w-md mb-6 animate-fade-in" style={{ animationDelay: '200ms' }}>
+                        Get instant insights from all your interviews.
+                      </p>
+                      <div className="flex flex-wrap gap-2 justify-center animate-fade-in" style={{ animationDelay: '300ms' }}>
+                        {[
+                          "Compare the top candidates",
+                          "Who has the most experience?"
+                        ].map((suggestion) => (
                           <button
-                            type="submit"
-                            disabled={asking || !aiQuestion.trim()}
-                            className={cn(
-                              "h-9 w-9 rounded-xl inline-flex items-center justify-center flex-shrink-0 transition-all duration-200",
-                              aiQuestion.trim()
-                                ? "bg-peach text-foreground hover:bg-peach/80"
-                                : "text-muted-foreground/30"
-                            )}
+                            key={suggestion}
+                            onClick={() => setAiQuestion(suggestion)}
+                            className="px-4 py-2 text-sm text-muted-foreground bg-card/40 hover:bg-muted border border-border/50 rounded-full transition-all duration-300 hover:border-primary/30 hover:text-foreground hover:scale-105 hover:shadow-md active:scale-95"
                           >
-                            <Send
-                              className={cn(
-                                "h-[18px] w-[18px] transition-transform duration-200",
-                                aiQuestion.trim() && "-rotate-45 translate-y-[2px]"
-                              )}
-                              strokeWidth={2}
+                            {suggestion}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-6 py-6">
+                      {/* Render all messages */}
+                      {messages.map((message, index) => (
+                        message.role === 'user' ? (
+                          <Message key={message.id} from="user" className={index === messages.length - 1 || index === messages.length - 2 ? "animate-fade-in-left" : ""}>
+                            <MessageContent>
+                              <p className="text-sm">{message.content}</p>
+                            </MessageContent>
+                            <MessageAvatar
+                              name={session?.user?.name || "You"}
+                              src={session?.user?.image || undefined}
+                              className="bg-muted"
                             />
+                          </Message>
+                        ) : (
+                          <Message key={message.id} from="assistant" className={index === messages.length - 1 ? "animate-fade-in-right" : ""}>
+                            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center flex-shrink-0 border border-primary/10 transition-all duration-300 hover:scale-110">
+                              <MagicWandIcon size={14} className="text-primary" />
+                            </div>
+                            <div className="flex-1 space-y-4">
+                              <MessageContent>
+                                <Response>{message.content}</Response>
+                              </MessageContent>
+
+                              {message.sources && message.sources.length > 0 && (
+                                <div className="flex gap-2 flex-wrap items-center">
+                                  <span className="text-xs text-muted-foreground">Based on interviews with:</span>
+                                  {message.sources.map(source => (
+                                    <Link key={source.id} href={`/history/${source.id}`}>
+                                      <Badge variant="secondary" className="text-xs cursor-pointer hover:bg-secondary/80 transition-colors">
+                                        {source.candidateName}
+                                      </Badge>
+                                    </Link>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </Message>
+                        )
+                      ))}
+
+                      {/* Loading indicator for new response */}
+                      {asking && (
+                        <Message from="assistant" className="animate-fade-in-right">
+                          <div className="h-8 w-8 rounded-full bg-peach/20 flex items-center justify-center flex-shrink-0 border border-peach/30 animate-glow-pulse">
+                            <MagicWandIcon size={14} className="text-primary animate-pulse" />
+                          </div>
+                          <MessageContent variant="flat">
+                            <div className="flex items-center gap-3 py-2">
+                              <ShimmeringText
+                                text="Analyzing your meetings..."
+                                className="text-sm text-muted-foreground"
+                              />
+                            </div>
+                          </MessageContent>
+                        </Message>
+                      )}
+
+                      {/* Clear conversation button */}
+                      {messages.length > 0 && !asking && (
+                        <div className="flex justify-center pt-4">
+                          <button
+                            onClick={clearConversation}
+                            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            <RefreshCw className="h-3.5 w-3.5" />
+                            Start new conversation
                           </button>
                         </div>
-                      </>
-                    )}
-                  </form>
+                      )}
+
+                      {/* Scroll anchor */}
+                      <div ref={conversationEndRef} />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Meetings Tab Content */}
-        {activeTab === 'meetings' && (
-          <div className="animate-fade-in">
-            {/* Quick Stats Bar */}
-            {!loading && meetings.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 md:mb-12">
-                <div className="border border-border/40 bg-gradient-to-br from-card/40 to-card/20 rounded-2xl p-5 md:p-7 flex flex-col justify-between h-32 md:h-44 hover:bg-card/50 hover:border-border/60 hover:shadow-lg transition-all duration-300 relative group">
-                  <div className="space-y-2 md:space-y-3">
-                    <p className="text-4xl md:text-5xl font-semibold text-foreground tracking-tight group-hover:text-primary transition-colors duration-300">
-                      {hasActiveFilters ? filteredMeetings.length : totalCount}
-                    </p>
-                    <p className="text-sm font-normal font-sans">
-                      {hasActiveFilters ? 'Filtered' : 'Total'} Meetings
-                    </p>
-                  </div>
-                  <div className="absolute top-5 right-5 md:top-6 md:right-6 h-8 w-8 md:h-10 md:w-10 rounded-xl bg-peach/10 flex items-center justify-center opacity-50 group-hover:opacity-100 transition-opacity">
-                    <FileText className="h-4 w-4 md:h-5 md:w-5 text-peach" />
-                  </div>
-                </div>
-
-                <div className="border border-border/40 bg-gradient-to-br from-card/40 to-card/20 rounded-2xl p-5 md:p-7 flex flex-col justify-between h-32 md:h-44 hover:bg-card/50 hover:border-border/60 hover:shadow-lg transition-all duration-300 relative group">
-                  <div className="space-y-2 md:space-y-3">
-                    <p className="text-4xl md:text-5xl font-semibold text-foreground tracking-tight group-hover:text-primary transition-colors duration-300">
-                      {new Set(filteredMeetings.map(i => i.candidate_name)).size}
-                    </p>
-                    <p className="text-sm font-normal font-sans">Participants</p>
-                  </div>
-                  <div className="absolute top-5 right-5 md:top-6 md:right-6 h-8 w-8 md:h-10 md:w-10 rounded-xl bg-primary/10 flex items-center justify-center opacity-50 group-hover:opacity-100 transition-opacity">
-                    <User className="h-4 w-4 md:h-5 md:w-5 text-primary" />
-                  </div>
-                </div>
-
-                <div className="border border-border/40 bg-gradient-to-br from-card/40 to-card/20 rounded-2xl p-5 md:p-7 flex flex-col justify-between h-32 md:h-44 hover:bg-card/50 hover:border-border/60 hover:shadow-lg transition-all duration-300 relative group">
-                  <div className="space-y-2 md:space-y-3">
-                    <p className="text-4xl md:text-5xl font-semibold text-foreground tracking-tight group-hover:text-primary transition-colors duration-300">
-                      {filteredMeetings.filter((i: Meeting) => {
-                        const date = new Date(i.meeting_date || i.created_at)
-                        const weekAgo = new Date()
-                        weekAgo.setDate(weekAgo.getDate() - 7)
-                        return date > weekAgo
-                      }).length}
-                    </p>
-                    <p className="text-sm font-normal font-sans">This Week</p>
-                  </div>
-                  <div className="absolute top-5 right-5 md:top-6 md:right-6 h-8 w-8 md:h-10 md:w-10 rounded-xl bg-peach/10 flex items-center justify-center opacity-50 group-hover:opacity-100 transition-opacity">
-                    <Calendar className="h-4 w-4 md:h-5 md:w-5 text-peach" />
-                  </div>
-                </div>
-
-                <div className="border border-border/40 bg-gradient-to-br from-card/40 to-card/20 rounded-2xl p-5 md:p-7 flex flex-col justify-between h-32 md:h-44 hover:bg-card/50 hover:border-border/60 hover:shadow-lg transition-all duration-300 relative group">
-                  <div className="space-y-2 md:space-y-3">
-                    <p className="text-4xl md:text-5xl font-semibold text-foreground tracking-tight group-hover:text-primary transition-colors duration-300">
-                      {new Set(filteredMeetings.map((i: Meeting) => i.position).filter(Boolean)).size}
-                    </p>
-                    <p className="text-sm font-normal font-sans">Positions</p>
-                  </div>
-                  <div className="absolute top-5 right-5 md:top-6 md:right-6 h-8 w-8 md:h-10 md:w-10 rounded-xl bg-primary/10 flex items-center justify-center opacity-50 group-hover:opacity-100 transition-opacity">
-                    <FileText className="h-4 w-4 md:h-5 md:w-5 text-primary" />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Search and Toolbar */}
-            <div className="sticky top-40 z-10 bg-background/95 backdrop-blur-sm pb-4 pt-2 mb-2 border-b border-border/40">
-              <div className="flex flex-col gap-4">
-                {/* Top Row: Search and Actions */}
-                <div className="flex flex-col sm:flex-row gap-6 justify-between items-center">
-                  <div className="flex items-center gap-4 w-full sm:max-w-2xl">
-                    <div className="relative flex-1 group">
-                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
-                      <Input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search by name, position, or keywords..."
-                        className="pl-11 pr-4 h-12 bg-input border-transparent rounded-full transition-all focus:bg-background focus:shadow-sm focus:border-primary/30 text-base"
-                      />
-                      {searchQuery && (
-                        <button
-                          type="button"
-                          onClick={() => { setSearchQuery(''); fetchMeetings(); }}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 w-full sm:w-auto">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setFiltersOpen(true)}
-                      className={cn(
-                        "rounded-full h-12 px-4 border-border/60 hover:bg-secondary/30 hover:border-border gap-2",
-                        hasActiveFilters && "bg-primary/10 border-primary/30 text-primary hover:text-primary"
-                      )}
-                    >
-                      <SlidersHorizontal className="h-4 w-4" />
-                      <span className="sr-only sm:not-sr-only">Filters</span>
-                      {hasActiveFilters && <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">On</Badge>}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => fetchMeetings()}
-                      disabled={loading}
-                      className="rounded-full h-12 px-4 border-border/60 hover:bg-secondary/30 hover:border-border text-muted-foreground hover:text-foreground gap-2"
-                      title="Refresh meetings list"
-                    >
-                      <RefreshCw className={cn("h-4 w-4", loading && "animate-spin-slow")} />
-                      <span className="sr-only sm:not-sr-only">Refresh</span>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowRegenerateConfirm(true)}
-                      disabled={regenerating}
-                      className="rounded-full h-12 px-4 border-border/60 hover:bg-secondary/30 hover:border-border text-muted-foreground hover:text-foreground gap-2 ml-auto sm:ml-0"
-                      title="Regenerate all summaries"
-                    >
-                      <RefreshCw className={cn("h-4 w-4", regenerating && "animate-spin-slow")} />
-                      <span className="sr-only sm:not-sr-only">{regenerating ? "Regenerating..." : "Reanalyze"}</span>
-                    </Button>
-
-                    <div className="h-6 w-px bg-border/40 mx-1 hidden sm:block" />
-
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground whitespace-nowrap hidden sm:flex">
-                      <span>Sorted by</span>
-                      <span className="font-medium text-foreground">
-                        {sortBy === 'date-desc' && 'Most Recent'}
-                        {sortBy === 'date-asc' && 'Oldest First'}
-                        {sortBy === 'name-asc' && 'Name (A-Z)'}
-                        {sortBy === 'name-desc' && 'Name (Z-A)'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Meeting Type Filters */}
-                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedMeetingType('all')}
-                    className={cn(
-                      "px-4 py-1.5 text-xs rounded-full transition-all font-medium whitespace-nowrap flex items-center gap-2",
-                      selectedMeetingType === 'all'
-                        ? "bg-peach text-foreground"
-                        : "bg-card/40 text-muted-foreground hover:bg-card/60 hover:text-foreground border border-border/40"
-                    )}
-                  >
-                    <span>All</span>
-                    <span className={cn(
-                      "h-5 min-w-5 px-1.5 rounded-full flex items-center justify-center text-[10px] font-semibold transition-all",
-                      selectedMeetingType === 'all'
-                        ? "bg-foreground/15 text-foreground"
-                        : "bg-muted/60 text-muted-foreground"
-                    )}>
-                      {hasActiveFilters ? filteredMeetings.length : totalCount}
-                    </span>
-                  </button>
-                  {['Interview', 'Client Debrief', 'Sales Meeting', 'Status Update', 'Team Sync', '1-on-1', 'Client Call', 'Other'].map(type => {
-                    const count = meetings
-                      .filter(meeting => {
-                        // Apply all filters except meeting type
-                        if (dateRange !== 'all') {
-                          const meetingDate = new Date(meeting.meeting_date || meeting.created_at)
-                          const now = new Date()
-
-                          if (dateRange === '7days') {
-                            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-                            if (meetingDate < weekAgo) return false
-                          } else if (dateRange === '30days') {
-                            const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-                            if (meetingDate < monthAgo) return false
-                          } else if (dateRange === '3months') {
-                            const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
-                            if (meetingDate < threeMonthsAgo) return false
-                          }
-                        }
-
-                        if (selectedPosition !== 'all' && meeting.position !== selectedPosition) return false
-                        if (selectedInterviewer !== 'all' && meeting.interviewer !== selectedInterviewer) return false
-                        if (selectedCandidate !== 'all' && meeting.candidate_name !== selectedCandidate) return false
-
-                        return meeting.meeting_type === type
-                      }).length
-                    if (count === 0) return null
-                    return (
-                      <button
-                        key={type}
-                        type="button"
-                        onClick={() => setSelectedMeetingType(type)}
-                        className={cn(
-                          "px-4 py-1.5 text-xs rounded-full transition-all font-medium whitespace-nowrap flex items-center gap-2",
-                          selectedMeetingType === type
-                            ? "bg-peach text-foreground"
-                            : "bg-card/40 text-muted-foreground hover:bg-card/60 hover:text-foreground border border-border/40"
-                        )}
-                      >
-                        <span>{type}</span>
-                        <span className={cn(
-                          "h-5 min-w-5 px-1.5 rounded-full flex items-center justify-center text-[10px] font-semibold transition-all",
-                          selectedMeetingType === type
-                            ? "bg-foreground/15 text-foreground"
-                            : "bg-muted/60 text-muted-foreground"
-                        )}>
-                          {count}
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
-
-                {/* Selection Bar - appears when items are selected */}
-                {selectedMeetings.size > 0 && (
-                  <div className="flex items-center justify-between gap-4 py-3 px-4 bg-primary/5 border border-primary/20 rounded-xl animate-in slide-in-from-top-2 duration-200">
-                    <div className="flex items-center gap-4">
-                      <button
-                        onClick={allFilteredSelected ? deselectAllMeetings : selectAllMeetings}
-                        className="flex items-center gap-2 text-sm text-foreground hover:text-primary transition-colors"
-                      >
-                        {allFilteredSelected ? (
-                          <CheckSquare className="h-5 w-5 text-primary" />
-                        ) : someFilteredSelected ? (
-                          <MinusSquare className="h-5 w-5 text-primary" />
-                        ) : (
-                          <Square className="h-5 w-5" />
-                        )}
-                        <span className="font-medium">
-                          {allFilteredSelected ? 'Deselect All' : 'Select All'}
-                        </span>
-                      </button>
-                      <div className="h-4 w-px bg-border/60" />
-                      <span className="text-sm text-muted-foreground">
-                        <span className="font-semibold text-foreground">{selectedMeetings.size}</span> selected
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={deselectAllMeetings}
-                        className="text-muted-foreground hover:text-foreground h-8 px-3"
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => setShowBulkDeleteConfirm(true)}
-                        className="gap-2 h-8 px-4"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        Delete ({selectedMeetings.size})
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Section Header (Hidden if sticky toolbar is used, or keep for spacing) */}
-            <div className="h-4" />
-
-            {/* Interviews List */}
-            <div className="flex flex-col gap-6">
-              {loading ? (
-                /* Skeleton Loading State */
-                [1, 2, 3, 4, 5].map((i) => (
-                  <div key={i} className="border border-border/40 rounded-2xl p-5 md:p-8 bg-card/40 animate-pulse">
-                    <div className="flex flex-col sm:flex-row gap-4 md:gap-5">
-                      {/* Left: Avatar and Name Skeleton */}
-                      <div className="flex flex-col gap-2 sm:gap-3">
-                        {/* Avatar and Name Horizontal */}
-                        <div className="flex items-center gap-3">
-                          <Skeleton className="h-12 w-12 md:h-14 md:w-14 rounded-2xl flex-shrink-0" />
-                          <Skeleton className="h-5 w-32 rounded-full" />
-                        </div>
-                        {/* Role Tag Skeleton */}
-                        <Skeleton className="h-5 w-24 rounded-full opacity-60" />
-                        {/* Mobile Date Skeleton */}
-                        <Skeleton className="sm:hidden h-3 w-20 rounded-full opacity-60" />
+          {/* Input Area - Fixed at bottom, OUTSIDE the animated container */}
+          {activeTab === 'ask' && (
+            <div className="fixed bottom-0 left-0 right-0 z-40 px-4 pb-6 pt-8" style={{ background: 'linear-gradient(to top, hsl(var(--background)) 70%, transparent)' }}>
+              <div className="max-w-2xl mx-auto">
+                <div className="relative group">
+                  {/* Main input container - subtle, integrated styling */}
+                  <div className="relative bg-card/60 backdrop-blur-md border border-border/30 rounded-xl shadow-lg transition-all duration-300 group-focus-within:border-primary/30 group-focus-within:shadow-xl overflow-hidden min-h-[54px] flex flex-col justify-end">
+                    <form onSubmit={handleAskQuestion} className="flex items-end gap-2">
+                      {/* Voice recorder */}
+                      <div className="flex items-center pl-3 pb-2.5 h-[54px]">
+                        <VoiceRecorder
+                          onTranscriptionComplete={(text) => setAiQuestion(prev => prev ? `${prev} ${text}` : text)}
+                          onRecordingChange={setIsRecording}
+                        />
                       </div>
 
-                      <div className="flex-1 min-w-0 space-y-4">
-                        {/* Header Row Skeleton - Just date on desktop */}
-                        <div className="hidden sm:flex items-start justify-between gap-4">
-                          <Skeleton className="h-4 w-24 rounded-full opacity-50 ml-auto" />
+                      {!isRecording && (
+                        <>
+                          {/* Text input */}
+                          <div className="flex-1 py-1.5">
+                            <Textarea
+                              value={aiQuestion}
+                              onChange={(e) => {
+                                setAiQuestion(e.target.value)
+                                e.target.style.height = 'auto'
+                                e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px'
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                  e.preventDefault()
+                                  if (aiQuestion.trim() && !asking) {
+                                    handleAskQuestion(e as any)
+                                  }
+                                }
+                              }}
+                              placeholder={messages.length > 0 ? "Ask follow-up..." : "Ask a question about your meetings..."}
+                              className="min-h-[44px] max-h-[160px] py-2.5 px-4 border-0 bg-input focus-visible:ring-0 focus-visible:ring-offset-0 resize-none overflow-y-auto text-[15px] placeholder:text-muted-foreground/50"
+                              rows={1}
+                            />
+                          </div>
+
+                          {/* Send button */}
+                          <div className="flex items-center justify-center pr-2.5 pb-2.5">
+                            <button
+                              type="submit"
+                              disabled={asking || !aiQuestion.trim()}
+                              className={cn(
+                                "h-9 w-9 rounded-xl inline-flex items-center justify-center flex-shrink-0 transition-all duration-200",
+                                aiQuestion.trim()
+                                  ? "bg-peach text-foreground hover:bg-peach/80"
+                                  : "text-muted-foreground/30"
+                              )}
+                            >
+                              <Send
+                                className={cn(
+                                  "h-[18px] w-[18px] transition-transform duration-200",
+                                  aiQuestion.trim() && "-rotate-45 translate-y-[2px]"
+                                )}
+                                strokeWidth={2}
+                              />
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Meetings Tab Content */}
+          {activeTab === 'meetings' && (
+            <div className="animate-fade-in">
+              {/* Quick Stats Bar */}
+              {!loading && meetings.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 md:mb-12">
+                  <div className="border border-border/40 bg-gradient-to-br from-card/40 to-card/20 rounded-2xl p-5 md:p-7 flex flex-col justify-between h-32 md:h-44 hover:bg-card/50 hover:border-border/60 hover:shadow-lg transition-all duration-300 relative group">
+                    <div className="space-y-2 md:space-y-3">
+                      <p className="text-4xl md:text-5xl font-semibold text-foreground tracking-tight group-hover:text-primary transition-colors duration-300">
+                        {hasActiveFilters ? filteredMeetings.length : totalCount}
+                      </p>
+                      <p className="text-sm font-normal font-sans">
+                        {hasActiveFilters ? 'Filtered' : 'Total'} Meetings
+                      </p>
+                    </div>
+                    <div className="absolute top-5 right-5 md:top-6 md:right-6 h-8 w-8 md:h-10 md:w-10 rounded-xl bg-peach/10 flex items-center justify-center opacity-50 group-hover:opacity-100 transition-opacity">
+                      <FileText className="h-4 w-4 md:h-5 md:w-5 text-peach" />
+                    </div>
+                  </div>
+
+                  <div className="border border-border/40 bg-gradient-to-br from-card/40 to-card/20 rounded-2xl p-5 md:p-7 flex flex-col justify-between h-32 md:h-44 hover:bg-card/50 hover:border-border/60 hover:shadow-lg transition-all duration-300 relative group">
+                    <div className="space-y-2 md:space-y-3">
+                      <p className="text-4xl md:text-5xl font-semibold text-foreground tracking-tight group-hover:text-primary transition-colors duration-300">
+                        {new Set(filteredMeetings.map(i => i.candidate_name)).size}
+                      </p>
+                      <p className="text-sm font-normal font-sans">Participants</p>
+                    </div>
+                    <div className="absolute top-5 right-5 md:top-6 md:right-6 h-8 w-8 md:h-10 md:w-10 rounded-xl bg-primary/10 flex items-center justify-center opacity-50 group-hover:opacity-100 transition-opacity">
+                      <User className="h-4 w-4 md:h-5 md:w-5 text-primary" />
+                    </div>
+                  </div>
+
+                  <div className="border border-border/40 bg-gradient-to-br from-card/40 to-card/20 rounded-2xl p-5 md:p-7 flex flex-col justify-between h-32 md:h-44 hover:bg-card/50 hover:border-border/60 hover:shadow-lg transition-all duration-300 relative group">
+                    <div className="space-y-2 md:space-y-3">
+                      <p className="text-4xl md:text-5xl font-semibold text-foreground tracking-tight group-hover:text-primary transition-colors duration-300">
+                        {filteredMeetings.filter((i: Meeting) => {
+                          const date = new Date(i.meeting_date || i.created_at)
+                          const weekAgo = new Date()
+                          weekAgo.setDate(weekAgo.getDate() - 7)
+                          return date > weekAgo
+                        }).length}
+                      </p>
+                      <p className="text-sm font-normal font-sans">This Week</p>
+                    </div>
+                    <div className="absolute top-5 right-5 md:top-6 md:right-6 h-8 w-8 md:h-10 md:w-10 rounded-xl bg-peach/10 flex items-center justify-center opacity-50 group-hover:opacity-100 transition-opacity">
+                      <Calendar className="h-4 w-4 md:h-5 md:w-5 text-peach" />
+                    </div>
+                  </div>
+
+                  <div className="border border-border/40 bg-gradient-to-br from-card/40 to-card/20 rounded-2xl p-5 md:p-7 flex flex-col justify-between h-32 md:h-44 hover:bg-card/50 hover:border-border/60 hover:shadow-lg transition-all duration-300 relative group">
+                    <div className="space-y-2 md:space-y-3">
+                      <p className="text-4xl md:text-5xl font-semibold text-foreground tracking-tight group-hover:text-primary transition-colors duration-300">
+                        {new Set(filteredMeetings.map((i: Meeting) => i.position).filter(Boolean)).size}
+                      </p>
+                      <p className="text-sm font-normal font-sans">Positions</p>
+                    </div>
+                    <div className="absolute top-5 right-5 md:top-6 md:right-6 h-8 w-8 md:h-10 md:w-10 rounded-xl bg-primary/10 flex items-center justify-center opacity-50 group-hover:opacity-100 transition-opacity">
+                      <FileText className="h-4 w-4 md:h-5 md:w-5 text-primary" />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Search and Toolbar */}
+              <div className="sticky top-40 z-10 bg-background/95 backdrop-blur-sm pb-4 pt-2 mb-2 border-b border-border/40">
+                <div className="flex flex-col gap-4">
+                  {/* Top Row: Search and Actions */}
+                  <div className="flex flex-col sm:flex-row gap-6 justify-between items-center">
+                    <div className="flex items-center gap-4 w-full sm:max-w-2xl">
+                      <div className="relative flex-1 group">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
+                        <Input
+                          type="text"
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          placeholder="Search by name, position, or keywords..."
+                          className="pl-11 pr-4 h-12 bg-input border-transparent rounded-full transition-all focus:bg-background focus:shadow-sm focus:border-primary/30 text-base"
+                        />
+                        {searchQuery && (
+                          <button
+                            type="button"
+                            onClick={() => { setSearchQuery(''); fetchMeetings(); }}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 w-full sm:w-auto">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setFiltersOpen(true)}
+                        className={cn(
+                          "rounded-full h-12 px-4 border-border/60 hover:bg-secondary/30 hover:border-border gap-2",
+                          hasActiveFilters && "bg-primary/10 border-primary/30 text-primary hover:text-primary"
+                        )}
+                      >
+                        <SlidersHorizontal className="h-4 w-4" />
+                        <span className="sr-only sm:not-sr-only">Filters</span>
+                        {hasActiveFilters && <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">On</Badge>}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => fetchMeetings()}
+                        disabled={loading}
+                        className="rounded-full h-12 px-4 border-border/60 hover:bg-secondary/30 hover:border-border text-muted-foreground hover:text-foreground gap-2"
+                        title="Refresh meetings list"
+                      >
+                        <RefreshCw className={cn("h-4 w-4", loading && "animate-spin-slow")} />
+                        <span className="sr-only sm:not-sr-only">Refresh</span>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowRegenerateConfirm(true)}
+                        disabled={regenerating}
+                        className="rounded-full h-12 px-4 border-border/60 hover:bg-secondary/30 hover:border-border text-muted-foreground hover:text-foreground gap-2 ml-auto sm:ml-0"
+                        title="Regenerate all summaries"
+                      >
+                        <RefreshCw className={cn("h-4 w-4", regenerating && "animate-spin-slow")} />
+                        <span className="sr-only sm:not-sr-only">{regenerating ? "Regenerating..." : "Reanalyze"}</span>
+                      </Button>
+
+                      <div className="h-6 w-px bg-border/40 mx-1 hidden sm:block" />
+
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground whitespace-nowrap hidden sm:flex">
+                        <span>Sorted by</span>
+                        <span className="font-medium text-foreground">
+                          {sortBy === 'date-desc' && 'Most Recent'}
+                          {sortBy === 'date-asc' && 'Oldest First'}
+                          {sortBy === 'name-asc' && 'Name (A-Z)'}
+                          {sortBy === 'name-desc' && 'Name (Z-A)'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Meeting Type Filters */}
+                  <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedMeetingType('all')}
+                      className={cn(
+                        "px-4 py-1.5 text-xs rounded-full transition-all font-medium whitespace-nowrap flex items-center gap-2",
+                        selectedMeetingType === 'all'
+                          ? "bg-peach text-foreground"
+                          : "bg-card/40 text-muted-foreground hover:bg-card/60 hover:text-foreground border border-border/40"
+                      )}
+                    >
+                      <span>All</span>
+                      <span className={cn(
+                        "h-5 min-w-5 px-1.5 rounded-full flex items-center justify-center text-[10px] font-semibold transition-all",
+                        selectedMeetingType === 'all'
+                          ? "bg-foreground/15 text-foreground"
+                          : "bg-muted/60 text-muted-foreground"
+                      )}>
+                        {hasActiveFilters ? filteredMeetings.length : totalCount}
+                      </span>
+                    </button>
+                    {['Interview', 'Client Debrief', 'Sales Meeting', 'Status Update', 'Team Sync', '1-on-1', 'Client Call', 'Other'].map(type => {
+                      const count = meetings
+                        .filter(meeting => {
+                          // Apply all filters except meeting type
+                          if (dateRange !== 'all') {
+                            const meetingDate = new Date(meeting.meeting_date || meeting.created_at)
+                            const now = new Date()
+
+                            if (dateRange === '7days') {
+                              const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+                              if (meetingDate < weekAgo) return false
+                            } else if (dateRange === '30days') {
+                              const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+                              if (meetingDate < monthAgo) return false
+                            } else if (dateRange === '3months') {
+                              const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
+                              if (meetingDate < threeMonthsAgo) return false
+                            }
+                          }
+
+                          if (selectedPosition !== 'all' && meeting.position !== selectedPosition) return false
+                          if (selectedInterviewer !== 'all' && meeting.interviewer !== selectedInterviewer) return false
+                          if (selectedCandidate !== 'all' && meeting.candidate_name !== selectedCandidate) return false
+
+                          return meeting.meeting_type === type
+                        }).length
+                      if (count === 0) return null
+                      return (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => setSelectedMeetingType(type)}
+                          className={cn(
+                            "px-4 py-1.5 text-xs rounded-full transition-all font-medium whitespace-nowrap flex items-center gap-2",
+                            selectedMeetingType === type
+                              ? "bg-peach text-foreground"
+                              : "bg-card/40 text-muted-foreground hover:bg-card/60 hover:text-foreground border border-border/40"
+                          )}
+                        >
+                          <span>{type}</span>
+                          <span className={cn(
+                            "h-5 min-w-5 px-1.5 rounded-full flex items-center justify-center text-[10px] font-semibold transition-all",
+                            selectedMeetingType === type
+                              ? "bg-foreground/15 text-foreground"
+                              : "bg-muted/60 text-muted-foreground"
+                          )}>
+                            {count}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {/* Selection Bar - appears when items are selected */}
+                  {selectedMeetings.size > 0 && (
+                    <div className="flex items-center justify-between gap-4 py-3 px-4 bg-primary/5 border border-primary/20 rounded-xl animate-in slide-in-from-top-2 duration-200">
+                      <div className="flex items-center gap-4">
+                        <button
+                          onClick={allFilteredSelected ? deselectAllMeetings : selectAllMeetings}
+                          className="flex items-center gap-2 text-sm text-foreground hover:text-primary transition-colors"
+                        >
+                          {allFilteredSelected ? (
+                            <CheckSquare className="h-5 w-5 text-primary" />
+                          ) : someFilteredSelected ? (
+                            <MinusSquare className="h-5 w-5 text-primary" />
+                          ) : (
+                            <Square className="h-5 w-5" />
+                          )}
+                          <span className="font-medium">
+                            {allFilteredSelected ? 'Deselect All' : 'Select All'}
+                          </span>
+                        </button>
+                        <div className="h-4 w-px bg-border/60" />
+                        <span className="text-sm text-muted-foreground">
+                          <span className="font-semibold text-foreground">{selectedMeetings.size}</span> selected
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={deselectAllMeetings}
+                          className="text-muted-foreground hover:text-foreground h-8 px-3"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => setShowBulkDeleteConfirm(true)}
+                          className="gap-2 h-8 px-4"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Delete ({selectedMeetings.size})
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Section Header (Hidden if sticky toolbar is used, or keep for spacing) */}
+              <div className="h-4" />
+
+              {/* Interviews List */}
+              <div className="flex flex-col gap-6">
+                {loading ? (
+                  /* Skeleton Loading State */
+                  [1, 2, 3, 4, 5].map((i) => (
+                    <div key={i} className="border border-border/40 rounded-2xl p-5 md:p-8 bg-card/40 animate-pulse">
+                      <div className="flex flex-col sm:flex-row gap-4 md:gap-5">
+                        {/* Left: Avatar and Name Skeleton */}
+                        <div className="flex flex-col gap-2 sm:gap-3">
+                          {/* Avatar and Name Horizontal */}
+                          <div className="flex items-center gap-3">
+                            <Skeleton className="h-12 w-12 md:h-14 md:w-14 rounded-2xl flex-shrink-0" />
+                            <Skeleton className="h-5 w-32 rounded-full" />
+                          </div>
+                          {/* Role Tag Skeleton */}
+                          <Skeleton className="h-5 w-24 rounded-full opacity-60" />
+                          {/* Mobile Date Skeleton */}
+                          <Skeleton className="sm:hidden h-3 w-20 rounded-full opacity-60" />
                         </div>
 
-                        {/* Summary Skeleton */}
-                        <div className="space-y-2">
-                          <Skeleton className="h-4 w-full rounded-full opacity-60" />
-                          <Skeleton className="h-4 w-3/4 rounded-full opacity-60" />
-                        </div>
+                        <div className="flex-1 min-w-0 space-y-4">
+                          {/* Header Row Skeleton - Just date on desktop */}
+                          <div className="hidden sm:flex items-start justify-between gap-4">
+                            <Skeleton className="h-4 w-24 rounded-full opacity-50 ml-auto" />
+                          </div>
 
-                        {/* Tags Skeleton */}
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2 border-t border-border/30">
-                          <div className="flex gap-2">
-                            <Skeleton className="h-6 w-20 rounded-full opacity-50" />
-                            <Skeleton className="h-6 w-24 rounded-full opacity-50" />
+                          {/* Summary Skeleton */}
+                          <div className="space-y-2">
+                            <Skeleton className="h-4 w-full rounded-full opacity-60" />
+                            <Skeleton className="h-4 w-3/4 rounded-full opacity-60" />
+                          </div>
+
+                          {/* Tags Skeleton */}
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2 border-t border-border/30">
+                            <div className="flex gap-2">
+                              <Skeleton className="h-6 w-20 rounded-full opacity-50" />
+                              <Skeleton className="h-6 w-24 rounded-full opacity-50" />
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))
-              ) : meetings.length === 0 ? (
-                <div className="col-span-full">
-                  <Card className="py-20 border-dashed border-2 bg-card/30">
-                    <div className="text-center">
-                      <div className="h-20 w-20 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-6">
-                        <FileText className="h-10 w-10 text-muted-foreground/50" />
+                  ))
+                ) : meetings.length === 0 ? (
+                  <div className="col-span-full">
+                    <Card className="py-20 border-dashed border-2 bg-card/30">
+                      <div className="text-center">
+                        <div className="h-20 w-20 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-6">
+                          <FileText className="h-10 w-10 text-muted-foreground/50" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-foreground mb-2">No meetings yet</h3>
+                        <p className="text-muted-foreground max-w-sm mx-auto mb-6">
+                          Import your meeting transcripts from Google Drive to start building your meeting library.
+                        </p>
+                        <Button onClick={() => setImportOpen(true)} className="gap-2">
+                          <CloudDownload className="h-4 w-4" />
+                          Import from Drive
+                        </Button>
                       </div>
-                      <h3 className="text-lg font-semibold text-foreground mb-2">No meetings yet</h3>
-                      <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-                        Import your meeting transcripts from Google Drive to start building your meeting library.
-                      </p>
-                      <Button onClick={() => setImportOpen(true)} className="gap-2">
-                        <CloudDownload className="h-4 w-4" />
-                        Import from Drive
-                      </Button>
-                    </div>
-                  </Card>
-                </div>
-              ) : (
-                <>
-                  {filteredMeetings.map((meeting, index) => (
-                    <div
-                      key={meeting.id}
-                      className={cn(
-                        "group relative border rounded-2xl p-5 md:p-8 bg-card/30 hover:bg-card/50 transition-all duration-300 hover:shadow-lg cursor-pointer",
-                        selectedMeetings.has(meeting.id)
-                          ? "border-primary/50 bg-primary/5 hover:bg-primary/10"
-                          : "border-border/40 hover:border-border/60"
-                      )}
-                      style={{ animationDelay: `${index * 50}ms` }}
-                      onClick={() => router.push(`/history/${meeting.id}`)}
-                    >
-                      <div className="flex items-start gap-4">
-                        {/* Checkbox */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            toggleMeetingSelection(meeting.id)
-                          }}
-                          className={cn(
-                            "h-6 w-6 mt-4 rounded-md border-2 flex items-center justify-center transition-all duration-200 shrink-0",
-                            selectedMeetings.has(meeting.id)
-                              ? "bg-primary border-primary text-primary-foreground"
-                              : "border-border/60 hover:border-primary/50 bg-background/50"
-                          )}
-                        >
-                          {selectedMeetings.has(meeting.id) && (
-                            <Check className="h-4 w-4" />
-                          )}
-                        </button>
+                    </Card>
+                  </div>
+                ) : (
+                  <>
+                    {filteredMeetings.map((meeting, index) => (
+                      <div
+                        key={meeting.id}
+                        className={cn(
+                          "group relative border rounded-2xl p-5 md:p-8 bg-card/30 hover:bg-card/50 transition-all duration-300 hover:shadow-lg cursor-pointer",
+                          selectedMeetings.has(meeting.id)
+                            ? "border-primary/50 bg-primary/5 hover:bg-primary/10"
+                            : "border-border/40 hover:border-border/60"
+                        )}
+                        style={{ animationDelay: `${index * 50}ms` }}
+                        onClick={() => router.push(`/history/${meeting.id}`)}
+                      >
+                        <div className="flex items-start gap-4">
+                          {/* Checkbox */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              toggleMeetingSelection(meeting.id)
+                            }}
+                            className={cn(
+                              "h-6 w-6 mt-4 rounded-md border-2 flex items-center justify-center transition-all duration-200 shrink-0",
+                              selectedMeetings.has(meeting.id)
+                                ? "bg-primary border-primary text-primary-foreground"
+                                : "border-border/60 hover:border-primary/50 bg-background/50"
+                            )}
+                          >
+                            {selectedMeetings.has(meeting.id) && (
+                              <Check className="h-4 w-4" />
+                            )}
+                          </button>
 
-                        <div className="flex flex-col flex-1">
-                          {/* Top Row: Avatar, Name, and Date */}
-                          <div className="flex items-center justify-between gap-3 mb-2 sm:mb-3">
-                            <div className="flex items-center gap-3 min-w-0 flex-1">
-                              {/* Avatar */}
-                              <div className="h-12 w-12 md:h-14 md:w-14 rounded-2xl bg-gradient-to-br from-peach/30 to-peach/10 flex items-center justify-center shrink-0 border border-peach/20 shadow-sm">
-                                <span className="text-sm md:text-base font-semibold text-foreground tracking-tight">
-                                  {(meeting.candidate_name || 'U').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                          <div className="flex flex-col flex-1">
+                            {/* Top Row: Avatar, Name, and Date */}
+                            <div className="flex items-center justify-between gap-3 mb-2 sm:mb-3">
+                              <div className="flex items-center gap-3 min-w-0 flex-1">
+                                {/* Avatar */}
+                                <div className="h-12 w-12 md:h-14 md:w-14 rounded-2xl bg-gradient-to-br from-peach/30 to-peach/10 flex items-center justify-center shrink-0 border border-peach/20 shadow-sm">
+                                  <span className="text-sm md:text-base font-semibold text-foreground tracking-tight">
+                                    {(meeting.candidate_name || 'U').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                                  </span>
+                                </div>
+                                {/* Name / Meeting Title */}
+                                <h3 className="text-lg sm:text-xl font-normal text-foreground leading-tight group-hover:text-primary transition-colors duration-200 truncate">
+                                  {meeting.meeting_title && meeting.meeting_title !== 'Interview'
+                                    ? meeting.meeting_title
+                                    : meeting.candidate_name || 'Unknown Participant'}
+                                </h3>
+                              </div>
+                              {/* Date - Always visible on the right */}
+                              <time className="text-xs sm:text-sm font-medium text-muted-foreground whitespace-nowrap shrink-0">
+                                {(() => {
+                                  const date = new Date(meeting.meeting_date || meeting.created_at)
+                                  const today = new Date()
+                                  const yesterday = new Date(today)
+                                  yesterday.setDate(yesterday.getDate() - 1)
+
+                                  if (date.toDateString() === today.toDateString()) return 'Today'
+                                  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday'
+                                  return date.toLocaleDateString('en-US', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined
+                                  })
+                                })()}
+                              </time>
+                            </div>
+
+                            {/* Role Tag Below */}
+                            {meeting.position && !meeting.position.match(/^\d+\s*-\s*(Strong Hire|Hire|No Hire|Definitely Not)/i) && meeting.position !== 'Uncategorized' && (
+                              <div className="mb-3">
+                                <span className="text-xs md:text-sm text-muted-foreground font-medium px-2.5 py-0.5 md:px-3 md:py-1 border border-border/50 rounded-full bg-muted/30 w-fit">
+                                  {(() => {
+                                    const { role, company } = formatRoleAndCompany(meeting.position)
+                                    return company ? `${role} • ${company}` : role
+                                  })()}
                                 </span>
                               </div>
-                              {/* Name / Meeting Title */}
-                              <h3 className="text-lg sm:text-xl font-normal text-foreground leading-tight group-hover:text-primary transition-colors duration-200 truncate">
-                                {meeting.meeting_title && meeting.meeting_title !== 'Interview'
-                                  ? meeting.meeting_title
-                                  : meeting.candidate_name || 'Unknown Participant'}
-                              </h3>
-                            </div>
-                            {/* Date - Always visible on the right */}
-                            <time className="text-xs sm:text-sm font-medium text-muted-foreground whitespace-nowrap shrink-0">
-                              {(() => {
-                                const date = new Date(meeting.meeting_date || meeting.created_at)
-                                const today = new Date()
-                                const yesterday = new Date(today)
-                                yesterday.setDate(yesterday.getDate() - 1)
-
-                                if (date.toDateString() === today.toDateString()) return 'Today'
-                                if (date.toDateString() === yesterday.toDateString()) return 'Yesterday'
-                                return date.toLocaleDateString('en-US', {
-                                  month: 'short',
-                                  day: 'numeric',
-                                  year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined
-                                })
-                              })()}
-                            </time>
-                          </div>
-
-                          {/* Role Tag Below */}
-                          {meeting.position && !meeting.position.match(/^\d+\s*-\s*(Strong Hire|Hire|No Hire|Definitely Not)/i) && meeting.position !== 'Uncategorized' && (
-                            <div className="mb-3">
-                              <span className="text-xs md:text-sm text-muted-foreground font-medium px-2.5 py-0.5 md:px-3 md:py-1 border border-border/50 rounded-full bg-muted/30 w-fit">
-                                {(() => {
-                                  const { role, company } = formatRoleAndCompany(meeting.position)
-                                  return company ? `${role} • ${company}` : role
-                                })()}
-                              </span>
-                            </div>
-                          )}
-
-                          {/* Content */}
-                          <div className="flex-1 min-w-0">
-                            {/* Summary */}
-                            {meeting.summary &&
-                              !meeting.summary.startsWith('Interview conversation between') &&
-                              meeting.summary !== 'Imported from Drive' ? (
-                              <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 mb-4">
-                                {meeting.summary}
-                              </p>
-                            ) : (
-                              <p className="text-sm text-muted-foreground/60 leading-relaxed line-clamp-2 mb-4 italic">
-                                No summary available
-                              </p>
                             )}
 
-                            {/* Tags & Meta Row */}
-                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2 border-t border-border/30">
-                              <div className="flex flex-wrap gap-2 items-center w-full sm:w-auto">
-                                {meeting.meeting_type && (
-                                  <Badge variant="secondary" className="text-xs font-medium px-3 py-1 bg-peach/20 text-foreground border-0 rounded-full h-7">
-                                    {meeting.meeting_type}
-                                  </Badge>
-                                )}
-                                {meeting.interviewer && meeting.interviewer !== 'Unknown' && (
-                                  <Badge variant="outline" className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium h-7">
-                                    <Avatar className="h-4 w-4 border border-border/40">
-                                      <AvatarImage
-                                        src={session?.user?.image || undefined}
-                                        alt={session?.user?.name || 'User'}
-                                      />
-                                      <AvatarFallback className="text-[8px] font-semibold bg-muted/50 text-foreground/70">
-                                        {viewerInitials || 'U'}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    {meeting.interviewer}
-                                  </Badge>
-                                )}
-                                {/* Submission Status Badge - Only for Interviews */}
-                                {meeting.meeting_type === 'Interview' && (() => {
-                                  const isSubmitted = Boolean((meeting as any)?.submitted_at || (meeting as any)?.candidate_id)
-                                  const submittedAt = (meeting as any)?.submitted_at
+                            {/* Content */}
+                            <div className="flex-1 min-w-0">
+                              {/* Summary */}
+                              {meeting.summary &&
+                                !meeting.summary.startsWith('Interview conversation between') &&
+                                meeting.summary !== 'Imported from Drive' ? (
+                                <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 mb-4">
+                                  {meeting.summary}
+                                </p>
+                              ) : (
+                                <p className="text-sm text-muted-foreground/60 leading-relaxed line-clamp-2 mb-4 italic">
+                                  No summary available
+                                </p>
+                              )}
 
-                                  const badge = (
-                                    <div className={cn(
-                                      "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium h-7",
-                                      "border transition-all duration-300",
-                                      "shadow-sm hover:shadow",
-                                      isSubmitted
-                                        ? "bg-success/10 border-success/30 text-success hover:bg-success/15"
-                                        : "bg-warning/10 border-warning/30 text-warning hover:bg-warning/15"
-                                    )}>
+                              {/* Tags & Meta Row */}
+                              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2 border-t border-border/30">
+                                <div className="flex flex-wrap gap-2 items-center w-full sm:w-auto">
+                                  {meeting.meeting_type && (
+                                    <Badge variant="secondary" className="text-xs font-medium px-3 py-1 bg-peach/20 text-foreground border-0 rounded-full h-7">
+                                      {meeting.meeting_type}
+                                    </Badge>
+                                  )}
+                                  {meeting.interviewer && meeting.interviewer !== 'Unknown' && (
+                                    <Badge variant="outline" className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium h-7">
+                                      <Avatar className="h-4 w-4 border border-border/40">
+                                        <AvatarImage
+                                          src={session?.user?.image || undefined}
+                                          alt={session?.user?.name || 'User'}
+                                        />
+                                        <AvatarFallback className="text-[8px] font-semibold bg-muted/50 text-foreground/70">
+                                          {viewerInitials || 'U'}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      {meeting.interviewer}
+                                    </Badge>
+                                  )}
+                                  {/* Submission Status Badge - Only for Interviews */}
+                                  {meeting.meeting_type === 'Interview' && (() => {
+                                    const isSubmitted = Boolean((meeting as any)?.submitted_at || (meeting as any)?.candidate_id)
+                                    const submittedAt = (meeting as any)?.submitted_at
+
+                                    const badge = (
                                       <div className={cn(
-                                        "h-1.5 w-1.5 rounded-full",
-                                        isSubmitted ? "bg-success" : "bg-warning"
-                                      )} />
-                                      {isSubmitted ? 'Submitted' : 'Not Submitted'}
-                                    </div>
-                                  )
-
-                                  if (isSubmitted && submittedAt) {
-                                    const date = new Date(submittedAt)
-                                    const formattedDate = date.toLocaleDateString('en-US', {
-                                      month: 'short',
-                                      day: 'numeric',
-                                      year: 'numeric',
-                                      hour: 'numeric',
-                                      minute: '2-digit'
-                                    })
-
-                                    return (
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          {badge}
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                          <p className="text-xs">Feedback submitted</p>
-                                          <p className="text-xs font-medium">{formattedDate}</p>
-                                        </TooltipContent>
-                                      </Tooltip>
+                                        "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium h-7",
+                                        "border transition-all duration-300",
+                                        "shadow-sm hover:shadow",
+                                        isSubmitted
+                                          ? "bg-success/10 border-success/30 text-success hover:bg-success/15"
+                                          : "bg-warning/10 border-warning/30 text-warning hover:bg-warning/15"
+                                      )}>
+                                        <div className={cn(
+                                          "h-1.5 w-1.5 rounded-full",
+                                          isSubmitted ? "bg-success" : "bg-warning"
+                                        )} />
+                                        {isSubmitted ? 'Submitted' : 'Not Submitted'}
+                                      </div>
                                     )
-                                  }
 
-                                  return badge
-                                })()}
-                                {meeting.similarity && (
-                                  <Badge variant="secondary" className="text-xs px-2.5 py-0.5 bg-primary/10 text-primary border-0 rounded-full">
-                                    {Math.round(meeting.similarity * 100)}% Match
-                                  </Badge>
-                                )}
-                              </div>
+                                    if (isSubmitted && submittedAt) {
+                                      const date = new Date(submittedAt)
+                                      const formattedDate = date.toLocaleDateString('en-US', {
+                                        month: 'short',
+                                        day: 'numeric',
+                                        year: 'numeric',
+                                        hour: 'numeric',
+                                        minute: '2-digit'
+                                      })
 
-                              {/* Delete and Arrow indicators */}
-                              <div className="flex items-center gap-2 self-end sm:self-auto mt-2 sm:mt-0">
-                                {/* Delete Button */}
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    handleDeleteMeeting(meeting)
-                                  }}
-                                  disabled={deletingId === meeting.id}
-                                  className={cn(
-                                    "h-8 w-8 rounded-full flex items-center justify-center",
-                                    "bg-destructive/10 hover:bg-destructive/20 border border-destructive/20 hover:border-destructive/30",
-                                    "text-destructive hover:text-destructive",
-                                    "transition-all duration-300 ease-out",
-                                    // Mobile: always visible, Desktop: hover visible
-                                    "opacity-100 sm:opacity-0 scale-100 sm:scale-75 sm:group-hover:opacity-100 sm:group-hover:scale-100",
-                                    "hover:scale-110 active:scale-95",
-                                    "shadow-sm hover:shadow-md",
-                                    deletingId === meeting.id && "opacity-50 cursor-not-allowed"
+                                      return (
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            {badge}
+                                          </TooltipTrigger>
+                                          <TooltipContent>
+                                            <p className="text-xs">Feedback submitted</p>
+                                            <p className="text-xs font-medium">{formattedDate}</p>
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      )
+                                    }
+
+                                    return badge
+                                  })()}
+                                  {meeting.similarity && (
+                                    <Badge variant="secondary" className="text-xs px-2.5 py-0.5 bg-primary/10 text-primary border-0 rounded-full">
+                                      {Math.round(meeting.similarity * 100)}% Match
+                                    </Badge>
                                   )}
-                                  title="Delete meeting"
-                                >
-                                  {deletingId === meeting.id ? (
-                                    <div className="h-4 w-4 rounded-full border-2 border-destructive/30 border-t-destructive animate-spin-medium" />
-                                  ) : (
-                                    <Trash2 className="h-4 w-4" />
-                                  )}
-                                </button>
+                                </div>
 
-                                {/* Arrow indicator */}
-                                <div className="h-8 w-8 rounded-full bg-muted/50 flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all duration-300 transform translate-x-0 sm:-translate-x-2 sm:group-hover:translate-x-0">
-                                  <ChevronRight className="h-4 w-4 text-foreground" />
+                                {/* Delete and Arrow indicators */}
+                                <div className="flex items-center gap-2 self-end sm:self-auto mt-2 sm:mt-0">
+                                  {/* Delete Button */}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleDeleteMeeting(meeting)
+                                    }}
+                                    disabled={deletingId === meeting.id}
+                                    className={cn(
+                                      "h-8 w-8 rounded-full flex items-center justify-center",
+                                      "bg-destructive/10 hover:bg-destructive/20 border border-destructive/20 hover:border-destructive/30",
+                                      "text-destructive hover:text-destructive",
+                                      "transition-all duration-300 ease-out",
+                                      // Mobile: always visible, Desktop: hover visible
+                                      "opacity-100 sm:opacity-0 scale-100 sm:scale-75 sm:group-hover:opacity-100 sm:group-hover:scale-100",
+                                      "hover:scale-110 active:scale-95",
+                                      "shadow-sm hover:shadow-md",
+                                      deletingId === meeting.id && "opacity-50 cursor-not-allowed"
+                                    )}
+                                    title="Delete meeting"
+                                  >
+                                    {deletingId === meeting.id ? (
+                                      <div className="h-4 w-4 rounded-full border-2 border-destructive/30 border-t-destructive animate-spin-medium" />
+                                    ) : (
+                                      <Trash2 className="h-4 w-4" />
+                                    )}
+                                  </button>
+
+                                  {/* Arrow indicator */}
+                                  <div className="h-8 w-8 rounded-full bg-muted/50 flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all duration-300 transform translate-x-0 sm:-translate-x-2 sm:group-hover:translate-x-0">
+                                    <ChevronRight className="h-4 w-4 text-foreground" />
+                                  </div>
                                 </div>
                               </div>
                             </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
 
-                  {/* Infinite Scroll Trigger */}
-                  {hasMore && !loading && (
-                    <div ref={loadMoreRef} className="py-8 flex justify-center">
-                      {loadingMore ? (
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <Spinner size={16} />
-                          <span className="text-sm">Loading more meetings...</span>
-                        </div>
-                      ) : (
-                        <div className="h-4" />
-                      )}
-                    </div>
-                  )}
-                </>
-              )}
+                    {/* Infinite Scroll Trigger */}
+                    {hasMore && !loading && (
+                      <div ref={loadMoreRef} className="py-8 flex justify-center">
+                        {loadingMore ? (
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <Spinner size={16} />
+                            <span className="text-sm">Loading more meetings...</span>
+                          </div>
+                        ) : (
+                          <div className="h-4" />
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
+        </div>
+
+        {/* Confirm Dialog for Regenerating Summaries */}
+        <ConfirmDialog
+          open={showRegenerateConfirm}
+          onOpenChange={setShowRegenerateConfirm}
+          title="Reanalyze All Meetings?"
+          description="This will re-analyze all meetings using AI to generate intelligent titles (e.g., 'Jane Doe <> Adam Perlis — Interview 01/14/2025'), updated summaries, categories, and metadata. This process may take a few minutes."
+          confirmLabel="Reanalyze"
+          cancelLabel="Cancel"
+          onConfirm={handleRegenerateSummaries}
+          loading={regenerating}
+        />
+
+        {/* Confirm Dialog for Delete */}
+        <ConfirmDialog
+          open={showDeleteConfirm}
+          onOpenChange={setShowDeleteConfirm}
+          title="Delete Meeting?"
+          description={meetingToDelete ? `Are you sure you want to delete the meeting with ${meetingToDelete.candidate_name}? This action cannot be undone.` : ''}
+          confirmLabel="Delete"
+          cancelLabel="Cancel"
+          onConfirm={confirmDelete}
+          loading={false}
+        />
+
+        {/* Confirm Dialog for Bulk Delete */}
+        <ConfirmDialog
+          open={showBulkDeleteConfirm}
+          onOpenChange={setShowBulkDeleteConfirm}
+          title={`Delete ${selectedMeetings.size} Meeting${selectedMeetings.size === 1 ? '' : 's'}?`}
+          description={`Are you sure you want to delete ${selectedMeetings.size} selected meeting${selectedMeetings.size === 1 ? '' : 's'}? This action cannot be undone.`}
+          confirmLabel={`Delete ${selectedMeetings.size}`}
+          cancelLabel="Cancel"
+          onConfirm={handleBulkDelete}
+          loading={bulkDeleting}
+        />
       </div>
-        
-        {/* Confirm Dialog for Regenerating Summaries */ }
-    <ConfirmDialog
-      open={showRegenerateConfirm}
-      onOpenChange={setShowRegenerateConfirm}
-      title="Reanalyze All Meetings?"
-      description="This will re-analyze all meetings using AI to generate intelligent titles (e.g., 'Jane Doe <> Adam Perlis — Interview 01/14/2025'), updated summaries, categories, and metadata. This process may take a few minutes."
-      confirmLabel="Reanalyze"
-      cancelLabel="Cancel"
-      onConfirm={handleRegenerateSummaries}
-      loading={regenerating}
-    />
+    </div>
+  </TooltipProvider>
+  )
+}
 
-    {/* Confirm Dialog for Delete */ }
-    <ConfirmDialog
-      open={showDeleteConfirm}
-      onOpenChange={setShowDeleteConfirm}
-      title="Delete Meeting?"
-      description={meetingToDelete ? `Are you sure you want to delete the meeting with ${meetingToDelete.candidate_name}? This action cannot be undone.` : ''}
-      confirmLabel="Delete"
-      cancelLabel="Cancel"
-      onConfirm={confirmDelete}
-      loading={false}
-    />
-
-    {/* Confirm Dialog for Bulk Delete */ }
-    <ConfirmDialog
-      open={showBulkDeleteConfirm}
-      onOpenChange={setShowBulkDeleteConfirm}
-      title={`Delete ${selectedMeetings.size} Meeting${selectedMeetings.size === 1 ? '' : 's'}?`}
-      description={`Are you sure you want to delete ${selectedMeetings.size} selected meeting${selectedMeetings.size === 1 ? '' : 's'}? This action cannot be undone.`}
-      confirmLabel={`Delete ${selectedMeetings.size}`}
-      cancelLabel="Cancel"
-      onConfirm={handleBulkDelete}
-      loading={bulkDeleting}
-    />
-        </div >
-      </TooltipProvider >
-    )
-  }
