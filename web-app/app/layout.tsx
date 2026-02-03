@@ -4,6 +4,7 @@ import { Providers } from './providers'
 import { Navbar } from '@/components/navbar'
 import { AppErrorBoundary } from '@/components/app-error-boundary'
 import { Toaster } from 'sonner'
+import { Sidebar } from '@/components/sidebar'
 
 export const metadata: Metadata = {
   title: 'Academy Interview Assistant',
@@ -26,9 +27,12 @@ export default function RootLayout({
       <body className="font-sans bg-background text-foreground antialiased">
         <Providers>
           <AppErrorBoundary>
-            <div className="min-h-screen flex flex-col">
-              <Navbar />
-              <main className="flex-1">
+            <div className="flex h-screen bg-background overflow-hidden">
+              <Sidebar />
+              <div className="md:hidden">
+                <Navbar />
+              </div>
+              <main className="flex-1 overflow-auto relative flex flex-col w-full">
                 {children}
               </main>
             </div>

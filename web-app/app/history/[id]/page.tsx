@@ -51,7 +51,7 @@ export default function InterviewDetailPage() {
   const [interview, setInterview] = useState<Interview | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'transcript' | 'ask'>('transcript')
-  
+
   // AI Chat state
   const [aiQuestion, setAiQuestion] = useState('')
   const [messages, setMessages] = useState<ConversationMessage[]>([])
@@ -59,7 +59,7 @@ export default function InterviewDetailPage() {
   const [isRecording, setIsRecording] = useState(false)
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null)
   const conversationEndRef = useRef<HTMLDivElement>(null)
-  
+
   // Search state
   const [searchQuery, setSearchQuery] = useState('')
   const [copied, setCopied] = useState(false)
@@ -106,12 +106,12 @@ export default function InterviewDetailPage() {
 
   async function saveConversation(updatedMessages: ConversationMessage[]) {
     if (!interview) return
-    
+
     try {
       // Generate title from first user message
       const firstUserMessage = updatedMessages.find(m => m.role === 'user')
       const title = firstUserMessage ? firstUserMessage.content.slice(0, 100) : 'Conversation'
-      
+
       const res = await fetch('/api/conversations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -128,9 +128,9 @@ export default function InterviewDetailPage() {
           }))
         })
       })
-      
+
       if (!res.ok) throw new Error('Failed to save conversation')
-      
+
       const data = await res.json()
       setCurrentConversationId(data.conversation.id)
     } catch (error) {
@@ -183,7 +183,7 @@ export default function InterviewDetailPage() {
 
       const updatedMessages = [...messages, userMessage, assistantMessage]
       setMessages(updatedMessages)
-      
+
       // Save conversation after getting response
       await saveConversation(updatedMessages)
     } catch (error) {
@@ -205,7 +205,7 @@ export default function InterviewDetailPage() {
     setAiQuestion('')
     setCurrentConversationId(null)
   }
-  
+
   function handleSelectConversation(conversation: any) {
     // Load the conversation messages
     const loadedMessages = conversation.messages.map((m: any) => ({
@@ -218,7 +218,7 @@ export default function InterviewDetailPage() {
     setMessages(loadedMessages)
     setCurrentConversationId(conversation.id)
   }
-  
+
   function handleNewConversation() {
     setMessages([])
     setAiQuestion('')
@@ -237,7 +237,7 @@ export default function InterviewDetailPage() {
   // Parse and format transcript with speaker labels and timestamps
   function formatTranscript(text: string) {
     if (!text) return []
-    
+
     // Remove Tactiq header if present
     let cleanText = text.replace(/^Transcript delivered by Tactiq\.io[\s\S]*?(?=(\*\s*\d{1,2}:\d{2}|\bTranscript\b\s*\d{1,2}:\d{2}|\d{1,2}:\d{2}\s+[A-Za-z]))/i, '')
     cleanText = cleanText.trim()
@@ -315,9 +315,9 @@ export default function InterviewDetailPage() {
     const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     const regex = new RegExp(`(${escapedQuery})`, 'gi')
     const parts = text.split(regex)
-    return parts.map((part, i) => 
-      part.toLowerCase() === query.toLowerCase() 
-        ? <mark key={i} className="bg-peach/30 text-foreground px-1 rounded font-semibold">{part}</mark> 
+    return parts.map((part, i) =>
+      part.toLowerCase() === query.toLowerCase()
+        ? <mark key={i} className="bg-peach/30 text-foreground px-1 rounded font-semibold">{part}</mark>
         : part
     )
   }
@@ -349,15 +349,15 @@ export default function InterviewDetailPage() {
   const normalizedQuery = searchQuery.trim().toLowerCase()
   const visibleTranscriptLines = normalizedQuery
     ? transcriptLines.filter((line) => {
-        const content = (line.content || '').toLowerCase()
-        const speaker = (line.speaker || '').toLowerCase()
-        const timestamp = (line.timestamp || '').toLowerCase()
-        return (
-          content.includes(normalizedQuery) ||
-          speaker.includes(normalizedQuery) ||
-          timestamp.includes(normalizedQuery)
-        )
-      })
+      const content = (line.content || '').toLowerCase()
+      const speaker = (line.speaker || '').toLowerCase()
+      const timestamp = (line.timestamp || '').toLowerCase()
+      return (
+        content.includes(normalizedQuery) ||
+        speaker.includes(normalizedQuery) ||
+        timestamp.includes(normalizedQuery)
+      )
+    })
     : transcriptLines
 
   const isInterview =
@@ -406,7 +406,7 @@ export default function InterviewDetailPage() {
         <div className={cn("sticky top-16 z-20 bg-background pt-6 pb-10 mb-0")}>
           <div className="flex items-center justify-between gap-6">
             <div className="flex items-center gap-3 min-w-0 flex-1">
-              <button 
+              <button
                 onClick={() => router.back()}
                 className={cn(
                   "inline-flex items-center gap-2 text-sm flex-shrink-0",
@@ -417,20 +417,16 @@ export default function InterviewDetailPage() {
               >
                 <ArrowLeft className="h-4 w-4" />
               </button>
-              
-              <div className="h-9 w-9 rounded-full bg-peach/20 flex items-center justify-center flex-shrink-0 border border-peach/30 shadow-sm ring-1 ring-foreground/5">
-                <span className="text-xs font-semibold text-foreground/80">
-                  {(interview.candidate_name || 'U').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
-                </span>
-              </div>
-              
+
+
+
               <div className="flex flex-col gap-1.5 min-w-0">
-                <h1 className="text-sm font-semibold tracking-tight text-foreground leading-tight truncate">
-                  {interview.meeting_title && interview.meeting_title !== 'Interview' 
-                    ? interview.meeting_title 
+                <h1 className="text-sm font-medium tracking-tight text-foreground leading-tight truncate">
+                  {interview.meeting_title && interview.meeting_title !== 'Interview'
+                    ? interview.meeting_title
                     : interview.candidate_name || 'Unknown Candidate'}
                 </h1>
-                
+
                 <div className="flex items-center gap-1.5 flex-wrap">
                   {interview.meeting_type && (
                     <Badge
@@ -474,7 +470,7 @@ export default function InterviewDetailPage() {
                       {isSubmitted ? "Submitted" : "Not Submitted"}
                     </div>
                   )}
-                  
+
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-card/60 backdrop-blur border border-border/50 px-2.5 py-1 rounded-full flex-shrink-0 shadow-sm">
                     <Calendar className="h-3 w-3" />
                     {new Date(interview.meeting_date || interview.created_at).toLocaleDateString('en-US', {
@@ -487,7 +483,7 @@ export default function InterviewDetailPage() {
                 </div>
               </div>
             </div>
-            
+
             {/* Tab Navigation */}
             <div className="flex items-center gap-2 p-1 bg-card/40 backdrop-blur border border-border/40 rounded-full w-fit shadow-sm flex-shrink-0">
               <button
@@ -515,7 +511,7 @@ export default function InterviewDetailPage() {
                 Ask AI
               </button>
             </div>
-            
+
             <div className="flex items-center gap-2 flex-shrink-0">
               <ConversationsSidebar
                 interviewId={interview.id}
@@ -525,7 +521,7 @@ export default function InterviewDetailPage() {
               />
             </div>
           </div>
-          
+
           {/* Transcript Fade Gradient */}
           {activeTab === 'transcript' && (
             <div className="absolute bottom-0 left-0 right-0 h-12 translate-y-full bg-gradient-to-b from-background to-transparent pointer-events-none" />
@@ -613,46 +609,46 @@ export default function InterviewDetailPage() {
                     </div>
                   ) : (
                     visibleTranscriptLines.map((line) => (
-                    <div key={line.id} className="group">
-                      {line.speaker && (
-                        <div className="flex items-center gap-3 mb-2">
-                          <div className="flex items-center gap-2">
-                            {isViewerSpeaker(line.speaker) ? (
-                              <Avatar className="h-8 w-8 border border-border/40 flex-shrink-0">
-                                <AvatarImage
-                                  src={session?.user?.image || undefined}
-                                  alt={session?.user?.name || 'You'}
-                                />
-                                <AvatarFallback className="text-xs font-semibold bg-muted/50 text-foreground/70">
-                                  {viewerInitials || 'U'}
-                                </AvatarFallback>
-                              </Avatar>
-                            ) : (
-                              <div className="h-8 w-8 rounded-full bg-peach/20 flex items-center justify-center border border-peach/30 flex-shrink-0">
-                                <span className="text-xs font-semibold text-foreground/80">
-                                  {line.speaker.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
-                                </span>
-                              </div>
+                      <div key={line.id} className="group">
+                        {line.speaker && (
+                          <div className="flex items-center gap-3 mb-2">
+                            <div className="flex items-center gap-2">
+                              {isViewerSpeaker(line.speaker) ? (
+                                <Avatar className="h-8 w-8 border border-border/40 flex-shrink-0">
+                                  <AvatarImage
+                                    src={session?.user?.image || undefined}
+                                    alt={session?.user?.name || 'You'}
+                                  />
+                                  <AvatarFallback className="text-xs font-semibold bg-muted/50 text-foreground/70">
+                                    {viewerInitials || 'U'}
+                                  </AvatarFallback>
+                                </Avatar>
+                              ) : (
+                                <div className="h-8 w-8 rounded-full bg-peach/20 flex items-center justify-center border border-peach/30 flex-shrink-0">
+                                  <span className="text-xs font-semibold text-foreground/80">
+                                    {line.speaker.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                                  </span>
+                                </div>
+                              )}
+                              <span className="text-sm font-semibold text-foreground">
+                                {line.speaker}
+                              </span>
+                            </div>
+                            {line.timestamp && (
+                              <span className="text-xs text-muted-foreground font-mono bg-muted/30 px-2 py-0.5 rounded">
+                                {line.timestamp}
+                              </span>
                             )}
-                            <span className="text-sm font-semibold text-foreground">
-                              {line.speaker}
-                            </span>
                           </div>
-                          {line.timestamp && (
-                            <span className="text-xs text-muted-foreground font-mono bg-muted/30 px-2 py-0.5 rounded">
-                              {line.timestamp}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                      <p className={cn(
-                        "text-sm leading-relaxed font-light",
-                        // Align content with start of speaker name (avatar 32px + gap-2 = 8px)
-                        line.speaker ? "ml-10" : "text-muted-foreground/90 italic"
-                      )}>
-                        {highlightText(line.content, searchQuery)}
-                      </p>
-                    </div>
+                        )}
+                        <p className={cn(
+                          "text-sm leading-relaxed font-light",
+                          // Align content with start of speaker name (avatar 32px + gap-2 = 8px)
+                          line.speaker ? "ml-10" : "text-muted-foreground/90 italic"
+                        )}>
+                          {highlightText(line.content, searchQuery)}
+                        </p>
+                      </div>
                     ))
                   )}
                 </div>
@@ -701,10 +697,10 @@ export default function InterviewDetailPage() {
                           <MessageContent>
                             <p className="text-sm">{message.content}</p>
                           </MessageContent>
-                          <MessageAvatar 
-                            name={session?.user?.name || "You"} 
+                          <MessageAvatar
+                            name={session?.user?.name || "You"}
                             src={session?.user?.image || undefined}
-                            className="bg-muted" 
+                            className="bg-muted"
                           />
                         </Message>
                       ) : (
@@ -716,7 +712,7 @@ export default function InterviewDetailPage() {
                             <MessageContent>
                               <Response>{message.content}</Response>
                             </MessageContent>
-                            
+
                             {message.sources && message.sources.length > 0 && (
                               <div className="flex gap-2 flex-wrap items-center">
                                 <span className="text-xs text-muted-foreground">Based on interviews with:</span>
@@ -741,8 +737,8 @@ export default function InterviewDetailPage() {
                         </div>
                         <MessageContent variant="flat">
                           <div className="flex items-center gap-3 py-2">
-                            <ShimmeringText 
-                              text="Analyzing interview..." 
+                            <ShimmeringText
+                              text="Analyzing interview..."
                               className="text-sm text-muted-foreground"
                             />
                           </div>
@@ -750,7 +746,7 @@ export default function InterviewDetailPage() {
                       </Message>
                     )}
 
-                    
+
                     <div ref={conversationEndRef} />
                   </div>
                 )}
@@ -764,12 +760,12 @@ export default function InterviewDetailPage() {
                   <div className="relative bg-card/60 backdrop-blur-md border border-border/30 rounded-xl shadow-lg transition-all duration-300 group-focus-within:border-primary/30 group-focus-within:shadow-xl overflow-hidden min-h-[54px] flex flex-col justify-end">
                     <form onSubmit={handleAskQuestion} className="flex items-end gap-2">
                       <div className="flex items-center pl-3 h-[54px]">
-                        <VoiceRecorder 
+                        <VoiceRecorder
                           onTranscriptionComplete={(text) => setAiQuestion(prev => prev ? `${prev} ${text}` : text)}
                           onRecordingChange={setIsRecording}
                         />
                       </div>
-                      
+
                       {!isRecording && (
                         <>
                           <div className="flex-1 py-1.5">
@@ -793,19 +789,19 @@ export default function InterviewDetailPage() {
                               rows={1}
                             />
                           </div>
-                          
+
                           <div className="flex items-center justify-center pr-2.5 pb-2.5">
-                            <button 
+                            <button
                               type="submit"
                               disabled={asking || !aiQuestion.trim()}
                               className={cn(
                                 "h-9 w-9 rounded-xl inline-flex items-center justify-center flex-shrink-0 transition-all duration-200",
-                                aiQuestion.trim() 
-                                  ? "bg-peach text-foreground hover:bg-peach/80" 
+                                aiQuestion.trim()
+                                  ? "bg-peach text-foreground hover:bg-peach/80"
                                   : "text-muted-foreground/30"
                               )}
                             >
-                              <Send 
+                              <Send
                                 className={cn(
                                   "h-[18px] w-[18px] transition-transform duration-200",
                                   aiQuestion.trim() && "-rotate-45 translate-y-[2px]"
