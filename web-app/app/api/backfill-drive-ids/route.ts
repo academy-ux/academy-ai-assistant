@@ -35,16 +35,17 @@ export async function POST(req: NextRequest) {
     let nextPageToken: string | null | undefined = undefined
 
     do {
-      const response: drive_v3.Schema$FileList = (await drive.files.list({
+      const res = await drive.files.list({
         q: `'${settings.drive_folder_id}' in parents and mimeType = 'application/vnd.google-apps.document' and trashed = false`,
         fields: 'nextPageToken, files(id, name)',
         pageSize: 100,
         pageToken: nextPageToken || undefined,
-      })).data
+      })
 
-      const files = response.files || []
+      const listData = res.data
+      const files = listData.files || []
       allDriveFiles.push(...files)
-      nextPageToken = response.nextPageToken
+      nextPageToken = listData.nextPageToken
     } while (nextPageToken)
 
     console.log(`[Backfill] Found ${allDriveFiles.length} Drive files`)
