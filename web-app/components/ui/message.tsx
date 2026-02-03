@@ -40,9 +40,12 @@ const MessageContent = React.forwardRef<HTMLDivElement, MessageContentProps>(
         className={cn(
           "max-w-[85%] rounded-2xl",
           variant === "contained" && [
-            "px-4 py-3",
-            "group-data-[from=user]:bg-peach group-data-[from=user]:text-foreground group-data-[from=user]:rounded-tr-sm",
-            "group-data-[from=assistant]:bg-card/40 group-data-[from=assistant]:border group-data-[from=assistant]:border-border/40 group-data-[from=assistant]:rounded-tl-sm group-data-[from=assistant]:backdrop-blur-sm",
+
+            // User messages: kept as bubbles
+            "group-data-[from=user]:px-4 group-data-[from=user]:py-3 group-data-[from=user]:bg-peach group-data-[from=user]:text-foreground group-data-[from=user]:rounded-tr-sm",
+
+            // Assistant messages: transparent, no bubble
+            "group-data-[from=assistant]:px-0 group-data-[from=assistant]:py-2 group-data-[from=assistant]:bg-transparent",
           ],
           variant === "flat" && [
             "group-data-[from=assistant]:bg-transparent",
@@ -68,11 +71,11 @@ const MessageAvatar = React.forwardRef<HTMLSpanElement, MessageAvatarProps>(
   ({ src, name, className, fallbackClassName, ...props }, ref) => {
     const initials = name
       ? name
-          .split(" ")
-          .map((n) => n[0])
-          .join("")
-          .slice(0, 2)
-          .toUpperCase()
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase()
       : "?"
 
     return (

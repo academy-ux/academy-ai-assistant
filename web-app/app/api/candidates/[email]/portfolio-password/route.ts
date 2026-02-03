@@ -1,0 +1,59 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { supabase } from '@/lib/supabase'
+import { errorResponse } from '@/lib/validation'
+
+export async function GET(
+    request: NextRequest,
+    { params }: { params: { email: string } }
+) {
+    try {
+        const email = params.email === 'unknown' ? null : params.email
+
+        if (!email) {
+            return NextResponse.json({ password: null })
+        }
+
+        const { data, error } = await supabase
+            .from('candidate_passwords')
+            .select('password')
+            .eq('candidate_email', email)
+            .single()
+
+        if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows found"
+            console.error('Supabase error fetching password:', error)
+        }
+
+        return NextResponse.json({ password: data?.password || null })
+    } catch (error) {
+        return errorResponse(error, 'Error fetching portfolio password')
+    }
+}
+
+export async function POST(
+    request: NextRequest,
+    { params }: { params: { email: string } }
+) {
+    try {
+        const email = params.email === 'unknown' ? null : params.email
+        const { password } = await request.json()
+
+        if (!email) {
+            return NextResponse.json({ error: 'Email is required' }, { status: 400 })
+        }
+
+        const { data, error } = await supabase
+            .from('candidate_passwords')
+            .upsert({
+                candidate_email: email,
+                password,
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'candidate_email' })
+            .select()
+
+        if (error) throw error
+
+        return NextResponse.json({ success: true, data: data[0] })
+    } catch (error) {
+        return errorResponse(error, 'Error saving portfolio password')
+    }
+}

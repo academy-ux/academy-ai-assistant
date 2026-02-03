@@ -403,7 +403,7 @@ export default function InterviewDetailPage() {
     <div className="min-h-screen bg-background">
       <div className="max-w-[1600px] mx-auto px-6">
         {/* Header */}
-        <div className={cn("sticky top-16 z-20 bg-background pt-6 pb-10 mb-0")}>
+        <div className={cn("sticky top-8 z-20 bg-background pb-10 mb-0")}>
           <div className="flex items-center justify-between gap-6">
             <div className="flex items-center gap-3 min-w-0 flex-1">
               <button

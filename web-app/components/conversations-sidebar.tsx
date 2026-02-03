@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
-import { MessageSquare, Search, Trash2, Plus, Clock } from 'lucide-react'
+
+import { MessageSquare, Search, Trash2, Plus, Clock, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 
@@ -133,129 +133,158 @@ export function ConversationsSidebar({
   }
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-2 border-border/50 hover:bg-muted/50 hover:border-border shadow-sm hover:shadow transition-all h-9 px-3.5 rounded-lg"
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setOpen(true)}
+        className="gap-2 border-border/50 hover:bg-muted/50 hover:border-border shadow-sm hover:shadow transition-all h-9 px-3.5 rounded-lg"
+      >
+        <MessageSquare className="h-3.5 w-3.5" />
+        <span className="hidden sm:inline text-sm font-medium">
+          {conversations.length > 0 ? `${conversations.length} Saved` : 'History'}
+        </span>
+      </Button>
+
+      {/* Conversations Sidebar Modal */}
+      <div
+        className={cn(
+          "fixed inset-0 bg-background/60 backdrop-blur-sm z-[100] transition-opacity duration-300",
+          open ? "opacity-100" : "opacity-0 pointer-events-none"
+        )}
+        onClick={() => setOpen(false)}
+      >
+        <div
+          className={cn(
+            "fixed right-0 top-0 h-full w-[85vw] sm:w-[420px] bg-card/60 backdrop-blur-md border-l border-border/40 shadow-xl transition-transform duration-300 ease-in-out z-[101]",
+            open ? "translate-x-0" : "translate-x-full"
+          )}
+          onClick={(e) => e.stopPropagation()}
         >
-          <MessageSquare className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline text-sm font-medium">
-            {conversations.length > 0 ? `${conversations.length} Saved` : 'History'}
-          </span>
-        </Button>
-      </SheetTrigger>
-      <SheetContent side="left" className="w-full sm:w-[420px] p-0 flex flex-col">
-        <SheetHeader className="px-6 py-5 border-b border-border/30 bg-background/95 backdrop-blur-sm">
-          <SheetTitle className="flex items-center justify-between">
-            <span className="text-lg font-semibold tracking-tight">Conversation History</span>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                onNewConversation()
-                setOpen(false)
-              }}
-              className="gap-1.5 h-8 px-3 hover:bg-muted/50 rounded-lg transition-all"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              <span className="text-sm font-medium">New</span>
-            </Button>
-          </SheetTitle>
-        </SheetHeader>
-
-        <div className="px-6 py-4 bg-muted/20">
-          <div className="relative">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
-            <Input
-              type="search"
-              placeholder="Search conversations..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 h-10 bg-background border-border/50 focus-visible:border-border shadow-sm rounded-lg transition-all"
-            />
-          </div>
-        </div>
-
-        <ScrollArea className="flex-1">
-          <div className="px-6 py-4 space-y-2.5">
-            {loading ? (
-              <div className="flex items-center justify-center py-20">
-                <div className="flex flex-col items-center gap-3">
-                  <div className="h-8 w-8 rounded-full border-2 border-primary/20 border-t-primary animate-spin-medium" />
-                  <p className="text-sm text-muted-foreground font-medium">Loading conversations...</p>
-                </div>
+          <div className="flex flex-col h-full">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-border/40">
+              <div>
+                <h2 className="text-2xl font-normal text-foreground leading-tight">Conversation History</h2>
+                <p className="text-sm text-muted-foreground mt-1 font-light">Access your saved conversations</p>
               </div>
-            ) : filteredConversations.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
-                <div className="mb-4 h-14 w-14 rounded-2xl bg-muted/50 border border-border/40 flex items-center justify-center">
-                  <MessageSquare className="h-7 w-7 text-muted-foreground/40" />
-                </div>
-                <h3 className="text-base font-semibold tracking-tight text-foreground mb-1.5">
-                  {search.trim()
-                    ? 'No conversations found'
-                    : 'No saved conversations yet'}
-                </h3>
-                <p className="text-sm text-muted-foreground/80 max-w-[280px]">
-                  {search.trim()
-                    ? 'Try adjusting your search terms'
-                    : 'Your conversations will be saved here automatically'}
-                </p>
-              </div>
-            ) : (
-              filteredConversations.map((conv, index) => (
-                <button
-                  key={conv.id}
+              <div className="flex items-center gap-2">
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="sm"
                   onClick={() => {
-                    onSelectConversation(conv)
+                    onNewConversation()
                     setOpen(false)
                   }}
-                  className={cn(
-                    'group w-full text-left p-4 rounded-xl border transition-all duration-200',
-                    'hover:shadow-md hover:-translate-y-0.5',
-                    currentConversationId === conv.id
-                      ? 'bg-primary/8 border-primary/30 shadow-sm ring-1 ring-primary/10'
-                      : 'bg-background border-border/40 hover:bg-muted/30 hover:border-border/60'
-                  )}
-                  style={{
-                    animationDelay: `${index * 50}ms`,
-                  }}
+                  className="gap-1.5 h-8 px-3 hover:bg-muted/50 rounded-lg transition-all"
                 >
-                  <div className="flex items-start justify-between gap-3 mb-2.5">
-                    <h4 className="text-[13px] font-semibold tracking-tight text-foreground line-clamp-2 leading-snug">
-                      {conv.title}
-                    </h4>
-                    <button
-                      type="button"
-                      onClick={(e) => deleteConversation(conv.id, e)}
-                      className="shrink-0 p-1.5 hover:bg-destructive/10 rounded-md transition-colors opacity-0 group-hover:opacity-100"
-                      aria-label="Delete conversation"
-                    >
-                      <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive transition-colors" />
-                    </button>
-                  </div>
+                  <Plus className="h-3.5 w-3.5" />
+                  <span className="text-sm font-medium">New</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setOpen(false)}
+                  className="h-8 w-8 p-0 hover:bg-muted/50 text-muted-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
 
-                  {conv.messages.length > 0 && (
-                    <p className="text-xs leading-relaxed text-muted-foreground/80 line-clamp-2 mb-3">
-                      {conv.messages[0].content}
+            <div className="px-6 py-4 bg-muted/20">
+              <div className="relative">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
+                <Input
+                  type="search"
+                  placeholder="Search conversations..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-10 h-10 bg-background border-border/50 focus-visible:border-border shadow-sm rounded-lg transition-all"
+                />
+              </div>
+            </div>
+
+            <ScrollArea className="flex-1">
+              <div className="px-6 py-4 space-y-2.5">
+                {loading ? (
+                  <div className="flex items-center justify-center py-20">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="h-8 w-8 rounded-full border-2 border-primary/20 border-t-primary animate-spin-medium" />
+                      <p className="text-sm text-muted-foreground font-medium">Loading conversations...</p>
+                    </div>
+                  </div>
+                ) : filteredConversations.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
+                    <div className="mb-4 h-14 w-14 rounded-2xl bg-muted/50 border border-border/40 flex items-center justify-center">
+                      <MessageSquare className="h-7 w-7 text-muted-foreground/40" />
+                    </div>
+                    <h3 className="text-base font-semibold tracking-tight text-foreground mb-1.5">
+                      {search.trim()
+                        ? 'No conversations found'
+                        : 'No saved conversations yet'}
+                    </h3>
+                    <p className="text-sm text-muted-foreground/80 max-w-[280px]">
+                      {search.trim()
+                        ? 'Try adjusting your search terms'
+                        : 'Your conversations will be saved here automatically'}
                     </p>
-                  )}
-
-                  <div className="flex items-center gap-2 text-[11px] text-muted-foreground/70 font-medium">
-                    <Clock className="h-3 w-3" />
-                    <span>{formatDate(conv.last_message_at)}</span>
-                    <span className="text-muted-foreground/40">•</span>
-                    <span>{conv.message_count} {conv.message_count === 1 ? 'message' : 'messages'}</span>
                   </div>
-                </button>
-              ))
-            )}
+                ) : (
+                  filteredConversations.map((conv, index) => (
+                    <button
+                      key={conv.id}
+                      type="button"
+                      onClick={() => {
+                        onSelectConversation(conv)
+                        setOpen(false)
+                      }}
+                      className={cn(
+                        'group w-full text-left p-4 rounded-xl border transition-all duration-200',
+                        'hover:shadow-md hover:-translate-y-0.5',
+                        currentConversationId === conv.id
+                          ? 'bg-primary/8 border-primary/30 shadow-sm ring-1 ring-primary/10'
+                          : 'bg-background border-border/40 hover:bg-muted/30 hover:border-border/60'
+                      )}
+                      style={{
+                        animationDelay: `${index * 50}ms`,
+                      }}
+                    >
+                      <div className="flex items-start justify-between gap-3 mb-2.5">
+                        <h4 className="text-[13px] font-semibold tracking-tight text-foreground line-clamp-2 leading-snug">
+                          {conv.title}
+                        </h4>
+                        <button
+                          type="button"
+                          onClick={(e) => deleteConversation(conv.id, e)}
+                          className="shrink-0 p-1.5 hover:bg-destructive/10 rounded-md transition-colors opacity-0 group-hover:opacity-100"
+                          aria-label="Delete conversation"
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive transition-colors" />
+                        </button>
+                      </div>
+
+                      {conv.messages.length > 0 && (
+                        <p className="text-xs leading-relaxed text-muted-foreground/80 line-clamp-2 mb-3">
+                          {conv.messages[0].content}
+                        </p>
+                      )}
+
+                      <div className="flex items-center gap-2 text-[11px] text-muted-foreground/70 font-medium">
+                        <Clock className="h-3 w-3" />
+                        <span>{formatDate(conv.last_message_at)}</span>
+                        <span className="text-muted-foreground/40">•</span>
+                        <span>{conv.message_count} {conv.message_count === 1 ? 'message' : 'messages'}</span>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            </ScrollArea>
           </div>
-        </ScrollArea>
-      </SheetContent>
-    </Sheet>
+        </div>
+      </div>
+    </>
   )
 }

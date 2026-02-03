@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
       }
 
       const url = `https://api.lever.co/v1/opportunities?${currentParams.toString()}`
-      
+
       const response = await fetch(url, {
         headers: {
           'Authorization': `Basic ${Buffer.from(leverKey + ':').toString('base64')}`,
@@ -62,9 +62,9 @@ export async function GET(request: NextRequest) {
 
       const data = await response.json()
       const pageOpportunities = data.data || []
-      
+
       allOpportunities = [...allOpportunities, ...pageOpportunities]
-      
+
       if (data.hasNext && data.next) {
         nextCursor = data.next
         pageCount++
@@ -72,27 +72,38 @@ export async function GET(request: NextRequest) {
         hasMore = false
       }
     }
-    
+
     // Transform data
     let candidates = allOpportunities.map((opp: any) => {
       const app = opp.applications?.[0]
-      
+
       let matchedApp = app
       if (postingId && postingId !== '__uncategorized__' && opp.applications) {
-         matchedApp = opp.applications.find((a: any) => a.posting === postingId) || app
+        matchedApp = opp.applications.find((a: any) => a.posting === postingId) || app
       }
 
       const hasPosting = !!(matchedApp?.posting && matchedApp?.postingTitle)
-      
+
+      const rawLocation = opp.location || opp.contact?.location || ''
+      const locationText = typeof rawLocation === 'object' && rawLocation !== null
+        ? (rawLocation.name || '')
+        : String(rawLocation || '')
+
       return {
         id: opp.id,
         name: opp.contact?.name || 'Unknown',
+        headline: opp.headline || opp.contact?.headline || '',
+        location: locationText,
         email: opp.contact?.emails?.[0] || '',
+        links: opp.links || [],
         position: matchedApp?.postingTitle || 'Uncategorized',
         postingId: matchedApp?.posting || null,
         stage: opp.stage?.text || 'Unknown Stage',
         createdAt: opp.createdAt,
         isUncategorized: !hasPosting,
+        archivedAt: opp.archivedAt || null,
+        archivedReason: opp.archivedReason || null,
+        answers: matchedApp?.answers || []
       }
     })
 
@@ -100,7 +111,7 @@ export async function GET(request: NextRequest) {
     if (postingId === '__uncategorized__') {
       candidates = candidates.filter((c: any) => c.isUncategorized)
     } else if (postingId) {
-       candidates = candidates.filter((c: any) => c.postingId === postingId)
+      candidates = candidates.filter((c: any) => c.postingId === postingId)
     }
 
     return NextResponse.json({ success: true, candidates })

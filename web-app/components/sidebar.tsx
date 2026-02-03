@@ -4,7 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
-import { LayoutDashboard, History, MessageSquare, LogOut, Sparkles } from 'lucide-react'
+import { LayoutDashboard, History, MessageSquare, LogOut, Sparkles, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -62,6 +62,12 @@ export function Sidebar() {
                         <Button variant="ghost" className={cn("w-full justify-start gap-3 font-medium", isActive('/history', 'ask') && "bg-primary/10 text-primary")}>
                             <Sparkles size={18} className={cn(isActive('/history', 'ask') ? "text-primary" : "text-muted-foreground")} />
                             Ask AI
+                        </Button>
+                    </Link>
+                    <Link href="/report">
+                        <Button variant="ghost" className={cn("w-full justify-start gap-3 font-medium", pathname.startsWith('/report') && "bg-primary/10 text-primary")}>
+                            <FileText size={18} className={cn(pathname.startsWith('/report') ? "text-primary" : "text-muted-foreground")} />
+                            Reports
                         </Button>
                     </Link>
                     <Link href="/feedback">
