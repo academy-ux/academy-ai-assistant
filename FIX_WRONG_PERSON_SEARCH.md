@@ -41,15 +41,22 @@ The plugin now logs whether it's using email or name search:
 **File**: `web-app/app/api/lever/search/route.ts`
 
 Implemented a **scoring system** with **minimum threshold of 70**:
-- **Score 100**: Exact name match OR email search
-- **Score 95**: Exact email match in name search
-- **Score 90**: Name starts with query (e.g., "Donnacha" → "Donnacha O'Rear")
-- **Score 85**: Query is a full word in the name
-- **Score 70**: All query words present as full words
+- **Score 100**: Exact name match OR email search ✅
+- **Score 95**: Exact email match in name search ✅
+- **Score 90**: Name starts with query (e.g., "Donnacha" → "Donnacha O'Rear") ✅
+- **Score 85**: Query is a full word in the name ✅
+- **Score 70**: All query words present as full words ✅
 
 **Removed**: 60-point prefix matches (e.g., "Adam" → "Adam Pavlov")
 
 **Result**: Only candidates with score ≥ 70 are returned. Weak matches are rejected with message: "No strong matches found (all candidates scored below 70)"
+
+**Search Scope**:
+- ✅ Searches **ALL candidates** in Lever (not just recent ones)
+- ✅ Includes **archived opportunities** (`archived: true`)
+- ✅ Includes **confidential candidates** (`confidentiality: all`)
+- 📊 Searches up to **2,000 candidates** for name searches (20 pages × 100/page)
+- ⚡ Email searches are instant (Lever API filter, no pagination needed)
 
 Results are sorted by score (highest first), then by profile completeness (number of links).
 

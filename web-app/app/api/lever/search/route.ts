@@ -58,11 +58,7 @@ export async function GET(request: NextRequest) {
     let offset: string | null = null
     let pageCount = 0
     // Lever API limits to 100/page, so we need more pages for larger datasets
-    const MAX_PAGES = isEmailSearch ? 1 : 10 // Email search should return exact match, name search limited to 1000 candidates
-
-    // For name searches, we need to search candidates created in the last 6 months
-    // This is because the Lever API doesn't return results in a predictable order without date filters
-    const sixMonthsAgo = Date.now() - (180 * 24 * 60 * 60 * 1000) // 180 days ago
+    const MAX_PAGES = isEmailSearch ? 1 : 20 // Email search should return exact match, name search up to 2000 candidates
 
     // Track matches for early exit optimization
     let matchCount = 0
@@ -74,14 +70,13 @@ export async function GET(request: NextRequest) {
       leverParams.append('expand', 'stage')
       leverParams.append('expand', 'applications')
       leverParams.append('confidentiality', 'all') // Get both confidential AND non-confidential
+      leverParams.append('archived', 'true') // Include archived opportunities
 
       // Use Lever's email filter for email searches (much faster!)
       if (isEmailSearch) {
         leverParams.append('email', searchQuery)
-      } else {
-        // For name searches, filter to recent candidates to ensure predictable results
-        leverParams.append('created_at_start', sixMonthsAgo.toString())
       }
+      // Note: Removed created_at_start filter to search ALL candidates, not just recent ones
 
       if (offset) {
         leverParams.append('offset', offset)
