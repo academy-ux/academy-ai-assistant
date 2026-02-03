@@ -1968,9 +1968,9 @@ export default function HistoryPage() {
 
           {/* Ask AI Tab Overlay */}
           {activeTab === 'ask' && (
-            <div className="absolute inset-0 z-50 bg-background flex flex-col animate-fade-in">
-              {/* Sticky Header mimicking the individual page */}
-              <div className="sticky top-0 z-20 bg-background pt-6 pb-10 px-6 sm:px-12 border-b-0">
+            <div className="fixed inset-0 z-50 bg-background flex flex-col animate-fade-in overflow-hidden">
+              {/* Header - Fixed at top (part of flex layout) */}
+              <div className="flex-none bg-background pt-6 pb-6 px-6 sm:px-12 border-b border-border/40 z-20">
                 <div className="max-w-[1600px] mx-auto w-full">
                   <div className="flex items-center justify-between gap-6">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -1984,31 +1984,8 @@ export default function HistoryPage() {
                         )}
                       >
                         <ArrowLeft className="h-4 w-4" />
+                        <span className="font-medium">Back to Dashboard</span>
                       </button>
-
-                      <div className="h-9 w-9 rounded-full bg-peach/20 flex items-center justify-center flex-shrink-0 border border-peach/30 shadow-sm ring-1 ring-foreground/5">
-                        <MagicWandIcon size={16} className="text-foreground/80" />
-                      </div>
-
-                      <div className="flex flex-col gap-1.5 min-w-0">
-                        <h1 className="text-sm font-semibold tracking-tight text-foreground leading-tight truncate">
-                          Ask AI
-                        </h1>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <Badge variant="outline" className="inline-flex items-center gap-1 text-xs truncate px-2.5 py-1 border-border/60 rounded-full">
-                            <Avatar className="h-3 w-3 border border-border/40">
-                              <AvatarImage
-                                src={session?.user?.image || undefined}
-                                alt={session?.user?.name || 'User'}
-                              />
-                              <AvatarFallback className="text-[6px] font-semibold bg-muted/50 text-foreground/70">
-                                {viewerInitials || 'U'}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="font-medium">Global History</span>
-                          </Badge>
-                        </div>
-                      </div>
                     </div>
 
                     <div className="flex items-center gap-2 flex-shrink-0">
@@ -2033,165 +2010,165 @@ export default function HistoryPage() {
                     </div>
                   </div>
                 </div>
-                {/* Gradient Fade */}
-                <div className="absolute bottom-0 left-0 right-0 h-12 translate-y-full bg-gradient-to-b from-background to-transparent pointer-events-none" />
               </div>
 
-              {/* Scrollable Conversation Area */}
-              <div className="flex-1 overflow-y-auto pb-32 relative">
-                <div className="sticky top-0 left-0 right-0 h-24 bg-gradient-to-b from-background via-background/80 to-transparent pointer-events-none z-30 -mb-24" />
-                <div className="max-w-3xl mx-auto px-4 pt-8">
-                  {/* Empty State */}
-                  {messages.length === 0 && !asking ? (
-                    <div className="flex flex-col items-center justify-center text-center py-24 min-h-[50vh]">
-                      <div className="mb-6 h-16 w-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/10 animate-float">
-                        <MagicWandIcon size={28} className="text-primary" />
-                      </div>
-                      <h3 className="text-2xl font-semibold text-foreground mb-3 animate-fade-in" style={{ animationDelay: '100ms' }}>Ask about your meetings</h3>
-                      <p className="text-muted-foreground max-w-md mb-6 animate-fade-in" style={{ animationDelay: '200ms' }}>
-                        Get instant insights and comparisons across all your conversations.
-                      </p>
-                      <div className="flex flex-wrap gap-2 justify-center animate-fade-in" style={{ animationDelay: '300ms' }}>
-                        {[
-                          "Summarize my recent interviews",
-                          "Compare candidate strengths",
-                          "What were the key topics discussed last week?"
-                        ].map((suggestion) => (
-                          <button
-                            key={suggestion}
-                            onClick={() => setAiQuestion(suggestion)}
-                            className="px-4 py-2 text-sm text-muted-foreground bg-card/40 hover:bg-muted border border-border/50 rounded-full transition-all duration-300 hover:border-primary/30 hover:text-foreground hover:scale-105 hover:shadow-md active:scale-95"
-                          >
-                            {suggestion}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-6 py-6">
-                      {/* Messages */}
-                      {messages.map((message, index) => (
-                        message.role === 'user' ? (
-                          <Message key={message.id} from="user" className={index === messages.length - 1 || index === messages.length - 2 ? "animate-fade-in-left" : ""}>
-                            <MessageContent>
-                              <p className="text-sm">{message.content}</p>
-                            </MessageContent>
-                            <MessageAvatar
-                              name={session?.user?.name || "You"}
-                              src={session?.user?.image || undefined}
-                              className="bg-muted"
-                            />
-                          </Message>
-                        ) : (
-                          <Message key={message.id} from="assistant" className={index === messages.length - 1 ? "animate-fade-in-right" : ""}>
-                            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center flex-shrink-0 border border-primary/10 transition-all duration-300 hover:scale-110">
-                              <MagicWandIcon size={14} className="text-primary" />
-                            </div>
-                            <div className="flex-1 space-y-4">
-                              <MessageContent>
-                                <Response>{message.content}</Response>
-                              </MessageContent>
-
-                              {message.sources && message.sources.length > 0 && (
-                                <div className="flex gap-2 flex-wrap items-center">
-                                  <span className="text-xs text-muted-foreground">Sources:</span>
-                                  {message.sources.map(source => (
-                                    <Link key={source.id} href={`/history/${source.id}`}>
-                                      <Badge variant="secondary" className="text-xs cursor-pointer hover:bg-secondary/80 transition-colors">
-                                        {source.candidateName}
-                                      </Badge>
-                                    </Link>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          </Message>
-                        )
-                      ))}
-
-                      {/* Loading Indicator */}
-                      {asking && (
-                        <Message from="assistant" className="animate-fade-in-right">
-                          <div className="h-8 w-8 rounded-full bg-peach/20 flex items-center justify-center flex-shrink-0 border border-peach/30 animate-glow-pulse">
-                            <MagicWandIcon size={14} className="text-primary animate-pulse" />
-                          </div>
-                          <MessageContent variant="flat">
-                            <div className="flex items-center gap-3 py-2">
-                              <ShimmeringText
-                                text="Analyzing your meetings..."
-                                className="text-sm text-muted-foreground"
-                              />
-                            </div>
-                          </MessageContent>
-                        </Message>
-                      )}
-
-                      <div ref={conversationEndRef} />
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Input Area - Fixed at bottom */}
-              <div className="fixed bottom-0 left-0 right-0 z-40 px-4 pt-8 pb-6" style={{ background: 'linear-gradient(to top, hsl(var(--background)) 70%, transparent)' }}>
-                <div className="max-w-2xl mx-auto">
-                  <div className="relative group">
-                    <div className="relative bg-card/60 backdrop-blur-md border border-border/30 rounded-xl shadow-lg transition-all duration-300 group-focus-within:border-primary/30 group-focus-within:shadow-xl overflow-hidden min-h-[54px] flex flex-col justify-end">
-                      <form onSubmit={handleAskQuestion} className="flex items-end gap-2">
-                        <div className="flex items-center pl-3 h-[54px]">
-                          <VoiceRecorder
-                            onTranscriptionComplete={(text) => setAiQuestion(prev => prev ? `${prev} ${text}` : text)}
-                            onRecordingChange={setIsRecording}
-                          />
+              {/* Main Content Wrapper - Takes remaining height */}
+              <div className="flex-1 relative min-h-0">
+                {/* Scrollable Conversation Area - Absolute to fill wrapper */}
+                <div className="absolute inset-0 overflow-y-auto pb-48 pt-6">
+                  <div className="max-w-3xl mx-auto px-4">
+                    {/* Empty State */}
+                    {messages.length === 0 && !asking ? (
+                      <div className="flex flex-col items-center justify-center text-center py-24 min-h-[50vh]">
+                        <div className="mb-6 h-16 w-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/10 animate-float">
+                          <MagicWandIcon size={28} className="text-primary" />
                         </div>
-
-                        {!isRecording && (
-                          <>
-                            <div className="flex-1 py-1.5">
-                              <Textarea
-                                value={aiQuestion}
-                                onChange={(e) => {
-                                  setAiQuestion(e.target.value)
-                                  e.target.style.height = 'auto'
-                                  e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px'
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter' && !e.shiftKey) {
-                                    e.preventDefault()
-                                    if (aiQuestion.trim() && !asking) {
-                                      handleAskQuestion(e as any)
-                                    }
-                                  }
-                                }}
-                                placeholder={messages.length > 0 ? "Ask follow-up..." : "Ask about your meetings..."}
-                                className="min-h-[44px] max-h-[160px] py-2.5 px-4 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 resize-none overflow-y-auto text-[15px] placeholder:text-muted-foreground/50"
-                                rows={1}
+                        <h3 className="text-2xl font-semibold text-foreground mb-3 animate-fade-in" style={{ animationDelay: '100ms' }}>Ask about your meetings</h3>
+                        <p className="text-muted-foreground max-w-md mb-6 animate-fade-in" style={{ animationDelay: '200ms' }}>
+                          Get instant insights and comparisons across all your conversations.
+                        </p>
+                        <div className="flex flex-wrap gap-2 justify-center animate-fade-in" style={{ animationDelay: '300ms' }}>
+                          {[
+                            "Summarize my recent interviews",
+                            "Compare candidate strengths",
+                            "What were the key topics discussed last week?"
+                          ].map((suggestion) => (
+                            <button
+                              key={suggestion}
+                              onClick={() => setAiQuestion(suggestion)}
+                              className="px-4 py-2 text-sm text-muted-foreground bg-card/40 hover:bg-muted border border-border/50 rounded-full transition-all duration-300 hover:border-primary/30 hover:text-foreground hover:scale-105 hover:shadow-md active:scale-95"
+                            >
+                              {suggestion}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-6">
+                        {/* Messages */}
+                        {messages.map((message, index) => (
+                          message.role === 'user' ? (
+                            <Message key={message.id} from="user" className={index === messages.length - 1 || index === messages.length - 2 ? "animate-fade-in-left" : ""}>
+                              <MessageContent>
+                                <p className="text-sm">{message.content}</p>
+                              </MessageContent>
+                              <MessageAvatar
+                                name={session?.user?.name || "You"}
+                                src={session?.user?.image || undefined}
+                                className="bg-muted"
                               />
-                            </div>
+                            </Message>
+                          ) : (
+                            <Message key={message.id} from="assistant" className={index === messages.length - 1 ? "animate-fade-in-right" : ""}>
+                              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center flex-shrink-0 border border-primary/10 transition-all duration-300 hover:scale-110">
+                                <MagicWandIcon size={14} className="text-primary" />
+                              </div>
+                              <div className="flex-1 space-y-4">
+                                <MessageContent>
+                                  <Response>{message.content}</Response>
+                                </MessageContent>
 
-                            <div className="flex items-center justify-center pr-2.5 pb-2.5">
-                              <button
-                                type="submit"
-                                disabled={asking || !aiQuestion.trim()}
-                                className={cn(
-                                  "h-9 w-9 rounded-xl inline-flex items-center justify-center flex-shrink-0 transition-all duration-200",
-                                  aiQuestion.trim()
-                                    ? "bg-peach text-foreground hover:bg-peach/80"
-                                    : "text-muted-foreground/30"
+                                {message.sources && message.sources.length > 0 && (
+                                  <div className="flex gap-2 flex-wrap items-center">
+                                    <span className="text-xs text-muted-foreground">Sources:</span>
+                                    {message.sources.map(source => (
+                                      <Link key={source.id} href={`/history/${source.id}`}>
+                                        <Badge variant="secondary" className="text-xs cursor-pointer hover:bg-secondary/80 transition-colors">
+                                          {source.candidateName}
+                                        </Badge>
+                                      </Link>
+                                    ))}
+                                  </div>
                                 )}
-                              >
-                                <Send
-                                  className={cn(
-                                    "h-[18px] w-[18px] transition-transform duration-200",
-                                    aiQuestion.trim() && "-rotate-45 translate-y-[2px]"
-                                  )}
-                                  strokeWidth={2}
-                                />
-                              </button>
+                              </div>
+                            </Message>
+                          )
+                        ))}
+
+                        {/* Loading Indicator */}
+                        {asking && (
+                          <Message from="assistant" className="animate-fade-in-right">
+                            <div className="h-8 w-8 rounded-full bg-peach/20 flex items-center justify-center flex-shrink-0 border border-peach/30 animate-glow-pulse">
+                              <MagicWandIcon size={14} className="text-primary animate-pulse" />
                             </div>
-                          </>
+                            <MessageContent variant="flat">
+                              <div className="flex items-center gap-3 py-2">
+                                <ShimmeringText
+                                  text="Analyzing your meetings..."
+                                  className="text-sm text-muted-foreground"
+                                />
+                              </div>
+                            </MessageContent>
+                          </Message>
                         )}
-                      </form>
+
+                        <div ref={conversationEndRef} />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Input Area - Absolute at bottom of flex container */}
+                <div className="absolute bottom-0 left-0 right-0 z-40 px-4 pt-8 pb-6" style={{ background: 'linear-gradient(to top, hsl(var(--background)) 70%, transparent)' }}>
+                  <div className="max-w-2xl mx-auto">
+                    <div className="relative group">
+                      <div className="relative bg-card/60 backdrop-blur-md border border-border/30 rounded-xl shadow-lg transition-all duration-300 group-focus-within:border-primary/30 group-focus-within:shadow-xl overflow-hidden min-h-[54px] flex flex-col justify-end">
+                        <form onSubmit={handleAskQuestion} className="flex items-end gap-2">
+                          <div className="flex items-center pl-3 h-[54px]">
+                            <VoiceRecorder
+                              onTranscriptionComplete={(text) => setAiQuestion(prev => prev ? `${prev} ${text}` : text)}
+                              onRecordingChange={setIsRecording}
+                            />
+                          </div>
+
+                          {!isRecording && (
+                            <>
+                              <div className="flex-1 py-1.5">
+                                <Textarea
+                                  value={aiQuestion}
+                                  onChange={(e) => {
+                                    setAiQuestion(e.target.value)
+                                    e.target.style.height = 'auto'
+                                    e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px'
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                      e.preventDefault()
+                                      if (aiQuestion.trim() && !asking) {
+                                        handleAskQuestion(e as any)
+                                      }
+                                    }
+                                  }}
+                                  placeholder={messages.length > 0 ? "Ask follow-up..." : "Ask about your meetings..."}
+                                  className="min-h-[44px] max-h-[160px] py-2.5 px-4 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 resize-none overflow-y-auto text-[15px] placeholder:text-muted-foreground/50"
+                                  rows={1}
+                                />
+                              </div>
+
+                              <div className="flex items-center justify-center pr-2.5 pb-2.5">
+                                <button
+                                  type="submit"
+                                  disabled={asking || !aiQuestion.trim()}
+                                  className={cn(
+                                    "h-9 w-9 rounded-xl inline-flex items-center justify-center flex-shrink-0 transition-all duration-200",
+                                    aiQuestion.trim()
+                                      ? "bg-peach text-foreground hover:bg-peach/80"
+                                      : "text-muted-foreground/30"
+                                  )}
+                                >
+                                  <Send
+                                    className={cn(
+                                      "h-[18px] w-[18px] transition-transform duration-200",
+                                      aiQuestion.trim() && "-rotate-45 translate-y-[2px]"
+                                    )}
+                                    strokeWidth={2}
+                                  />
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </form>
+                      </div>
                     </div>
                   </div>
                 </div>
