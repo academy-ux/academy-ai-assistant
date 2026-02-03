@@ -1229,10 +1229,6 @@
           </div>
         </div>
 
-        <div className="min-h-screen bg-background">
-          {/* Filters Sidebar */}
-          {/* ... (filters sidebar code remains the same) ... */}
-          
           <div className="max-w-[1600px] mx-auto px-6 pt-16">
             {/* Sticky Header */}
             <div className={cn("sticky top-16 z-20 bg-background pt-6 pb-10 mb-0")}>

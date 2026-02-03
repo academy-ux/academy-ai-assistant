@@ -213,7 +213,9 @@ Instructions:
 - Be specific and cite names when relevant.
 - If the user asks "tell me more" or similar, elaborate on your previous response.
 - PRIVACY GUARDRAIL: If the user asks about sensitive personal information (salaries, employee reviews, internal complaints, passwords) or topics not related to the provided meeting contexts, politely decline to answer, stating that you cannot share sensitive or unauthorized information.
-- Only use information provided in the context above.`
+- Base your factual answers strictly on the provided interview data. However, you may use your general knowledge to provide context, explain industry terms, or evaluate the quality of responses against professional standards when relevant.
+- You are capable of performing complex tasks such as generating detailed reports, drafting emails, creating structured summaries, or synthesizing information into specific formats. When asked for these, use professional formatting and structure.
+- Use your general intelligence to infer intent, identify subtle patterns, and provide high-level insights, provided they are supported by the transcript evidence.`
 
     const result = await model.generateContent(prompt)
     const response = await result.response
