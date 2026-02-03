@@ -15,6 +15,9 @@ let candidateInfoPanel = null;
 let detectedParticipants = new Set();
 let currentCandidate = null;
 let authStatus = null; // Stores { authenticated: boolean, user: { name, email, image } }
+let captionsAutoEnabled = false; // Track if we've already tried to enable captions
+let transcriptBuffer = []; // Store transcript snippets for recovery
+let transcriptSaveInterval = null; // Interval for saving transcript to storage
 
 // Initialize
 function init() {
@@ -25,10 +28,10 @@ function init() {
   } else {
     startMonitoring();
   }
-  
+
   // Check authentication status
   checkAuthStatus();
-  
+
   // Add test button in development/testing
   addTestButton();
 }
@@ -99,7 +102,7 @@ function addTestButton() {
 async function checkAuthStatus() {
   try {
     console.log('[Academy] Checking authentication status...');
-    
+
     // Check if extension context is valid
     if (!chrome || !chrome.runtime || !chrome.runtime.sendMessage) {
       console.error('[Academy] Extension context lost - cannot check auth');
@@ -107,7 +110,7 @@ async function checkAuthStatus() {
       updateAuthStatusInPanel();
       return;
     }
-    
+
     // Ask background script (it can access cookies properly)
     chrome.runtime.sendMessage({ action: 'checkAuthStatus' }, (response) => {
       if (chrome.runtime.lastError) {
@@ -116,13 +119,13 @@ async function checkAuthStatus() {
         updateAuthStatusInPanel();
         return;
       }
-      
+
       authStatus = response;
       console.log('[Academy] Auth status:', authStatus.authenticated ? 'Logged in' : 'Not logged in');
       if (authStatus.user) {
         console.log('[Academy] User:', authStatus.user.name || authStatus.user.email);
       }
-      
+
       // Update auth status in panel if it exists
       updateAuthStatusInPanel();
     });
@@ -177,14 +180,14 @@ function updateAuthStatusInPanel() {
 // Show test candidate with real data from Lever
 async function showTestCandidate() {
   console.log('[Academy] Fetching Olga from Lever...');
-  
+
   // Check if extension context is valid
   if (!chrome || !chrome.runtime || !chrome.runtime.sendMessage) {
     console.error('[Academy] Extension context lost - please reload the extension');
     alert('Extension disconnected. Please reload the extension in chrome://extensions');
     return;
   }
-  
+
   // Show loading state
   const loadingCandidate = {
     id: 'loading',
@@ -198,9 +201,9 @@ async function showTestCandidate() {
     links: {},
     leverUrl: '#'
   };
-  
+
   showCandidatePanel(loadingCandidate);
-  
+
   // Search for Olga using her email (much faster!)
   console.log('[Academy Content] Requesting search for Olga Dyakova (olga.dyakova@academyux.com)...');
   chrome.runtime.sendMessage({
@@ -209,10 +212,10 @@ async function showTestCandidate() {
     email: 'olga.dyakova@academyux.com'
   }, (response) => {
     console.log('[Academy Content] Got response:', response);
-    
+
     if (chrome.runtime.lastError) {
       console.error('[Academy Content] Runtime error:', chrome.runtime.lastError);
-      
+
       // Show error state
       const errorCandidate = {
         id: 'error',
@@ -225,12 +228,12 @@ async function showTestCandidate() {
         links: {},
         leverUrl: '#'
       };
-      
+
       removeCandidatePanel();
       showCandidatePanel(errorCandidate);
       return;
     }
-    
+
     if (response && response.success && response.candidates && response.candidates.length > 0) {
       const candidate = response.candidates[0];
       console.log('[Academy Content] ✅ Found candidate:', candidate.name);
@@ -238,7 +241,7 @@ async function showTestCandidate() {
       showCandidatePanel(candidate);
     } else {
       console.log('[Academy Content] ❌ No candidates found. Response:', response);
-      
+
       // Show not found state with more details
       const errorMsg = response?.error || 'Not found in Lever'
       const noCandidate = {
@@ -252,7 +255,7 @@ async function showTestCandidate() {
         links: {},
         leverUrl: 'https://hire.lever.co/'
       };
-      
+
       removeCandidatePanel();
       showCandidatePanel(noCandidate);
     }
@@ -262,63 +265,414 @@ async function showTestCandidate() {
 function startMonitoring() {
   // First, check if we're already in a meeting (e.g., page was reloaded)
   checkIfAlreadyInMeeting();
-  
+
   detectMeetingJoin();
   watchForMeetingEnd();
 
   // Periodic check for meeting info
   setInterval(detectMeetingInfo, 3000);
-  
+
   // Periodic check for participants
   setInterval(detectParticipants, 5000);
-  
+
   // Periodic check if we're in a meeting (catches page reloads)
   setInterval(checkIfAlreadyInMeeting, 2000);
+
+  // Periodic check to auto-enable captions
+  setInterval(tryEnableCaptions, 5000);
+
+  // Periodic check to capture transcript for recovery
+  setInterval(captureTranscriptSnapshot, 10000);
+
+  // Monitor UI structure for significant changes
+  setInterval(monitorUIStructure, 30000); // Check every 30 seconds
 }
 
 // Check if we're already in a meeting (handles page reload scenario)
 function checkIfAlreadyInMeeting() {
   if (isInMeeting) return; // Already detected
-  
+
   // Check URL pattern for meeting code
   const urlMatch = location.pathname.match(/\/([a-z]{3}-[a-z]{4}-[a-z]{3})/);
   if (!urlMatch) return; // Not on a meeting URL
-  
+
   // Check for video elements or meeting controls
   const hasVideo = document.querySelectorAll('video').length > 0;
   const hasMeetingControls = document.querySelector('[data-is-muted]') ||
-                             document.querySelector('[aria-label*="microphone"]') ||
-                             document.querySelector('[aria-label*="camera"]') ||
-                             document.querySelector('[aria-label*="Turn off"]') ||
-                             document.querySelector('[aria-label*="Turn on"]');
-  
+    document.querySelector('[aria-label*="microphone"]') ||
+    document.querySelector('[aria-label*="camera"]') ||
+    document.querySelector('[aria-label*="Turn off"]') ||
+    document.querySelector('[aria-label*="Turn on"]');
+
   // Check for participant elements (more reliable indicator of active meeting)
   const hasParticipants = document.querySelector('[data-self-name]') ||
-                          document.querySelector('[data-participant-id]') ||
-                          document.querySelector('[data-requested-participant-id]');
-  
+    document.querySelector('[data-participant-id]') ||
+    document.querySelector('[data-requested-participant-id]');
+
   if (hasVideo || hasMeetingControls || hasParticipants) {
     isInMeeting = true;
     console.log('[Academy] Detected active meeting (page was reloaded or joined late)');
     detectMeetingInfo();
     notifyMeetingJoined();
+
+    // Try to restore transcript if this is a page reload
+    restoreTranscriptFromStorage();
   }
 }
+
+// Auto-enable captions in Google Meet
+function tryEnableCaptions() {
+  if (!isInMeeting) return;
+  if (captionsAutoEnabled) return; // Already tried
+
+  // Look for the captions/closed captions button
+  const captionSelectors = [
+    '[aria-label*="Turn on captions"]',
+    '[aria-label*="captions" i][role="button"]',
+    '[data-tooltip*="captions" i]',
+    '[aria-label*="closed captions" i]',
+    'button[aria-label*="CC"]',
+    '[jsname="r8qRAd"]', // Google Meet specific
+  ];
+
+  for (const selector of captionSelectors) {
+    try {
+      const button = document.querySelector(selector);
+      if (button) {
+        // Check if captions are already on
+        const ariaLabel = button.getAttribute('aria-label') || '';
+        const isAlreadyOn = ariaLabel.toLowerCase().includes('turn off') ||
+          ariaLabel.toLowerCase().includes('hide');
+
+        if (!isAlreadyOn) {
+          console.log('[Academy] Auto-enabling captions...');
+          button.click();
+          captionsAutoEnabled = true;
+          console.log('[Academy] ✅ Captions enabled');
+          return;
+        } else {
+          console.log('[Academy] Captions already enabled');
+          captionsAutoEnabled = true;
+          return;
+        }
+      }
+    } catch (e) {
+      console.error('[Academy] Error enabling captions:', e);
+    }
+  }
+}
+
+// Capture transcript snapshot for recovery
+function captureTranscriptSnapshot() {
+  if (!isInMeeting || !meetingCode) return;
+
+  // Look for caption/transcript elements
+  const captionSelectors = [
+    '[jsname="tgaKEf"]', // Google Meet caption container
+    '[class*="caption"]',
+    '[aria-live="polite"]',
+    '[role="log"]',
+  ];
+
+  let captionText = '';
+
+  for (const selector of captionSelectors) {
+    try {
+      const elements = document.querySelectorAll(selector);
+      elements.forEach(el => {
+        const text = el.textContent?.trim();
+        if (text && text.length > 0) {
+          captionText += text + '\n';
+        }
+      });
+    } catch (e) {
+      // Ignore errors
+    }
+  }
+
+  if (captionText.length > 0) {
+    // Add to buffer with timestamp
+    const snapshot = {
+      timestamp: Date.now(),
+      text: captionText,
+      meetingCode: meetingCode,
+      meetingTitle: meetingTitle
+    };
+
+    transcriptBuffer.push(snapshot);
+
+    // Keep only last 50 snapshots (to avoid memory issues)
+    if (transcriptBuffer.length > 50) {
+      transcriptBuffer = transcriptBuffer.slice(-50);
+    }
+
+    // Save to chrome storage
+    saveTranscriptToStorage();
+  }
+}
+
+// Save transcript to chrome storage
+function saveTranscriptToStorage() {
+  if (!meetingCode) return;
+
+  const storageKey = `transcript_${meetingCode}`;
+  const data = {
+    meetingCode: meetingCode,
+    meetingTitle: meetingTitle,
+    buffer: transcriptBuffer,
+    lastUpdated: Date.now()
+  };
+
+  try {
+    chrome.storage.local.set({ [storageKey]: data }, () => {
+      if (chrome.runtime.lastError) {
+        console.error('[Academy] Error saving transcript:', chrome.runtime.lastError);
+      } else {
+        console.log('[Academy] Transcript snapshot saved');
+      }
+    });
+  } catch (e) {
+    console.error('[Academy] Error saving transcript:', e);
+  }
+}
+
+// Restore transcript from storage after page reload
+function restoreTranscriptFromStorage() {
+  if (!meetingCode) return;
+
+  const storageKey = `transcript_${meetingCode}`;
+
+  try {
+    chrome.storage.local.get([storageKey], (result) => {
+      if (chrome.runtime.lastError) {
+        console.error('[Academy] Error restoring transcript:', chrome.runtime.lastError);
+        return;
+      }
+
+      const data = result[storageKey];
+      if (data && data.buffer && data.buffer.length > 0) {
+        transcriptBuffer = data.buffer;
+        console.log('[Academy] ✅ Restored transcript from before page reload');
+        console.log(`[Academy] Recovered ${transcriptBuffer.length} transcript snapshots`);
+
+        // Show a notification to the user
+        showTranscriptRestoredNotification(transcriptBuffer.length);
+      }
+    });
+  } catch (e) {
+    console.error('[Academy] Error restoring transcript:', e);
+  }
+}
+
+// Show notification that transcript was restored
+function showTranscriptRestoredNotification(snapshotCount) {
+  const notification = document.createElement('div');
+  notification.id = 'academy-transcript-restored';
+  notification.style.cssText = `
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #8f917f;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 99999;
+    animation: academySlideDown 0.3s ease-out;
+  `;
+  notification.innerHTML = `
+    ✅ Transcript recovered (${snapshotCount} snapshots from before reload)
+  `;
+
+  document.body.appendChild(notification);
+
+  // Remove after 5 seconds
+  setTimeout(() => {
+    notification.style.animation = 'academySlideUp 0.3s ease-out';
+    setTimeout(() => notification.remove(), 300);
+  }, 5000);
+}
+
+// UI Structure Monitoring - Detect when Google Meet changes their DOM
+let uiStructureBaseline = null;
+
+function monitorUIStructure() {
+  if (!isInMeeting) return;
+
+  // Define critical selectors we depend on
+  const criticalSelectors = {
+    // Meeting controls
+    muteButton: '[data-is-muted]',
+    microphoneButton: '[aria-label*="microphone" i]',
+    cameraButton: '[aria-label*="camera" i]',
+
+    // Captions
+    captionsButton: '[aria-label*="captions" i]',
+    captionContainer: '[jsname="tgaKEf"]',
+
+    // Participants
+    participantList: '[role="listitem"]',
+    participantName: '[data-participant-id]',
+    selfName: '[data-self-name]',
+
+    // Meeting info
+    meetingTitle: '[data-meeting-title]',
+
+    // Leave button
+    leaveButton: '[aria-label*="Leave" i]',
+  };
+
+  const currentStructure = {};
+  const issues = [];
+
+  // Check each selector
+  for (const [name, selector] of Object.entries(criticalSelectors)) {
+    try {
+      const elements = document.querySelectorAll(selector);
+      currentStructure[name] = {
+        count: elements.length,
+        exists: elements.length > 0,
+        selector: selector
+      };
+
+      // If this is a critical element and it's missing, flag it
+      if (elements.length === 0 && ['muteButton', 'leaveButton', 'participantList'].includes(name)) {
+        issues.push({
+          severity: 'high',
+          element: name,
+          selector: selector,
+          message: `Critical element "${name}" not found with selector "${selector}"`
+        });
+      }
+    } catch (e) {
+      issues.push({
+        severity: 'error',
+        element: name,
+        selector: selector,
+        message: `Error querying selector: ${e.message}`
+      });
+    }
+  }
+
+  // Compare with baseline if we have one
+  if (uiStructureBaseline) {
+    for (const [name, current] of Object.entries(currentStructure)) {
+      const baseline = uiStructureBaseline[name];
+      if (baseline) {
+        // Check if element disappeared
+        if (baseline.exists && !current.exists) {
+          issues.push({
+            severity: 'medium',
+            element: name,
+            selector: current.selector,
+            message: `Element "${name}" was present but is now missing`
+          });
+        }
+
+        // Check if count changed significantly (might indicate structure change)
+        if (baseline.count > 0 && current.count === 0) {
+          issues.push({
+            severity: 'medium',
+            element: name,
+            selector: current.selector,
+            message: `Element count changed from ${baseline.count} to ${current.count}`
+          });
+        }
+      }
+    }
+  } else {
+    // Set baseline on first run
+    uiStructureBaseline = currentStructure;
+    console.log('[Academy] UI structure baseline established');
+  }
+
+  // Report issues
+  if (issues.length > 0) {
+    console.warn('[Academy] ⚠️ UI STRUCTURE CHANGES DETECTED ⚠️');
+    console.warn('[Academy] Google Meet may have updated their UI. The following issues were found:');
+
+    issues.forEach(issue => {
+      const emoji = issue.severity === 'high' ? '🔴' : issue.severity === 'error' ? '💥' : '🟡';
+      console.warn(`[Academy] ${emoji} [${issue.severity.toUpperCase()}] ${issue.message}`);
+    });
+
+    // Send notification to developers (could be enhanced to send to a monitoring service)
+    console.warn('[Academy] 📧 Please notify developers that selectors may need updating!');
+    console.warn('[Academy] Current structure:', currentStructure);
+
+    // Show in-page notification for high severity issues
+    const highSeverityIssues = issues.filter(i => i.severity === 'high' || i.severity === 'error');
+    if (highSeverityIssues.length > 0) {
+      showUIChangeNotification(highSeverityIssues.length);
+    }
+  } else {
+    console.log('[Academy] ✅ UI structure check passed - all selectors working');
+  }
+}
+
+// Show notification when UI changes are detected
+function showUIChangeNotification(issueCount) {
+  // Only show once per session
+  if (document.getElementById('academy-ui-change-alert')) return;
+
+  const notification = document.createElement('div');
+  notification.id = 'academy-ui-change-alert';
+  notification.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #ff6b6b;
+    color: white;
+    padding: 16px 20px;
+    border-radius: 8px;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    z-index: 99999;
+    max-width: 300px;
+    animation: academySlideIn 0.3s ease-out;
+  `;
+  notification.innerHTML = `
+    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+      <span style="font-size: 20px;">⚠️</span>
+      <strong>Academy Plugin Alert</strong>
+    </div>
+    <div style="font-size: 12px; opacity: 0.95;">
+      Google Meet UI changes detected (${issueCount} issue${issueCount > 1 ? 's' : ''}). 
+      Some features may not work correctly. Check console for details.
+    </div>
+  `;
+
+  document.body.appendChild(notification);
+
+  // Remove after 15 seconds
+  setTimeout(() => {
+    notification.style.animation = 'academySlideOut 0.3s ease-out';
+    setTimeout(() => notification.remove(), 300);
+  }, 15000);
+}
+
+
 
 function detectMeetingJoin() {
   const observer = new MutationObserver(() => {
     // Check for video elements or meeting controls that indicate active meeting
     const hasVideo = document.querySelectorAll('video').length > 0;
     const hasMeetingControls = document.querySelector('[data-is-muted]') ||
-                               document.querySelector('[aria-label*="microphone"]') ||
-                               document.querySelector('[aria-label*="camera"]') ||
-                               document.querySelector('[aria-label*="Turn off"]');
+      document.querySelector('[aria-label*="microphone"]') ||
+      document.querySelector('[aria-label*="camera"]') ||
+      document.querySelector('[aria-label*="Turn off"]');
 
     if ((hasVideo || hasMeetingControls) && !isInMeeting) {
       isInMeeting = true;
       console.log('[Academy] Joined meeting');
       detectMeetingInfo();
-      
+
       // Notify background script to check login status
       notifyMeetingJoined();
     }
@@ -329,7 +683,7 @@ function detectMeetingJoin() {
 
 function notifyMeetingJoined() {
   console.log('[Academy] Notifying background script of meeting join...');
-  
+
   chrome.runtime.sendMessage({
     action: 'meetingJoined',
     meetingCode: meetingCode,
@@ -356,7 +710,7 @@ function detectMeetingInfo() {
 
   // Get meeting title from page
   const titleEl = document.querySelector('[data-meeting-title]') ||
-                  document.querySelector('[data-call-title]');
+    document.querySelector('[data-call-title]');
 
   if (titleEl) {
     meetingTitle = titleEl.textContent.trim();
@@ -395,7 +749,7 @@ function watchForMeetingEnd() {
           setTimeout(() => handleMeetingEnd('leave_button'), 2000);
           return;
         }
-      } catch (e) {}
+      } catch (e) { }
     }
   });
 
@@ -406,10 +760,10 @@ function watchForMeetingEnd() {
         if (node.nodeType === Node.ELEMENT_NODE) {
           const text = (node.textContent || '').toLowerCase();
           if (text.includes('you left the meeting') ||
-              text.includes("you've left the meeting") ||
-              text.includes('call ended') ||
-              text.includes('meeting ended') ||
-              text.includes('return to home screen')) {
+            text.includes("you've left the meeting") ||
+            text.includes('call ended') ||
+            text.includes('meeting ended') ||
+            text.includes('return to home screen')) {
             console.log('[Academy] Meeting end message detected');
             handleMeetingEnd('end_message');
             return;
@@ -426,12 +780,30 @@ function watchForMeetingEnd() {
   setInterval(() => {
     if (location.href !== lastUrl) {
       const wasInMeeting = lastUrl.includes('meet.google.com/') &&
-                           lastUrl.match(/\/[a-z]{3}-[a-z]{4}-[a-z]{3}/);
+        lastUrl.match(/\/[a-z]{3}-[a-z]{4}-[a-z]{3}/);
       const stillInMeeting = location.href.match(/\/[a-z]{3}-[a-z]{4}-[a-z]{3}/);
 
+      // Only trigger meeting end if:
+      // 1. We were in a meeting URL
+      // 2. We're not in a meeting URL anymore
+      // 3. isInMeeting flag is true (we actually joined)
+      // 4. We can verify the meeting was actually active (has video/controls)
       if (wasInMeeting && !stillInMeeting && isInMeeting) {
-        console.log('[Academy] Navigated away from meeting');
-        handleMeetingEnd('navigation');
+        // Double-check that we actually had an active meeting
+        // (prevents false positives during account switching before joining)
+        const hasActiveVideo = document.querySelectorAll('video').length > 0;
+        const hasMeetingControls = document.querySelector('[data-is-muted]') ||
+          document.querySelector('[aria-label*="microphone"]') ||
+          document.querySelector('[aria-label*="camera"]');
+
+        // Only trigger if we had actual meeting elements
+        // OR if we've been in the meeting for more than 10 seconds (meetingCode is set)
+        if (hasActiveVideo || hasMeetingControls || meetingCode) {
+          console.log('[Academy] Navigated away from meeting');
+          handleMeetingEnd('navigation');
+        } else {
+          console.log('[Academy] URL changed but meeting was not active (likely account switch)');
+        }
       }
       lastUrl = location.href;
     }
@@ -448,6 +820,13 @@ function handleMeetingEnd(trigger) {
   console.log(`[Academy] Meeting ended (trigger: ${trigger})`);
   console.log('[Academy] Meeting code:', meetingCode);
   console.log('[Academy] Meeting title:', meetingTitle);
+
+  // Only send message to background script if we have a meeting code
+  // This prevents opening the recruiting assistant during account switches
+  if (!meetingCode) {
+    console.log('[Academy] No meeting code found - skipping feedback page');
+    return;
+  }
 
   // Send message to background script
   chrome.runtime.sendMessage({
@@ -467,9 +846,31 @@ function handleMeetingEnd(trigger) {
   setTimeout(() => {
     meetingEndTriggered = false;
   }, 10000);
-  
+
   // Remove candidate panel
   removeCandidatePanel();
+
+  // Clean up transcript state
+  cleanupTranscriptState();
+}
+
+// Clean up transcript state after meeting ends
+function cleanupTranscriptState() {
+  // Clear the transcript buffer
+  transcriptBuffer = [];
+
+  // Reset caption auto-enable flag
+  captionsAutoEnabled = false;
+
+  // Clear transcript from storage (optional - keep for 1 hour in case user wants to review)
+  if (meetingCode) {
+    const storageKey = `transcript_${meetingCode}`;
+    setTimeout(() => {
+      chrome.storage.local.remove([storageKey], () => {
+        console.log('[Academy] Cleaned up transcript storage');
+      });
+    }, 60 * 60 * 1000); // 1 hour delay
+  }
 }
 
 // ============================================
@@ -478,19 +879,19 @@ function handleMeetingEnd(trigger) {
 
 function detectParticipants() {
   if (!isInMeeting) return;
-  
+
   const participants = new Map(); // Map<identifier, {name, email}>
-  
+
   // Method 1: Get from participant list (best source for emails)
   const participantItems = document.querySelectorAll('[role="listitem"]');
   participantItems.forEach(item => {
     let name = null;
     let email = null;
-    
+
     // Try to get name from various selectors
-    const nameEl = item.querySelector('[data-participant-id]') || 
-                   item.querySelector('[data-self-name]') ||
-                   item.querySelector('span');
+    const nameEl = item.querySelector('[data-participant-id]') ||
+      item.querySelector('[data-self-name]') ||
+      item.querySelector('span');
     if (nameEl) {
       const text = nameEl.textContent?.trim();
       if (text && text.length > 1) {
@@ -502,7 +903,7 @@ function detectParticipants() {
         }
       }
     }
-    
+
     // Try to find email in title attribute (hover text)
     const emailEl = item.querySelector('[title*="@"]');
     if (emailEl) {
@@ -512,14 +913,14 @@ function detectParticipants() {
         email = emailMatch[1];
       }
     }
-    
+
     // Try to find email in adjacent text elements
     const allText = item.textContent || '';
     const emailMatch = allText.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/);
     if (emailMatch) {
       email = emailMatch[1];
     }
-    
+
     // Store if we found something useful
     if (name || email) {
       const identifier = email || name;
@@ -528,7 +929,7 @@ function detectParticipants() {
       }
     }
   });
-  
+
   // Method 2: Get names from video tiles (usually no email here)
   const nameBadges = document.querySelectorAll('[data-self-name], [data-participant-id]');
   nameBadges.forEach(el => {
@@ -539,7 +940,7 @@ function detectParticipants() {
         participants.set(name, { name, email: null });
       }
     }
-    
+
     // Check for email in title/tooltip
     const title = el.getAttribute('title');
     if (title) {
@@ -551,7 +952,7 @@ function detectParticipants() {
       }
     }
   });
-  
+
   // Method 3: Look in video overlays
   const videoContainers = document.querySelectorAll('[data-requested-participant-id]');
   videoContainers.forEach(container => {
@@ -565,15 +966,72 @@ function detectParticipants() {
       }
     }
   });
-  
-  // Method 4: Check meeting title for candidate name
+
+  // Method 4: Try to extract emails from Calendar event data (if meeting was scheduled)
+  // Google Meet sometimes embeds calendar event data in the page
+  try {
+    // Look for calendar event info in the page
+    const calendarLinks = document.querySelectorAll('a[href*="calendar.google.com"]');
+    calendarLinks.forEach(link => {
+      const href = link.getAttribute('href');
+      // Extract event ID from calendar link
+      const eventIdMatch = href?.match(/eid=([^&]+)/);
+      if (eventIdMatch) {
+        console.log('[Academy] Found calendar event link - checking for attendee data');
+      }
+    });
+
+    // Try to find attendee emails in meta tags or data attributes
+    const metaTags = document.querySelectorAll('meta[content*="@"]');
+    metaTags.forEach(meta => {
+      const content = meta.getAttribute('content') || '';
+      const emailMatch = content.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/g);
+      if (emailMatch) {
+        emailMatch.forEach(email => {
+          // Skip common system emails
+          if (!email.includes('noreply') && !email.includes('calendar-notification')) {
+            console.log('[Academy] Found email in meta tag:', email);
+            // Try to find associated name
+            participants.set(email, { name: email, email });
+          }
+        });
+      }
+    });
+
+    // Check for emails in aria-labels or data attributes
+    const elementsWithEmails = document.querySelectorAll('[aria-label*="@"], [data-email], [title*="@"]');
+    elementsWithEmails.forEach(el => {
+      const ariaLabel = el.getAttribute('aria-label') || '';
+      const dataEmail = el.getAttribute('data-email') || '';
+      const title = el.getAttribute('title') || '';
+
+      const textToSearch = ariaLabel + ' ' + dataEmail + ' ' + title;
+      const emailMatch = textToSearch.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/);
+
+      if (emailMatch) {
+        const email = emailMatch[1];
+        // Try to find name nearby
+        let name = el.textContent?.trim() || email;
+        // Clean up name (remove email if it's in the text)
+        name = name.replace(email, '').trim();
+        if (!name || name.length < 2) name = email;
+
+        console.log('[Academy] Found email in element:', email, 'name:', name);
+        participants.set(email, { name, email });
+      }
+    });
+  } catch (e) {
+    console.log('[Academy] Error extracting calendar emails:', e);
+  }
+
+  // Method 5: Check meeting title for candidate name
   if (meetingTitle) {
     const titlePatterns = [
       /(?:interview|call|meeting)\s+(?:with|:)\s+(.+)/i,
       /(.+?)\s+(?:-|–|—)\s+(?:interview|call|screen)/i,
       /^(.+?)\s+(?:interview|call|screen)/i,
     ];
-    
+
     for (const pattern of titlePatterns) {
       const match = meetingTitle.match(pattern);
       if (match && match[1]) {
@@ -586,12 +1044,27 @@ function detectParticipants() {
       }
     }
   }
-  
+
+  // Log all detected participants with email status
+  console.log('[Academy] Detected participants:',
+    Array.from(participants.values()).map(p =>
+      `${p.name}${p.email ? ` (${p.email})` : ' (no email)'}`
+    )
+  );
+
   // Check for new participants
   for (const [identifier, info] of participants.entries()) {
     if (!detectedParticipants.has(identifier) && !isLikelyTeamMember(info.name)) {
       detectedParticipants.add(identifier);
-      console.log('[Academy] New participant detected:', info.name, info.email ? `(${info.email})` : '(no email)');
+      console.log('[Academy] 🔍 New participant detected:', info.name, info.email ? `✉️ ${info.email}` : '❌ no email');
+
+      // Prioritize email-based search
+      if (info.email) {
+        console.log('[Academy] ⚡ Using EMAIL search (faster & more accurate)');
+      } else {
+        console.log('[Academy] ⚠️ Using NAME search (slower, may have false matches)');
+      }
+
       searchAndShowCandidate(info.name, info.email);
     }
   }
@@ -599,29 +1072,52 @@ function detectParticipants() {
 
 // Heuristic to filter out team members (you can customize this)
 function isLikelyTeamMember(name) {
-  const lowerName = name.toLowerCase();
-  
-  // Skip "You" or presentation mode names
-  if (lowerName === 'you' || lowerName === 'presentation') return true;
-  
-  // Skip if it looks like an email
-  if (name.includes('@')) return true;
-  
+  if (!name) return true;
+  const lowerName = name.toLowerCase().trim();
+
+  // Skip "You" (Google Meet specific)
+  if (lowerName === 'you' || lowerName === 'presentation' || lowerName === 'you (presentation)') return true;
+
+  // Check against authenticated user (the "owner" / current user)
+  if (authStatus && authStatus.user) {
+    const userName = (authStatus.user.name || '').toLowerCase();
+    const userEmail = (authStatus.user.email || '').toLowerCase();
+
+    // Exact name match
+    if (userName && lowerName === userName) return true;
+
+    // Email match
+    if (userEmail && name.toLowerCase().includes(userEmail)) return true;
+
+    // Name contains user name (e.g. "Adam Perlis (Presentation)" contains "Adam Perlis")
+    if (userName && lowerName.includes(userName)) return true;
+
+    // Check first name match if user name is "First Last"
+    if (userName.includes(' ')) {
+      const userFirstName = userName.split(' ')[0];
+      // If detected name is just "First", and it matches user's first name
+      if (userFirstName && lowerName === userFirstName) return true;
+    }
+  }
+
+  // Skip if it looks like an email from the company domain (optional - adjust domain as needed)
+  if (name.includes('@academyux.com')) return true;
+
   // Skip meeting room names
   if (lowerName.includes('room') || lowerName.includes('conference')) return true;
-  
+
   return false;
 }
 
 function searchAndShowCandidate(name, email) {
   console.log('[Academy] Searching for candidate:', name, email ? `(${email})` : '(no email)');
-  
+
   // Check if extension context is valid
   if (!chrome || !chrome.runtime || !chrome.runtime.sendMessage) {
     console.error('[Academy] Extension context lost - skipping search');
     return;
   }
-  
+
   chrome.runtime.sendMessage({
     action: 'searchCandidate',
     name: name,
@@ -631,7 +1127,7 @@ function searchAndShowCandidate(name, email) {
       console.error('[Academy] Search error:', chrome.runtime.lastError);
       return;
     }
-    
+
     if (response && response.success && response.candidates && response.candidates.length > 0) {
       const candidate = response.candidates[0];
       console.log('[Academy] Found candidate:', candidate.name);
@@ -645,9 +1141,9 @@ function searchAndShowCandidate(name, email) {
 function showCandidatePanel(candidate) {
   // Remove existing panel if any
   removeCandidatePanel();
-  
+
   currentCandidate = candidate;
-  
+
   // Create the panel
   candidateInfoPanel = document.createElement('div');
   candidateInfoPanel.id = 'academy-candidate-panel';
@@ -1114,16 +1610,16 @@ function showCandidatePanel(candidate) {
       </svg>
     </a>
   `;
-  
+
   document.body.appendChild(candidateInfoPanel);
-  
+
   // Add close button handler
   const closeBtn = candidateInfoPanel.querySelector('.academy-panel-close');
   closeBtn.addEventListener('click', removeCandidatePanel);
-  
+
   // Make panel draggable
   makeDraggable(candidateInfoPanel);
-  
+
   // Update auth status in panel
   updateAuthStatusInPanel();
 }
@@ -1146,9 +1642,9 @@ function makeDraggable(element) {
   const header = element.querySelector('.academy-panel-header');
   let isDragging = false;
   let offsetX, offsetY;
-  
+
   header.style.cursor = 'move';
-  
+
   header.addEventListener('mousedown', (e) => {
     if (e.target.closest('.academy-panel-close')) return;
     isDragging = true;
@@ -1156,14 +1652,14 @@ function makeDraggable(element) {
     offsetY = e.clientY - element.offsetTop;
     element.style.transition = 'none';
   });
-  
+
   document.addEventListener('mousemove', (e) => {
     if (!isDragging) return;
     element.style.left = (e.clientX - offsetX) + 'px';
     element.style.top = (e.clientY - offsetY) + 'px';
     element.style.right = 'auto';
   });
-  
+
   document.addEventListener('mouseup', () => {
     isDragging = false;
     element.style.transition = '';

@@ -14,11 +14,11 @@ export async function GET(request: NextRequest) {
   // Handle CORS for Chrome extension (content scripts run from meet.google.com)
   const origin = request.headers.get('origin') || ''
   const isExtension = origin.startsWith('chrome-extension://') || origin === 'https://meet.google.com'
-  
+
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
   }
-  
+
   if (isExtension) {
     headers['Access-Control-Allow-Origin'] = origin
     headers['Access-Control-Allow-Credentials'] = 'true'
@@ -63,10 +63,10 @@ export async function GET(request: NextRequest) {
     // For name searches, we need to search candidates created in the last 6 months
     // This is because the Lever API doesn't return results in a predictable order without date filters
     const sixMonthsAgo = Date.now() - (180 * 24 * 60 * 60 * 1000) // 180 days ago
-    
+
     // Track matches for early exit optimization
     let matchCount = 0
-    
+
     while (hasMore && pageCount < MAX_PAGES) {
       const leverParams = new URLSearchParams()
       leverParams.append('limit', '100') // Lever API max is 100
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
       leverParams.append('expand', 'stage')
       leverParams.append('expand', 'applications')
       leverParams.append('confidentiality', 'all') // Get both confidential AND non-confidential
-      
+
       // Use Lever's email filter for email searches (much faster!)
       if (isEmailSearch) {
         leverParams.append('email', searchQuery)
@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
         // For name searches, filter to recent candidates to ensure predictable results
         leverParams.append('created_at_start', sixMonthsAgo.toString())
       }
-      
+
       if (offset) {
         leverParams.append('offset', offset)
       }
@@ -104,36 +104,36 @@ export async function GET(request: NextRequest) {
       const data = await response.json()
       const pageOpps = data.data || []
       allOpportunities.push(...pageOpps)
-      
+
       pageCount++
       hasMore = data.hasNext || false
       offset = data.next || null
-      
+
       console.log(`[Lever Search] Page ${pageCount}: Got ${pageOpps.length} opportunities (total: ${allOpportunities.length}, hasMore: ${hasMore})`)
-      
+
       // Early exit for name searches if we found matches
       if (!isEmailSearch && pageOpps.length > 0) {
         // Check if this page has any matches
         const pageMatches = pageOpps.filter((opp: any) => {
           const name = (opp.name || '').toLowerCase()
-          
+
           // Direct substring match
           if (name.includes(searchQuery)) return true
-          
+
           // All words in query appear in name
           const queryWords = searchQuery.split(/\s+/).filter(w => w.length > 0)
           if (queryWords.every((word: string) => name.includes(word))) return true
-          
+
           // First word match
           const firstQueryWord = queryWords[0]
           const firstNameWord = name.split(/\s+/)[0]
           if (firstQueryWord && firstNameWord && firstNameWord.startsWith(firstQueryWord)) return true
-          
+
           return false
         })
-        
+
         matchCount += pageMatches.length
-        
+
         // If we found 5+ matches, stop fetching (we only return top 5 anyway)
         if (matchCount >= 5) {
           console.log(`[Lever Search] Early exit: Found ${matchCount} matches`)
@@ -146,79 +146,93 @@ export async function GET(request: NextRequest) {
     const opportunities = allOpportunities
 
     // For email searches, API already filtered - all results are matches
-    // For name searches, filter locally with fuzzy matching
+    // For name searches, filter locally with stricter matching
     let matches: any[]
-    
+    const MIN_SCORE_THRESHOLD = 70 // Only return matches with score >= 70
+
     if (isEmailSearch) {
-      // API already filtered by email - all results are matches
-      matches = opportunities
+      // API already filtered by email - all results are matches (score 100)
+      matches = opportunities.map(opp => {
+        opp._searchScore = 100
+        return opp
+      })
     } else {
-      // Search by name (fuzzy match with multiple strategies)
-      matches = opportunities.filter((opp: any) => {
+      // Search by name with scoring
+      matches = opportunities.reduce((acc: any[], opp: any) => {
         const name = (opp.name || '').toLowerCase()
         const email = (opp.emails?.[0] || '').toLowerCase()
-        
-        // Strategy 1: Direct substring match
-        if (name.includes(searchQuery) || email.includes(searchQuery)) {
-          return true
+        let score = 0
+
+        // Exact match (Title Case handled by lowercasing)
+        if (name === searchQuery) {
+          score = 100
         }
-        
-        // Strategy 2: All words in query appear in name (in any order)
-        const queryWords = searchQuery.split(/\s+/).filter(w => w.length > 0)
-        if (queryWords.every((word: string) => name.includes(word))) {
-          return true
+        // Exact Email match
+        else if (email === searchQuery) {
+          score = 95
         }
-        
-        // Strategy 3: First word of query matches first word of name (for partial searches like "Tows")
-        const firstQueryWord = queryWords[0]
-        const firstNameWord = name.split(/\s+/)[0]
-        if (firstQueryWord && firstNameWord && firstNameWord.startsWith(firstQueryWord)) {
-          return true
+        // Name starts with query (e.g. "Adam" -> "Adam Pavlov" or "Donnacha" -> "Donnacha O'Rear")
+        else if (name.startsWith(searchQuery + ' ')) {
+          score = 90
         }
-        
-        return false
-      })
+        // Query is contained in name as a full word
+        else if (name.includes(' ' + searchQuery + ' ') || name.endsWith(' ' + searchQuery)) {
+          score = 85
+        }
+        // All words in query appear in name as full words
+        else {
+          const queryWords = searchQuery.split(/\s+/).filter(w => w.length > 0)
+          const nameWords = name.split(/\s+/)
+
+          const allWordsPresent = queryWords.every((qw: string) =>
+            nameWords.some((nw: string) => nw === qw || (qw.length > 2 && nw.startsWith(qw)))
+          )
+
+          if (allWordsPresent) {
+            score = 70
+          }
+          // Note: Removed 60-point fallback - we only want strong matches (70+)
+        }
+
+        // Only include matches with score >= MIN_SCORE_THRESHOLD
+        if (score >= MIN_SCORE_THRESHOLD) {
+          opp._searchScore = score
+          acc.push(opp)
+        }
+        return acc
+      }, [])
     }
 
-    console.log(`[Lever Search] Found ${matches.length} matches for query: "${searchQuery}"`)
+    console.log(`[Lever Search] Found ${matches.length} matches for query: "${searchQuery}" (min score: ${MIN_SCORE_THRESHOLD})`)
     if (matches.length > 0) {
-      console.log('[Lever Search] First 3 matches:', matches.slice(0, 3).map((m: any) => m.name))
+      console.log('[Lever Search] First 3 matches:', matches.slice(0, 3).map((m: any) => `${m.name} (score: ${m._searchScore})`))
     } else {
-      // Log some sample names to help debug
-      console.log('[Lever Search] No matches. Sample names from DB:', opportunities.slice(0, 10).map((o: any) => o.name))
+      console.log('[Lever Search] No strong matches found (all candidates scored below 70)')
     }
 
     // Transform matches to include useful info
     const candidates = matches.map((opp: any) => {
       const contact = opp.contact || {}
-      const app = opp.applications?.[0]
-      
-      // IMPORTANT: Links are on the OPPORTUNITY object, not contact!
-      const rawLinks = opp.links || []
-      
-      // Debug: Log the raw links data
-      if (rawLinks.length > 0) {
-        console.log('[Lever Search] Raw links for', opp.name, ':', JSON.stringify(rawLinks))
-      }
-      
+      // ... (rest of mapping code) ...
+
       // Extract links (LinkedIn, portfolio, etc.)
+      const rawLinks = opp.links || []
       const links: Record<string, string> = {}
+
+      // ... (link extraction logic) ...
+
       for (const link of rawLinks) {
-        // Lever stores links as either strings or objects with url property
         let url: string
         if (typeof link === 'string') {
           url = link
         } else if (link && typeof link === 'object') {
-          // Link could be { url: "...", type: "..." } or just have a url property
           url = link.url || link.href || String(link)
         } else {
           continue
         }
-        
-        // Skip if no valid URL
+
         if (!url || typeof url !== 'string') continue
-        
-        // Categorize by URL pattern
+
         if (url.includes('linkedin.com')) {
           links.linkedin = url
         } else if (url.includes('github.com')) {
@@ -230,32 +244,16 @@ export async function GET(request: NextRequest) {
         } else if (url.includes('behance.net')) {
           links.behance = url
         } else {
-          // Assume it's a portfolio or personal site
-          if (!links.portfolio) {
-            links.portfolio = url
-          } else if (!links.other) {
-            links.other = url
-          }
+          if (!links.portfolio) links.portfolio = url
+          else if (!links.other) links.other = url
         }
       }
 
-      // Debug: Log extracted links
-      if (Object.keys(links).length > 0) {
-        console.log('[Lever Search] ✓ Extracted links for', opp.name, ':', links)
-      } else if (rawLinks.length > 0) {
-        console.log('[Lever Search] ⚠️  Had raw links but extracted none for', opp.name)
-      }
-      
-      // Get resume from resumes endpoint (the resume field on opp is deprecated)
-      // For now we'll use what's available on the opportunity
       const resume = opp.resume || null
       const resumeUrl = resume?.file?.downloadUrl || null
-      
-      // Extract role from tags - first tag typically contains the role/posting title
-      // Format is usually: "Role Title @ Company (Type)" or just "Role Title"
       const roleTag = opp.tags?.[0] || ''
       const role = roleTag || opp.headline || 'No position'
-      
+
       return {
         id: opp.id,
         name: opp.name || 'Unknown',
@@ -264,33 +262,33 @@ export async function GET(request: NextRequest) {
         headline: opp.headline || '',
         location: opp.location || '',
         position: role,
-        role: role, // Also include as 'role' for clarity
+        role: role,
         stage: opp.stage?.text || 'Unknown Stage',
         links,
         allLinks: rawLinks,
         leverUrl: `https://hire.lever.co/candidates/${opp.id}`,
         resumeUrl,
         createdAt: opp.createdAt,
+        _searchScore: opp._searchScore
       }
     })
 
-    // Sort by relevance and completeness
+    // Sort by Score first, then completeness
     candidates.sort((a: any, b: any) => {
-      // Exact name match first
-      const aExact = a.name.toLowerCase() === searchQuery
-      const bExact = b.name.toLowerCase() === searchQuery
-      if (aExact && !bExact) return -1
-      if (!aExact && bExact) return 1
-      
-      // Then by number of links (more complete profiles first)
+      // 1. Search Score (descending)
+      if ((a._searchScore || 0) !== (b._searchScore || 0)) {
+        return (b._searchScore || 0) - (a._searchScore || 0)
+      }
+
+      // 2. Link Completeness
       const aLinkCount = Object.keys(a.links).length
       const bLinkCount = Object.keys(b.links).length
       return bLinkCount - aLinkCount
     })
 
     return NextResponse.json(
-      { 
-        success: true, 
+      {
+        success: true,
         query: params.q,
         count: candidates.length,
         candidates: candidates.slice(0, 5) // Return top 5 matches
@@ -307,16 +305,16 @@ export async function GET(request: NextRequest) {
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get('origin') || ''
   const isExtension = origin.startsWith('chrome-extension://') || origin === 'https://meet.google.com'
-  
+
   const headers: HeadersInit = {
     'Access-Control-Allow-Methods': 'GET, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
   }
-  
+
   if (isExtension) {
     headers['Access-Control-Allow-Origin'] = origin
     headers['Access-Control-Allow-Credentials'] = 'true'
   }
-  
+
   return new NextResponse(null, { status: 204, headers })
 }
