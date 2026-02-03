@@ -46,11 +46,11 @@ export async function GET(req: NextRequest) {
       .range(offset, offset + limit - 1)
 
     // Filter by interview if specified
-    if (interviewId) {
-      query = query.eq('interview_id', interviewId)
-    } else if (interviewId === 'null') {
+    if (interviewId === 'null') {
       // Global conversations only
       query = query.is('interview_id', null)
+    } else if (interviewId) {
+      query = query.eq('interview_id', interviewId)
     }
 
     // Search in title and messages

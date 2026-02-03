@@ -1025,7 +1025,39 @@ export default function HistoryPage() {
 
   return (
     <TooltipProvider>
-      <div className="min-h-screen bg-background relative">
+      <div className="flex h-[calc(100vh-64px)] bg-background relative overflow-hidden">
+        {/* Sidebar */}
+        <aside className="w-[260px] flex-shrink-0 border-r border-border/40 bg-card/30 flex flex-col z-40 hidden md:flex">
+          <div className="p-6 pb-2">
+            <h2 className="text-lg font-semibold tracking-tight px-2 mb-4">History</h2>
+            <nav className="space-y-1">
+              <button
+                onClick={() => setActiveTab('meetings')}
+                className={cn(
+                  "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all group text-left",
+                  activeTab === 'meetings'
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                )}
+              >
+                <FileText className="h-4 w-4" />
+                <span>Meetings</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('ask')}
+                className={cn(
+                  "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all group text-left",
+                  activeTab === 'ask'
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                )}
+              >
+                <MagicWandIcon size={16} />
+                <span>Ask AI</span>
+              </button>
+            </nav>
+          </div>
+        </aside>
         {/* Filters Sidebar */}
         <div
           className={cn(
@@ -1193,7 +1225,7 @@ export default function HistoryPage() {
           </div>
         </div>
 
-        <div className="max-w-[1600px] mx-auto px-6 py-8 md:py-12">
+        <div className="flex-1 w-full h-full overflow-y-auto max-w-[2000px] mx-auto px-6 py-8 md:py-12 custom-scrollbar">
           {/* Header with Navigation */}
           <div className="mb-10">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
@@ -1948,44 +1980,19 @@ export default function HistoryPage() {
                 </button>
               </div>
 
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setActiveTab('ask')}
-                className="group rounded-full h-12 px-5 border border-peach/70 hover:border-peach text-foreground gap-2.5 transition-all duration-300 shadow-sm hover:shadow-[0_0_15px_hsl(var(--peach)/0.6),0_0_30px_hsl(var(--peach)/0.3),0_4px_20px_hsl(var(--peach)/0.25)] !bg-gradient-to-br from-peach/60 via-peach/35 to-peach/15 hover:from-peach/70 hover:via-peach/45 hover:to-peach/20 relative overflow-hidden"
-                title="Ask AI about your meetings"
-                style={{ transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/15 to-white/25 opacity-30 group-hover:opacity-50 transition-opacity duration-500" />
-                <MagicWandIcon
-                  size={18}
-                  className="transition-all duration-300 ease-out group-hover:scale-110 group-hover:rotate-12 relative z-10"
-                />
-                <span className="sr-only sm:not-sr-only font-medium relative z-10 tracking-tight">Ask AI</span>
-              </Button>
+
             </div>
           )}
 
           {/* Ask AI Tab Overlay */}
           {activeTab === 'ask' && (
-            <div className="fixed inset-0 z-50 bg-background flex flex-col animate-fade-in overflow-hidden">
+            <div className="fixed top-[64px] bottom-0 right-0 left-0 md:left-[260px] z-50 bg-background flex flex-col animate-fade-in overflow-hidden">
               {/* Header - Fixed at top (part of flex layout) */}
               <div className="flex-none bg-background pt-6 pb-6 px-6 sm:px-12 border-b border-border/40 z-20">
                 <div className="max-w-[1600px] mx-auto w-full">
                   <div className="flex items-center justify-between gap-6">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <button
-                        onClick={() => setActiveTab('meetings')}
-                        className={cn(
-                          "inline-flex items-center gap-2 text-sm flex-shrink-0",
-                          "text-muted-foreground hover:text-foreground transition-colors",
-                          "rounded-full px-3 py-3",
-                          "hover:bg-muted/40 border border-transparent hover:border-border/40"
-                        )}
-                      >
-                        <ArrowLeft className="h-4 w-4" />
-                        <span className="font-medium">Back to Dashboard</span>
-                      </button>
+                      <h1 className="text-lg font-semibold tracking-tight text-foreground/90 pl-1">Ask AI Assistant</h1>
                     </div>
 
                     <div className="flex items-center gap-2 flex-shrink-0">
@@ -2109,7 +2116,7 @@ export default function HistoryPage() {
                 </div>
 
                 {/* Input Area - Absolute at bottom of flex container */}
-                <div className="absolute bottom-0 left-0 right-0 z-40 px-4 pt-8 pb-6" style={{ background: 'linear-gradient(to top, hsl(var(--background)) 70%, transparent)' }}>
+                <div className="absolute bottom-0 left-0 right-0 z-40 px-4 pt-8" style={{ background: 'linear-gradient(to top, hsl(var(--background)) 70%, transparent)' }}>
                   <div className="max-w-2xl mx-auto">
                     <div className="relative group">
                       <div className="relative bg-card/60 backdrop-blur-md border border-border/30 rounded-xl shadow-lg transition-all duration-300 group-focus-within:border-primary/30 group-focus-within:shadow-xl overflow-hidden min-h-[54px] flex flex-col justify-end">
@@ -2140,7 +2147,7 @@ export default function HistoryPage() {
                                     }
                                   }}
                                   placeholder={messages.length > 0 ? "Ask follow-up..." : "Ask about your meetings..."}
-                                  className="min-h-[44px] max-h-[160px] py-2.5 px-4 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 resize-none overflow-y-auto text-[15px] placeholder:text-muted-foreground/50"
+                                  className="min-h-[44px] max-h-[160px] py-2.5 px-4 bg-input focus-visible:ring-0 focus-visible:ring-offset-0 resize-none overflow-y-auto text-[15px] placeholder:text-muted-foreground/50"
                                   rows={1}
                                 />
                               </div>
