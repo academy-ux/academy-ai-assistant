@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
+export const dynamic = 'force-dynamic'
 import { supabase } from '@/lib/supabase'
 import { google } from 'googleapis'
 
@@ -19,8 +20,8 @@ export async function GET(req: NextRequest) {
       .single()
 
     if (settingsError || !settings?.drive_folder_id) {
-      return NextResponse.json({ 
-        error: 'No Drive folder configured. Please import a folder first.' 
+      return NextResponse.json({
+        error: 'No Drive folder configured. Please import a folder first.'
       }, { status: 400 })
     }
 
@@ -31,7 +32,7 @@ export async function GET(req: NextRequest) {
     // Get files from the past 48 hours
     const twoDaysAgo = new Date()
     twoDaysAgo.setHours(twoDaysAgo.getHours() - 48)
-    
+
     const query = `'${settings.drive_folder_id}' in parents and mimeType = 'application/vnd.google-apps.document' and trashed = false and modifiedTime > '${twoDaysAgo.toISOString()}'`
 
     console.log('[Debug Poll] Query:', query)
@@ -49,7 +50,7 @@ export async function GET(req: NextRequest) {
     const fileDetails = await Promise.all(files.map(async (file) => {
       let existingById = null
       let existingByName = null
-      
+
       if (file.id) {
         const { data } = await supabase
           .from('interviews')
@@ -91,9 +92,9 @@ export async function GET(req: NextRequest) {
 
   } catch (error: any) {
     console.error('[Debug Poll] Error:', error)
-    return NextResponse.json({ 
+    return NextResponse.json({
       error: 'Debug failed',
-      message: error.message 
+      message: error.message
     }, { status: 500 })
   }
 }

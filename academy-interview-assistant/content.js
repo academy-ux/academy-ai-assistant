@@ -53,17 +53,19 @@ function addTestButton() {
     bottom: 80px;
     right: 20px;
     z-index: 99999;
-    padding: 10px 16px;
-    background: #8f917f;
+    padding: 12px 20px;
+    background: rgba(143, 145, 127, 0.85);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     color: white;
-    border: none;
-    border-radius: 8px;
-    font-size: 12px;
-    font-weight: 500;
-    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: "Neue Haas Grotesk", "SF Pro Display", sans-serif;
     cursor: pointer;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    transition: all 0.2s ease-out;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   `;
 
   testButton.addEventListener('mouseenter', () => {
@@ -297,20 +299,7 @@ function checkIfAlreadyInMeeting() {
   const urlMatch = location.pathname.match(/\/([a-z]{3}-[a-z]{4}-[a-z]{3})/);
   if (!urlMatch) return; // Not on a meeting URL
 
-  // Check for video elements or meeting controls
-  const hasVideo = document.querySelectorAll('video').length > 0;
-  const hasMeetingControls = document.querySelector('[data-is-muted]') ||
-    document.querySelector('[aria-label*="microphone"]') ||
-    document.querySelector('[aria-label*="camera"]') ||
-    document.querySelector('[aria-label*="Turn off"]') ||
-    document.querySelector('[aria-label*="Turn on"]');
-
-  // Check for participant elements (more reliable indicator of active meeting)
-  const hasParticipants = document.querySelector('[data-self-name]') ||
-    document.querySelector('[data-participant-id]') ||
-    document.querySelector('[data-requested-participant-id]');
-
-  if (hasVideo || hasMeetingControls || hasParticipants) {
+  if (isActuallyInMeeting()) {
     isInMeeting = true;
     console.log('[Academy] Detected active meeting (page was reloaded or joined late)');
     detectMeetingInfo();
@@ -319,6 +308,44 @@ function checkIfAlreadyInMeeting() {
     // Try to restore transcript if this is a page reload
     restoreTranscriptFromStorage();
   }
+}
+
+/**
+ * Rigorous check to see if we are actually in an active meeting, 
+ * as opposed to just being on the join/lobby screen.
+ */
+function isActuallyInMeeting() {
+  // 1. If we see the "Leave call" button, we are definitely in the meeting
+  const hasLeaveButton = document.querySelector('[aria-label*="Leave call"]') ||
+    document.querySelector('[aria-label*="End call"]') ||
+    document.querySelector('[aria-label*="Leave meeting"]') ||
+    document.querySelector('[jsname="CQylAd"]');
+  if (hasLeaveButton) return true;
+
+  // 2. If we see any of the meeting-only toolbar buttons
+  const hasMeetingControls = document.querySelector('[aria-label*="Chat with everyone"]') ||
+    document.querySelector('[aria-label*="Show everyone"]') ||
+    document.querySelector('[aria-label*="Activities"]') ||
+    document.querySelector('[aria-label*="Meeting details"]');
+  if (hasMeetingControls) return true;
+
+  // 3. If we see "Join now" or "Ask to join" or the name input, we are NOT in the meeting
+  // We use a more direct check for common join screen buttons
+  const isJoinScreen = document.querySelector('input[aria-label="Your name"]') ||
+    Array.from(document.querySelectorAll('[role="button"], button')).some(el => {
+      const text = el.textContent || '';
+      return text.includes('Join now') || text.includes('Ask to join');
+    });
+
+  if (isJoinScreen) return false;
+
+  // 4. Check for participant elements that only appear in meeting
+  // (data-self-name is sometimes on the lobby preview, so we check for others)
+  const hasParticipants = document.querySelector('[data-participant-id]') ||
+    document.querySelector('[data-requested-participant-id]');
+  if (hasParticipants) return true;
+
+  return false;
 }
 
 // Auto-enable captions in Google Meet
@@ -471,23 +498,55 @@ function showTranscriptRestoredNotification(snapshotCount) {
   notification.id = 'academy-transcript-restored';
   notification.style.cssText = `
     position: fixed;
-    top: 20px;
+    top: 24px;
     left: 50%;
     transform: translateX(-50%);
-    background: #8f917f;
+    background: rgba(143, 145, 127, 0.85);
+    backdrop-filter: blur(16px) saturate(120%);
+    -webkit-backdrop-filter: blur(16px) saturate(120%);
     color: white;
-    padding: 12px 20px;
-    border-radius: 8px;
-    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    padding: 14px 24px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    font-family: "Neue Haas Grotesk", "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
     font-size: 13px;
     font-weight: 500;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    z-index: 99999;
-    animation: academySlideDown 0.3s ease-out;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    z-index: 100000;
+    animation: academySlideDown 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex;
+    align-items: center;
+    gap: 10px;
   `;
   notification.innerHTML = `
-    ✅ Transcript recovered (${snapshotCount} snapshots from before reload)
+    <span style="font-size: 16px;">✅</span>
+    <span>Transcript recovered (${snapshotCount} snapshots from before reload)</span>
   `;
+
+  // Add keyframes if not exists
+  if (!document.getElementById('academy-animations')) {
+    const style = document.createElement('style');
+    style.id = 'academy-animations';
+    style.textContent = `
+      @keyframes academySlideDown {
+        from { transform: translate(-50%, -20px); opacity: 0; }
+        to { transform: translate(-50%, 0); opacity: 1; }
+      }
+      @keyframes academySlideUp {
+        from { transform: translate(-50%, 0); opacity: 1; }
+        to { transform: translate(-50%, -20px); opacity: 0; }
+      }
+      @keyframes academySlideIn {
+        from { transform: translateX(30px); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+      }
+      @keyframes academyFadeIn {
+        from { opacity: 0; transform: translateY(10px); filter: blur(10px); }
+        to { opacity: 1; transform: translateY(0); filter: blur(0); }
+      }
+    `;
+    document.head.appendChild(style);
+  }
 
   document.body.appendChild(notification);
 
@@ -627,19 +686,22 @@ function showUIChangeNotification(issueCount) {
   notification.id = 'academy-ui-change-alert';
   notification.style.cssText = `
     position: fixed;
-    bottom: 20px;
-    right: 20px;
-    background: #ff6b6b;
+    bottom: 24px;
+    right: 24px;
+    background: rgba(255, 107, 107, 0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     color: white;
-    padding: 16px 20px;
-    border-radius: 8px;
-    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    padding: 18px 22px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    font-family: "Neue Haas Grotesk", "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
     font-size: 13px;
     font-weight: 500;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-    z-index: 99999;
-    max-width: 300px;
-    animation: academySlideIn 0.3s ease-out;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+    z-index: 100000;
+    max-width: 320px;
+    animation: academySlideIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
   `;
   notification.innerHTML = `
     <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
@@ -665,14 +727,7 @@ function showUIChangeNotification(issueCount) {
 
 function detectMeetingJoin() {
   const observer = new MutationObserver(() => {
-    // Check for video elements or meeting controls that indicate active meeting
-    const hasVideo = document.querySelectorAll('video').length > 0;
-    const hasMeetingControls = document.querySelector('[data-is-muted]') ||
-      document.querySelector('[aria-label*="microphone"]') ||
-      document.querySelector('[aria-label*="camera"]') ||
-      document.querySelector('[aria-label*="Turn off"]');
-
-    if ((hasVideo || hasMeetingControls) && !isInMeeting) {
+    if (isActuallyInMeeting() && !isInMeeting) {
       isInMeeting = true;
       console.log('[Academy] Joined meeting');
       detectMeetingInfo();
@@ -790,24 +845,10 @@ function watchForMeetingEnd() {
       // Only trigger meeting end if:
       // 1. We were in a meeting URL
       // 2. We're not in a meeting URL anymore
-      // 3. isInMeeting flag is true (we actually joined)
-      // 4. We can verify the meeting was actually active (has video/controls)
+      // 3. isInMeeting flag is true (we actually joined the meeting)
       if (wasInMeeting && !stillInMeeting && isInMeeting) {
-        // Double-check that we actually had an active meeting
-        // (prevents false positives during account switching before joining)
-        const hasActiveVideo = document.querySelectorAll('video').length > 0;
-        const hasMeetingControls = document.querySelector('[data-is-muted]') ||
-          document.querySelector('[aria-label*="microphone"]') ||
-          document.querySelector('[aria-label*="camera"]');
-
-        // Only trigger if we had actual meeting elements
-        // OR if we've been in the meeting for more than 10 seconds (meetingCode is set)
-        if (hasActiveVideo || hasMeetingControls || meetingCode) {
-          console.log('[Academy] Navigated away from meeting');
-          handleMeetingEnd('navigation');
-        } else {
-          console.log('[Academy] URL changed but meeting was not active (likely account switch)');
-        }
+        console.log('[Academy] Navigated away from meeting');
+        handleMeetingEnd('navigation');
       }
       lastUrl = location.href;
     }
@@ -1153,35 +1194,37 @@ function showCandidatePanel(candidate) {
   candidateInfoPanel.id = 'academy-candidate-panel';
   candidateInfoPanel.innerHTML = `
     <style>
-      /* Academy Design System - Olive/Green tones with peach accents */
+      /* Academy Design System - Glassmorphism Refresh */
       #academy-candidate-panel {
         position: fixed;
         top: 80px;
         right: 20px;
-        width: 300px;
-        background: #ffffff;
-        border-radius: 12px;
+        width: 320px;
+        background: rgba(255, 255, 255, 0.75);
+        backdrop-filter: blur(20px) saturate(160%);
+        -webkit-backdrop-filter: blur(20px) saturate(160%);
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.4);
         box-shadow: 
-          0 4px 6px -1px rgba(39, 39, 39, 0.08),
-          0 10px 20px -5px rgba(39, 39, 39, 0.12),
-          0 0 0 1px rgba(181, 184, 169, 0.3);
+          0 10px 40px -10px rgba(39, 39, 39, 0.2),
+          0 0 0 1px rgba(181, 184, 169, 0.2);
         z-index: 9999;
-        font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+        font-family: "Neue Haas Grotesk", "SF Pro Display", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
         color: #272727;
         overflow: hidden;
-        animation: academyFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+        animation: academyFadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
         -webkit-font-smoothing: antialiased;
       }
       
       @keyframes academyFadeIn {
         from {
           opacity: 0;
-          transform: translateX(20px);
+          transform: translateY(20px) scale(0.95);
           filter: blur(10px);
         }
         to {
           opacity: 1;
-          transform: translateX(0);
+          transform: translateY(0) scale(1);
           filter: blur(0);
         }
       }
@@ -1405,17 +1448,17 @@ function showCandidatePanel(candidate) {
       }
       
       .academy-auth-status.authenticated {
-        background: rgba(220, 252, 231, 0.65);
-        backdrop-filter: blur(15px);
-        -webkit-backdrop-filter: blur(15px);
-        border-top-color: rgba(34, 197, 94, 0.4);
+        background: rgba(34, 197, 94, 0.15);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border-top-color: rgba(34, 197, 94, 0.2);
       }
       
       .academy-auth-status.not-authenticated {
-        background: rgba(239, 68, 68, 0.75);
-        backdrop-filter: blur(15px);
-        -webkit-backdrop-filter: blur(15px);
-        border-top-color: rgba(239, 68, 68, 0.5);
+        background: rgba(239, 68, 68, 0.15);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border-top-color: rgba(239, 68, 68, 0.2);
       }
       
       .academy-auth-icon {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
+export const dynamic = 'force-dynamic'
 import { authOptions } from '@/lib/auth'
 
 /**
@@ -10,19 +11,19 @@ export async function GET(req: NextRequest) {
   // Handle CORS for Chrome extension (content scripts run from meet.google.com)
   const origin = req.headers.get('origin') || ''
   const isExtension = origin.startsWith('chrome-extension://') || origin === 'https://meet.google.com'
-  
+
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
   }
-  
+
   if (isExtension) {
     headers['Access-Control-Allow-Origin'] = origin
     headers['Access-Control-Allow-Credentials'] = 'true'
   }
-  
+
   try {
     const session = await getServerSession(authOptions)
-    
+
     if (session?.user) {
       return NextResponse.json({
         authenticated: true,
@@ -33,7 +34,7 @@ export async function GET(req: NextRequest) {
         }
       }, { headers })
     }
-    
+
     return NextResponse.json({
       authenticated: false,
       user: null
@@ -52,16 +53,16 @@ export async function GET(req: NextRequest) {
 export async function OPTIONS(req: NextRequest) {
   const origin = req.headers.get('origin') || ''
   const isExtension = origin.startsWith('chrome-extension://') || origin === 'https://meet.google.com'
-  
+
   const headers: HeadersInit = {
     'Access-Control-Allow-Methods': 'GET, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
   }
-  
+
   if (isExtension) {
     headers['Access-Control-Allow-Origin'] = origin
     headers['Access-Control-Allow-Credentials'] = 'true'
   }
-  
+
   return new NextResponse(null, { status: 204, headers })
 }

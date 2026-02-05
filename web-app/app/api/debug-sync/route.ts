@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
+export const dynamic = 'force-dynamic'
 import { google, drive_v3 } from 'googleapis'
 import { supabase } from '@/lib/supabase'
 
@@ -18,7 +19,7 @@ export async function GET(req: NextRequest) {
       .single()
 
     if (!settings?.drive_folder_id) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'No Drive folder configured',
         message: 'Please configure your Drive folder in Settings first'
       }, { status: 400 })
@@ -61,7 +62,7 @@ export async function GET(req: NextRequest) {
     // Create lookup maps
     const driveFilesById = new Map(allDriveFiles.map(f => [f.id!, f]))
     const driveFilesByName = new Map(allDriveFiles.map(f => [f.name!, f]))
-    
+
     const dbInterviewsById = new Map(
       dbInterviews?.filter(i => i.drive_file_id).map(i => [i.drive_file_id!, i]) || []
     )
@@ -80,12 +81,12 @@ export async function GET(req: NextRequest) {
       modifiedTime: f.modifiedTime,
       createdTime: f.createdTime
     }))
-    // Sort by modified time descending (most recent first)
-    .sort((a, b) => {
-      const dateA = new Date(a.modifiedTime || a.createdTime || 0).getTime()
-      const dateB = new Date(b.modifiedTime || b.createdTime || 0).getTime()
-      return dateB - dateA
-    })
+      // Sort by modified time descending (most recent first)
+      .sort((a, b) => {
+        const dateA = new Date(a.modifiedTime || a.createdTime || 0).getTime()
+        const dateB = new Date(b.modifiedTime || b.createdTime || 0).getTime()
+        return dateB - dateA
+      })
 
     // Find files in database but NOT in Drive
     const inDbNotInDrive = (dbInterviews || []).filter(dbInterview => {
@@ -109,7 +110,7 @@ export async function GET(req: NextRequest) {
       if (dbById) matchedDbIds.add(dbById.id)
       else if (dbByName) matchedDbIds.add(dbByName.id)
     })
-    
+
     const matched = Array.from(matchedDbIds).map(dbId => {
       const dbRecord = dbInterviews?.find(i => i.id === dbId)
       return {
@@ -136,9 +137,9 @@ export async function GET(req: NextRequest) {
 
   } catch (error: any) {
     console.error('Debug sync error:', error)
-    return NextResponse.json({ 
+    return NextResponse.json({
       error: 'Failed to check sync status',
-      details: error.message 
+      details: error.message
     }, { status: 500 })
   }
 }

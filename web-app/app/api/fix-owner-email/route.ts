@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
+export const dynamic = 'force-dynamic'
 import { supabase } from '@/lib/supabase'
 
 // One-time fix: Set owner_email for imported transcripts
@@ -24,9 +25,9 @@ export async function POST(req: NextRequest) {
 
     if (error) {
       console.error('[Fix Owner] Error:', error)
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Update failed',
-        details: error.message 
+        details: error.message
       }, { status: 500 })
     }
 
@@ -40,9 +41,9 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     console.error('[Fix Owner] Failed:', error)
-    return NextResponse.json({ 
+    return NextResponse.json({
       error: 'Fix failed',
-      message: error.message 
+      message: error.message
     }, { status: 500 })
   }
 }

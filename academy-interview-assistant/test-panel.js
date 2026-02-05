@@ -40,9 +40,9 @@ function makeDraggable(element) {
   const header = element.querySelector('.academy-panel-header');
   let isDragging = false;
   let offsetX, offsetY;
-  
+
   header.style.cursor = 'move';
-  
+
   header.addEventListener('mousedown', (e) => {
     if (e.target.closest('.academy-panel-close')) return;
     isDragging = true;
@@ -50,14 +50,14 @@ function makeDraggable(element) {
     offsetY = e.clientY - element.offsetTop;
     element.style.transition = 'none';
   });
-  
+
   document.addEventListener('mousemove', (e) => {
     if (!isDragging) return;
     element.style.left = (e.clientX - offsetX) + 'px';
     element.style.top = (e.clientY - offsetY) + 'px';
     element.style.right = 'auto';
   });
-  
+
   document.addEventListener('mouseup', () => {
     isDragging = false;
     element.style.transition = '';
@@ -81,30 +81,32 @@ panel.innerHTML = `
       position: fixed;
       top: 80px;
       right: 20px;
-      width: 300px;
-      background: #ffffff;
-      border-radius: 12px;
+      width: 320px;
+      background: rgba(255, 255, 255, 0.75);
+      backdrop-filter: blur(20px) saturate(160%);
+      -webkit-backdrop-filter: blur(20px) saturate(160%);
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.4);
       box-shadow: 
-        0 4px 6px -1px rgba(39, 39, 39, 0.08),
-        0 10px 20px -5px rgba(39, 39, 39, 0.12),
-        0 0 0 1px rgba(181, 184, 169, 0.3);
+        0 10px 40px -10px rgba(39, 39, 39, 0.2),
+        0 0 0 1px rgba(181, 184, 169, 0.2);
       z-index: 9999;
-      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+      font-family: "Neue Haas Grotesk", "SF Pro Display", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
       color: #272727;
       overflow: hidden;
-      animation: academyFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+      animation: academyFadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
       -webkit-font-smoothing: antialiased;
     }
     
     @keyframes academyFadeIn {
       from {
         opacity: 0;
-        transform: translateX(20px);
+        transform: translateY(20px) scale(0.95);
         filter: blur(10px);
       }
       to {
         opacity: 1;
-        transform: translateX(0);
+        transform: translateY(0) scale(1);
         filter: blur(0);
       }
     }

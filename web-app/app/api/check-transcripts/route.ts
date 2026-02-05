@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
+export const dynamic = 'force-dynamic'
 import { supabase } from '@/lib/supabase'
 
 // Debug: Check what transcripts exist and their owner_email values
@@ -49,8 +50,8 @@ export async function GET(req: NextRequest) {
     })
 
   } catch (error: any) {
-    return NextResponse.json({ 
-      error: error.message 
+    return NextResponse.json({
+      error: error.message
     }, { status: 500 })
   }
 }

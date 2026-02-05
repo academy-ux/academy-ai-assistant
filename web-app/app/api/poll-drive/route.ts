@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
+export const dynamic = 'force-dynamic'
 import { supabase } from '@/lib/supabase'
 import { pollFolder } from '@/lib/drive-polling'
 
@@ -19,8 +20,8 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (settingsError || !settings?.drive_folder_id) {
-      return NextResponse.json({ 
-        error: 'No Drive folder configured. Please import a folder first.' 
+      return NextResponse.json({
+        error: 'No Drive folder configured. Please import a folder first.'
       }, { status: 400 })
     }
 
@@ -57,9 +58,9 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     console.error('[Manual Poll] Error:', error)
-    return NextResponse.json({ 
+    return NextResponse.json({
       error: 'Poll failed',
-      message: error.message 
+      message: error.message
     }, { status: 500 })
   }
 }

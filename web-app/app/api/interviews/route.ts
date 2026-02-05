@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+export const dynamic = 'force-dynamic'
+
 import { getServerSession } from 'next-auth'
 import { authOptions, isAdmin } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
@@ -14,11 +16,11 @@ export async function GET(request: NextRequest) {
       request.nextUrl.searchParams,
       paginationSchema
     )
-    
+
     if (validationError) return validationError
-    
+
     const { limit, offset } = params
-    
+
     const session = await getServerSession(authOptions)
     const view = request.nextUrl.searchParams.get('view') || 'mine'
     const isUserAdmin = isAdmin(session?.user?.email)

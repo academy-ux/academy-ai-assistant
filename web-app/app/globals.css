@@ -150,6 +150,29 @@
     @apply hover:-translate-y-0.5;
   }
 
+  /* Premium glass toast notifications */
+  .glass-toast {
+    @apply bg-card/60 backdrop-blur-xl !important;
+    @apply border border-white/20 !important;
+    @apply rounded-2xl shadow-2xl !important;
+    @apply shadow-black/5 !important;
+    @apply ring-1 ring-black/5 !important;
+    @apply font-sans !important;
+  }
+
+  /* Ensure toast text colors are correct */
+  [data-sonner-toast] {
+    @apply font-sans !important;
+  }
+
+  [data-sonner-toast] [data-title] {
+    @apply font-semibold text-foreground !important;
+  }
+
+  [data-sonner-toast] [data-description] {
+    @apply font-medium opacity-70 !important;
+  }
+
   /* Smooth focus ring */
   .focus-ring {
     @apply focus:outline-none focus:ring-2 focus:ring-ring/30 focus:ring-offset-2 focus:ring-offset-background;

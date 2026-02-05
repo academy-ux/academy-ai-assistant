@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
+export const dynamic = 'force-dynamic'
 import { supabase } from '@/lib/supabase'
 import { z } from 'zod'
 import { validateBody, errorResponse } from '@/lib/validation'

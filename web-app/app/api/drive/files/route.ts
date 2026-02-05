@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
+
+export const dynamic = 'force-dynamic'
 import { google, drive_v3 } from 'googleapis'
 import { z } from 'zod'
 import { validateSearchParams, errorResponse } from '@/lib/validation'
@@ -55,10 +57,10 @@ export async function GET(req: NextRequest) {
     // Check which files are already imported (by Drive file ID and filename)
     const fileIds = allFiles.map(f => f.id).filter(Boolean) as string[]
     const fileNames = allFiles.map(f => f.name).filter(Boolean) as string[]
-    
+
     let importedByIdSet = new Set<string>()
     let importedByNameSet = new Set<string>()
-    
+
     // Check by Drive file ID (most reliable)
     if (fileIds.length > 0) {
       const { data: existingById } = await supabase
@@ -68,7 +70,7 @@ export async function GET(req: NextRequest) {
 
       importedByIdSet = new Set(existingById?.map(f => f.drive_file_id).filter((id): id is string => id !== null) || [])
     }
-    
+
     // Check by filename (for backwards compatibility)
     if (fileNames.length > 0) {
       const { data: existingByName } = await supabase
@@ -91,8 +93,8 @@ export async function GET(req: NextRequest) {
     const newCount = filesWithStatus.filter(f => !f.alreadyImported).length
     const importedCount = filesWithStatus.filter(f => f.alreadyImported).length
 
-    return NextResponse.json({ 
-      files: filesWithStatus, 
+    return NextResponse.json({
+      files: filesWithStatus,
       total: allFiles.length,
       newCount,
       importedCount

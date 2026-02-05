@@ -1,19 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
+export const dynamic = 'force-dynamic'
 import { google } from 'googleapis'
 import { driveQuerySchema, validateSearchParams, errorResponse } from '@/lib/validation'
 
 export async function GET(req: NextRequest) {
   try {
     const token = await getToken({ req })
-    
+
     if (!token) {
       return NextResponse.json({ error: 'Not authenticated. Please sign in again.' }, { status: 401 })
     }
-    
+
     if (!token.accessToken) {
-      return NextResponse.json({ 
-        error: 'No Drive access. Please sign out and sign in again to grant Drive permission.' 
+      return NextResponse.json({
+        error: 'No Drive access. Please sign out and sign in again to grant Drive permission.'
       }, { status: 401 })
     }
 
@@ -32,7 +33,7 @@ export async function GET(req: NextRequest) {
 
     // Build query - query is already validated to be alphanumeric
     let q = "mimeType = 'application/vnd.google-apps.folder' and trashed = false"
-    
+
     if (query) {
       // Safe to use since we validated it only contains alphanumeric chars
       q += ` and name contains '${query}'`
@@ -62,10 +63,10 @@ export async function GET(req: NextRequest) {
             fields: fields,
           })
           if (meetRes.data.files && meetRes.data.files.length > 0) {
-             meetRes.data.files.sort((a, b) => {
-               return (new Date(b.modifiedTime || 0).getTime()) - (new Date(a.modifiedTime || 0).getTime())
-             })
-             folders.unshift(...meetRes.data.files)
+            meetRes.data.files.sort((a, b) => {
+              return (new Date(b.modifiedTime || 0).getTime()) - (new Date(a.modifiedTime || 0).getTime())
+            })
+            folders.unshift(...meetRes.data.files)
           }
         } catch (e) {
           // Ignore error if specific search fails
@@ -77,17 +78,17 @@ export async function GET(req: NextRequest) {
   } catch (error: any) {
     // Check for specific Google API errors
     if (error.code === 401 || error.message?.includes('invalid_grant')) {
-      return NextResponse.json({ 
-        error: 'Drive access expired. Please sign out and sign in again.' 
+      return NextResponse.json({
+        error: 'Drive access expired. Please sign out and sign in again.'
       }, { status: 401 })
     }
-    
+
     if (error.code === 403) {
-      return NextResponse.json({ 
-        error: 'Drive access denied. Please sign out and sign in again to grant permission.' 
+      return NextResponse.json({
+        error: 'Drive access denied. Please sign out and sign in again to grant permission.'
       }, { status: 403 })
     }
-    
+
     return errorResponse(error, 'Drive folders error')
   }
 }

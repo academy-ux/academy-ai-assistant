@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
+export const dynamic = 'force-dynamic'
 import { google, drive_v3 } from 'googleapis'
 import { supabase } from '@/lib/supabase'
 

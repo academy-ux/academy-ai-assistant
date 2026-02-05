@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
+export const dynamic = 'force-dynamic'
 import { authOptions, isAdmin } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { uuidSchema, errorResponse } from '@/lib/validation'
@@ -36,7 +37,7 @@ export async function GET(
     const isUserAdmin = isAdmin(session?.user?.email)
     const userEmail = session?.user?.email
     const isOwner = userEmail && interview.owner_email === userEmail
-    
+
     if (!isUserAdmin && !isOwner && interview.meeting_type && !ALLOWED_TYPES.includes(interview.meeting_type)) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }

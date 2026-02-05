@@ -13,20 +13,22 @@ testButton.id = 'academy-test-button';
 testButton.textContent = '🎯 Test Panel';
 testButton.style.cssText = `
   position: fixed;
-  bottom: 20px;
-  right: 20px;
+  bottom: 24px;
+  right: 24px;
   z-index: 99999;
-  padding: 12px 20px;
-  background: #8f917f;
+  padding: 14px 24px;
+  background: rgba(143, 145, 127, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 500;
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: "Neue Haas Grotesk", "SF Pro Display", sans-serif;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  transition: all 0.2s ease-out;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 `;
 
 testButton.addEventListener('mouseenter', () => {
@@ -86,30 +88,32 @@ function showTestPanel() {
       position: fixed;
       top: 80px;
       right: 20px;
-      width: 300px;
-      background: #ffffff;
-      border-radius: 12px;
+      width: 320px;
+      background: rgba(255, 255, 255, 0.75);
+      backdrop-filter: blur(20px) saturate(160%);
+      -webkit-backdrop-filter: blur(20px) saturate(160%);
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.4);
       box-shadow: 
-        0 4px 6px -1px rgba(39, 39, 39, 0.08),
-        0 10px 20px -5px rgba(39, 39, 39, 0.12),
-        0 0 0 1px rgba(181, 184, 169, 0.3);
+        0 10px 40px -10px rgba(39, 39, 39, 0.2),
+        0 0 0 1px rgba(181, 184, 169, 0.2);
       z-index: 9999;
-      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+      font-family: "Neue Haas Grotesk", "SF Pro Display", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
       color: #272727;
       overflow: hidden;
-      animation: academyFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+      animation: academyFadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
       -webkit-font-smoothing: antialiased;
     }
     
     @keyframes academyFadeIn {
       from {
         opacity: 0;
-        transform: translateX(20px);
+        transform: translateY(20px) scale(0.95);
         filter: blur(10px);
       }
       to {
         opacity: 1;
-        transform: translateX(0);
+        transform: translateY(0) scale(1);
         filter: blur(0);
       }
     }

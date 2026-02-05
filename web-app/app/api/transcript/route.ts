@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
+export const dynamic = 'force-dynamic'
 import { google } from 'googleapis'
 import { z } from 'zod'
 import { validateSearchParams, errorResponse } from '@/lib/validation'
@@ -33,7 +34,7 @@ export async function GET(req: NextRequest) {
     const drive = google.drive({ version: 'v3', auth })
 
     let query = "mimeType = 'application/vnd.google-apps.document' and trashed = false"
-    
+
     // Construct search query - inputs are validated
     const conditions = []
     if (code) conditions.push(`name contains '${code}'`)
@@ -42,7 +43,7 @@ export async function GET(req: NextRequest) {
       const escapedTitle = title.replace(/'/g, "\\'")
       conditions.push(`name contains '${escapedTitle}'`)
     }
-    
+
     if (conditions.length > 0) {
       query += ` and (${conditions.join(' or ')})`
     }

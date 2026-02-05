@@ -1,7 +1,7 @@
 'use client'
 
 import { useSession } from 'next-auth/react'
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -69,7 +69,7 @@ interface UncategorizedCandidate {
   stage: string
 }
 
-export default function HistoryPage() {
+function HistoryContent() {
   const { data: session } = useSession()
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [totalCount, setTotalCount] = useState(0)
@@ -2785,5 +2785,17 @@ export default function HistoryPage() {
         />
       </div>
     </TooltipProvider>
+  )
+}
+
+export default function HistoryPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <Spinner size={32} className="text-primary" />
+      </div>
+    }>
+      <HistoryContent />
+    </Suspense>
   )
 }

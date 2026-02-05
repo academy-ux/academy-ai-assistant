@@ -36,7 +36,20 @@ export default function RootLayout({
                 {children}
               </main>
             </div>
-            <Toaster position="bottom-right" theme="system" richColors closeButton />
+            <Toaster
+              position="bottom-right"
+              theme="system"
+              richColors
+              closeButton
+              toastOptions={{
+                className: "glass-toast font-sans",
+                classNames: {
+                  toast: "glass-toast",
+                  title: "text-sm font-semibold",
+                  description: "text-xs font-medium opacity-70",
+                }
+              }}
+            />
           </AppErrorBoundary>
         </Providers>
       </body>
