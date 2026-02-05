@@ -1,4 +1,6 @@
+export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
+
 import { getServerSession } from 'next-auth'
 import { authOptions, isAdmin } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
@@ -19,7 +21,7 @@ export async function POST(request: NextRequest) {
     if (validationError) return validationError
 
     const { query, searchType, limit } = body
-    
+
     // Check user permissions
     const session = await getServerSession(authOptions)
     const isUserAdmin = isAdmin(session?.user?.email)
@@ -32,7 +34,7 @@ export async function POST(request: NextRequest) {
     // Keyword search (exact text matching)
     if (searchType === 'keyword' || searchType === 'hybrid') {
       const searchPattern = `%${query}%`
-      
+
       let keywordQuery = supabase
         .from('interviews')
         .select('*, similarity:1') // Add dummy similarity for consistent interface
@@ -51,7 +53,7 @@ export async function POST(request: NextRequest) {
       try {
         const queryEmbedding = await generateEmbedding(query)
         const fetchCount = limit * 2
-        
+
         const { data: semResults, error: semanticError } = await supabase
           .rpc('match_interviews', {
             query_embedding: queryEmbedding,
@@ -72,7 +74,7 @@ export async function POST(request: NextRequest) {
     if (searchType === 'hybrid') {
       // Merge results, prioritizing keyword matches
       const seenIds = new Set<string>()
-      
+
       // Add keyword results first (they're more relevant for exact matches)
       for (const result of keywordResults) {
         if (!seenIds.has(result.id)) {
@@ -80,7 +82,7 @@ export async function POST(request: NextRequest) {
           seenIds.add(result.id)
         }
       }
-      
+
       // Then add semantic results that aren't duplicates
       for (const result of semanticResults) {
         if (!seenIds.has(result.id) && results.length < limit * 2) {
@@ -93,7 +95,7 @@ export async function POST(request: NextRequest) {
     } else {
       results = semanticResults
     }
-    
+
     // Apply permission filters
     if (!isUserAdmin && userEmail) {
       results = results.filter((r: any) => {
@@ -102,7 +104,7 @@ export async function POST(request: NextRequest) {
         return isAllowedType || isOwner || !r.owner_email
       })
     }
-    
+
     // Limit final results
     results = results.slice(0, limit)
 

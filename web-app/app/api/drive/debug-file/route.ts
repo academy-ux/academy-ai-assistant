@@ -1,4 +1,6 @@
+export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
+
 import { getToken } from 'next-auth/jwt'
 import { google } from 'googleapis'
 import { supabase } from '@/lib/supabase'
@@ -43,10 +45,10 @@ export async function POST(req: NextRequest) {
 
     const { data: existingByName } = file.name
       ? await supabase
-          .from('interviews')
-          .select('id, meeting_title, created_at')
-          .eq('transcript_file_name', file.name)
-          .maybeSingle()
+        .from('interviews')
+        .select('id, meeting_title, created_at')
+        .eq('transcript_file_name', file.name)
+        .maybeSingle()
       : { data: null }
 
     // Get parent folder details if parents exist
@@ -69,7 +71,7 @@ export async function POST(req: NextRequest) {
     const isGoogleDoc = file.mimeType === 'application/vnd.google-apps.document'
     const isNotTrashed = !file.trashed
     const isInConfiguredFolder = settings?.drive_folder_id && file.parents?.includes(settings.drive_folder_id)
-    
+
     // Check if modified after last poll
     let isAfterLastPoll = true
     if (settings?.last_poll_time && file.modifiedTime) {
@@ -111,9 +113,9 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     console.error('[Debug File] Error:', error)
-    return NextResponse.json({ 
+    return NextResponse.json({
       error: 'Debug failed',
-      message: error.message 
+      message: error.message
     }, { status: 500 })
   }
 }

@@ -4,7 +4,7 @@ import { useSession, signIn } from 'next-auth/react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useEffect, useRef, useState, Suspense } from 'react'
-import { Check, ChevronsUpDown, Search, FileText, User, ClipboardList, CheckCircle, ChevronRight, Calendar, X, ThumbsUp, ThumbsDown, RefreshCw } from 'lucide-react'
+import { Check, ChevronsUpDown, Search, FileText, User, ClipboardList, CheckCircle, ChevronRight, Calendar, X, ThumbsUp, ThumbsDown, RefreshCw, Trash2, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -260,6 +260,40 @@ function FeedbackContent() {
   const [error, setError] = useState('')
   const [activeView, setActiveView] = useState<'transcript' | 'form'>('transcript')
   const [transcriptSearch, setTranscriptSearch] = useState('')
+  const [deletingInterviewId, setDeletingInterviewId] = useState<string | null>(null)
+
+  async function handleDeleteInterview(e: React.MouseEvent, interviewId: string) {
+    e.preventDefault()
+    e.stopPropagation()
+
+    if (!confirm('Are you sure you want to delete this transcript?')) {
+      return
+    }
+
+    setDeletingInterviewId(interviewId)
+    try {
+      const res = await fetch(`/api/interviews/${interviewId}`, {
+        method: 'DELETE',
+      })
+
+      if (res.ok) {
+        toast.success('Transcript deleted')
+        setInterviews(prev => prev.filter(i => i.id !== interviewId))
+        if (selectedInterview?.id === interviewId) {
+          setSelectedInterview(null)
+          setTranscript('')
+        }
+      } else {
+        const data = await res.json()
+        toast.error(data.error || 'Failed to delete transcript')
+      }
+    } catch (err) {
+      console.error('Delete error:', err)
+      toast.error('Network error while deleting')
+    } finally {
+      setDeletingInterviewId(null)
+    }
+  }
 
   const viewerInitials = initialsFrom(session?.user?.name || session?.user?.email || '')
 
@@ -1643,13 +1677,28 @@ function FeedbackContent() {
                                     )}
                                   </div>
 
-                                  <div className="flex items-center gap-2 shrink-0 pt-0.5">
-                                    <time className="text-xs font-medium text-muted-foreground whitespace-nowrap">
-                                      {dateLabel}
-                                    </time>
-                                    {selectedInterview?.id === interview.id && (
-                                      <Check className="h-4 w-4 text-primary shrink-0" />
-                                    )}
+                                  <div className="flex flex-col items-end gap-2 shrink-0 pt-0.5">
+                                    <div className="flex items-center gap-2">
+                                      <time className="text-xs font-medium text-muted-foreground whitespace-nowrap">
+                                        {dateLabel}
+                                      </time>
+                                      {selectedInterview?.id === interview.id && (
+                                        <Check className="h-4 w-4 text-primary shrink-0" />
+                                      )}
+                                    </div>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full transition-colors"
+                                      onClick={(e) => handleDeleteInterview(e, interview.id)}
+                                      disabled={deletingInterviewId === interview.id}
+                                    >
+                                      {deletingInterviewId === interview.id ? (
+                                        <Spinner size={14} className="text-destructive" />
+                                      ) : (
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      )}
+                                    </Button>
                                   </div>
                                 </div>
 

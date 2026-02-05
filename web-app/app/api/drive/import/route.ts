@@ -1,4 +1,6 @@
+export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
+
 import { getToken } from 'next-auth/jwt'
 import { google, drive_v3 } from 'googleapis'
 import { supabase } from '@/lib/supabase'
@@ -61,10 +63,10 @@ export async function POST(req: NextRequest) {
     // Process each file
     for (let i = 0; i < allFiles.length; i++) {
       const file = allFiles[i]
-      
+
       // Check if already imported (by Drive file ID first, then by file name)
       let existing = null
-      
+
       // First check by Drive file ID (most reliable)
       if (file.id) {
         const { data: existingById } = await supabase
@@ -74,7 +76,7 @@ export async function POST(req: NextRequest) {
           .maybeSingle()
         existing = existingById
       }
-      
+
       // If not found by ID, check by file name (for backwards compatibility)
       if (!existing && file.name) {
         const { data: existingByName } = await supabase
@@ -86,8 +88,8 @@ export async function POST(req: NextRequest) {
       }
 
       if (existing) {
-        results.push({ 
-          name: file.name, 
+        results.push({
+          name: file.name,
           status: 'skipped',
           reason: 'already_imported',
           progress: { current: i + 1, total: totalFiles }
@@ -104,8 +106,8 @@ export async function POST(req: NextRequest) {
         const text = exportRes.data as string
 
         if (!text || text.length < 50) {
-          results.push({ 
-            name: file.name, 
+          results.push({
+            name: file.name,
             status: 'too_short',
             progress: { current: i + 1, total: totalFiles }
           })
@@ -119,12 +121,12 @@ export async function POST(req: NextRequest) {
         const embedding = await generateEmbedding(text)
 
         // Generate a descriptive meeting title
-        const meetingDate = file.createdTime 
+        const meetingDate = file.createdTime
           ? new Date(file.createdTime).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
           : new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
-        
+
         let generatedTitle = metadata.meetingType || 'Meeting'
-        
+
         // Format: "Candidate <> Interviewer — Type MM/DD/YYYY"
         if (metadata.candidateName && metadata.candidateName !== 'Unknown Candidate' && metadata.candidateName !== 'Team') {
           if (metadata.interviewer && metadata.interviewer !== 'Unknown') {
@@ -154,8 +156,8 @@ export async function POST(req: NextRequest) {
 
         if (error) {
           console.error('Supabase error:', error)
-          results.push({ 
-            name: file.name, 
+          results.push({
+            name: file.name,
             status: 'error',
             progress: { current: i + 1, total: totalFiles }
           })
@@ -173,17 +175,17 @@ export async function POST(req: NextRequest) {
             // Log but don't fail the import if rename fails
             console.error('Failed to rename Drive file:', file.name, renameError.message || renameError)
           }
-          
-          results.push({ 
-            name: generatedTitle, 
+
+          results.push({
+            name: generatedTitle,
             status: 'imported',
             progress: { current: i + 1, total: totalFiles }
           })
         }
       } catch (fileError) {
         console.error('File processing error:', fileError)
-        results.push({ 
-          name: file.name, 
+        results.push({
+          name: file.name,
           status: 'error',
           progress: { current: i + 1, total: totalFiles }
         })

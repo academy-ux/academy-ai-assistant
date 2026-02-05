@@ -1,4 +1,6 @@
+export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
+
 import { getServerSession } from 'next-auth'
 import { authOptions, isAdmin } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
@@ -12,13 +14,13 @@ export async function POST(request: NextRequest) {
     const session = await getServerSession(authOptions)
     const userEmail = session?.user?.email
     const isUserAdmin = isAdmin(userEmail)
-    
+
     console.log('[reparse-all] User email:', userEmail)
     console.log('[reparse-all] Is admin:', isUserAdmin)
     console.log('[reparse-all] ADMIN_EMAILS env:', process.env.ADMIN_EMAILS)
-    
+
     if (!isUserAdmin) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Admin access required',
         debug: {
           userEmail,
@@ -35,9 +37,9 @@ export async function POST(request: NextRequest) {
     if (error) throw error
 
     if (!interviews || interviews.length === 0) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         message: 'No interviews found',
-        updated: 0 
+        updated: 0
       })
     }
 
@@ -53,12 +55,12 @@ export async function POST(request: NextRequest) {
         )
 
         // Generate intelligent meeting title
-        const meetingDate = interview.meeting_date 
+        const meetingDate = interview.meeting_date
           ? new Date(interview.meeting_date).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
           : new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
-        
+
         let generatedTitle = metadata.meetingType || 'Meeting'
-        
+
         // Format: "Candidate <> Interviewer — Type MM/DD/YYYY"
         if (metadata.candidateName && metadata.candidateName !== 'Unknown Candidate' && metadata.candidateName !== 'Team') {
           if (metadata.interviewer && metadata.interviewer !== 'Unknown') {

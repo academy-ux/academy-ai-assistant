@@ -1,4 +1,6 @@
+export const dynamic = 'force-dynamic'
 import { NextRequest } from 'next/server'
+
 import { getToken } from 'next-auth/jwt'
 import { google, drive_v3 } from 'googleapis'
 import { supabase } from '@/lib/supabase'
@@ -28,7 +30,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return new Response(
-        JSON.stringify({ error: error.issues[0]?.message || 'Invalid request' }), 
+        JSON.stringify({ error: error.issues[0]?.message || 'Invalid request' }),
         { status: 400 }
       )
     }
@@ -40,7 +42,7 @@ export async function POST(req: NextRequest) {
   const stream = new ReadableStream({
     async start(controller) {
       let isClosed = false
-      
+
       // Safe enqueue helper
       const safeEnqueue = (data: Uint8Array) => {
         if (!isClosed) {
@@ -55,7 +57,7 @@ export async function POST(req: NextRequest) {
           }
         }
       }
-      
+
       try {
         const auth = new google.auth.OAuth2()
         auth.setCredentials({ access_token: token.accessToken as string })
@@ -83,7 +85,7 @@ export async function POST(req: NextRequest) {
           allFiles.push(...files)
           nextPageToken = listResponse.nextPageToken
           hasMore = !!nextPageToken
-          
+
           // Update scanning progress
           safeEnqueue(
             encoder.encode(`data: ${JSON.stringify({ type: 'scanning', message: `Found ${allFiles.length} files...` })}\n\n`)
@@ -105,15 +107,15 @@ export async function POST(req: NextRequest) {
 
         for (let i = 0; i < allFiles.length; i += BATCH_SIZE) {
           const batch = allFiles.slice(i, i + BATCH_SIZE);
-          
+
           await Promise.all(batch.map(async (file, batchIndex) => {
             const currentIndex = i + batchIndex;
-            
+
             // Send progress update (throttled slightly by batch nature, but sending for each is fine for stream)
             safeEnqueue(
-              encoder.encode(`data: ${JSON.stringify({ 
-                type: 'progress', 
-                current: currentIndex + 1, 
+              encoder.encode(`data: ${JSON.stringify({
+                type: 'progress',
+                current: currentIndex + 1,
                 total: totalFiles,
                 fileName: file.name,
                 imported: importedCount,
@@ -124,7 +126,7 @@ export async function POST(req: NextRequest) {
 
             // Check if already imported (by Drive file ID first, then by file name)
             let existing = null
-            
+
             // First check by Drive file ID (most reliable)
             if (file.id) {
               const { data: existingById } = await supabase
@@ -134,7 +136,7 @@ export async function POST(req: NextRequest) {
                 .maybeSingle()
               existing = existingById
             }
-            
+
             // If not found by ID, check by file name (for backwards compatibility)
             if (!existing && file.name) {
               const { data: existingByName } = await supabase
@@ -148,9 +150,9 @@ export async function POST(req: NextRequest) {
             if (existing) {
               skippedCount++
               safeEnqueue(
-                encoder.encode(`data: ${JSON.stringify({ 
+                encoder.encode(`data: ${JSON.stringify({
                   type: 'result',
-                  name: file.name, 
+                  name: file.name,
                   status: 'skipped',
                   reason: 'already_imported'
                 })}\n\n`)
@@ -169,9 +171,9 @@ export async function POST(req: NextRequest) {
               if (!text || text.length < 50) {
                 skippedCount++
                 safeEnqueue(
-                  encoder.encode(`data: ${JSON.stringify({ 
+                  encoder.encode(`data: ${JSON.stringify({
                     type: 'result',
-                    name: file.name, 
+                    name: file.name,
                     status: 'too_short'
                   })}\n\n`)
                 )
@@ -186,9 +188,9 @@ export async function POST(req: NextRequest) {
                 console.error('Parse error for', file.name, ':', parseError.message || parseError)
                 errorCount++
                 safeEnqueue(
-                  encoder.encode(`data: ${JSON.stringify({ 
+                  encoder.encode(`data: ${JSON.stringify({
                     type: 'result',
-                    name: file.name, 
+                    name: file.name,
                     status: 'error',
                     reason: 'parse_failed',
                     details: parseError.message?.substring(0, 100) || 'Unknown parse error'
@@ -205,9 +207,9 @@ export async function POST(req: NextRequest) {
                 console.error('Embedding error for', file.name, ':', embedError.message || embedError)
                 errorCount++
                 safeEnqueue(
-                  encoder.encode(`data: ${JSON.stringify({ 
+                  encoder.encode(`data: ${JSON.stringify({
                     type: 'result',
-                    name: file.name, 
+                    name: file.name,
                     status: 'error',
                     reason: 'embedding_failed',
                     details: embedError.message?.substring(0, 100) || 'Unknown embedding error'
@@ -217,12 +219,12 @@ export async function POST(req: NextRequest) {
               }
 
               // Generate a descriptive meeting title
-              const meetingDate = file.createdTime 
+              const meetingDate = file.createdTime
                 ? new Date(file.createdTime).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
                 : new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
-              
+
               let generatedTitle = metadata.meetingType || 'Meeting'
-              
+
               // Format: "Candidate <> Interviewer — Type MM/DD/YYYY"
               if (metadata.candidateName && metadata.candidateName !== 'Unknown Candidate' && metadata.candidateName !== 'Team') {
                 if (metadata.interviewer && metadata.interviewer !== 'Unknown') {
@@ -255,9 +257,9 @@ export async function POST(req: NextRequest) {
                 console.error('Supabase error for', file.name, ':', error)
                 errorCount++
                 safeEnqueue(
-                  encoder.encode(`data: ${JSON.stringify({ 
+                  encoder.encode(`data: ${JSON.stringify({
                     type: 'result',
-                    name: file.name, 
+                    name: file.name,
                     status: 'error',
                     reason: 'database_failed',
                     details: error.message?.substring(0, 100) || 'Unknown database error'
@@ -277,12 +279,12 @@ export async function POST(req: NextRequest) {
                   // Log but don't fail the import if rename fails
                   console.error('Failed to rename Drive file:', file.name, renameError.message || renameError)
                 }
-                
+
                 importedCount++
                 safeEnqueue(
-                  encoder.encode(`data: ${JSON.stringify({ 
+                  encoder.encode(`data: ${JSON.stringify({
                     type: 'result',
-                    name: generatedTitle, 
+                    name: generatedTitle,
                     status: 'imported'
                   })}\n\n`)
                 )
@@ -296,9 +298,9 @@ export async function POST(req: NextRequest) {
                 errorReason = 'access_denied'
               }
               safeEnqueue(
-                encoder.encode(`data: ${JSON.stringify({ 
+                encoder.encode(`data: ${JSON.stringify({
                   type: 'result',
-                  name: file.name, 
+                  name: file.name,
                   status: 'error',
                   reason: errorReason,
                   details: fileError.message?.substring(0, 100) || 'Unknown error'
@@ -354,7 +356,7 @@ export async function POST(req: NextRequest) {
 
         // Send complete signal with summary
         safeEnqueue(
-          encoder.encode(`data: ${JSON.stringify({ 
+          encoder.encode(`data: ${JSON.stringify({
             type: 'complete',
             summary: {
               total: totalFiles,
@@ -369,8 +371,8 @@ export async function POST(req: NextRequest) {
       } catch (error: any) {
         console.error('Import error:', error)
         // Sanitize error message in production
-        const errorMessage = process.env.NODE_ENV === 'production' 
-          ? 'Import failed' 
+        const errorMessage = process.env.NODE_ENV === 'production'
+          ? 'Import failed'
           : error.message
         safeEnqueue(
           encoder.encode(`data: ${JSON.stringify({ type: 'error', message: errorMessage })}\n\n`)

@@ -1,4 +1,6 @@
+export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
+
 import { getServerSession } from 'next-auth'
 import { authOptions, isAdmin } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
@@ -15,7 +17,7 @@ const ALLOWED_TYPES = ['Status Update', 'Client Call', 'Interview']
 // Check if question is asking about recent/last interviews
 function isTemporalQuestion(question: string): boolean {
   const temporalKeywords = [
-    'last', 'recent', 'latest', 'most recent', 'previous', 
+    'last', 'recent', 'latest', 'most recent', 'previous',
     'yesterday', 'today', 'this week', 'this month',
     'how many', 'count', 'total'
   ]
@@ -29,17 +31,17 @@ function extractCount(question: string): number {
     'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
     'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10
   }
-  
+
   // Check for digit
   const digitMatch = question.match(/\b(\d+)\b/)
   if (digitMatch) return Math.min(parseInt(digitMatch[1]), 20)
-  
+
   // Check for word number
   const lowerQ = question.toLowerCase()
   for (const [word, num] of Object.entries(numberWords)) {
     if (lowerQ.includes(word)) return num
   }
-  
+
   return 5 // default
 }
 
@@ -54,13 +56,13 @@ export async function POST(request: NextRequest) {
 
     const { question, history, interviewId } = body
     const session = await getServerSession(authOptions)
-    
+
     // Determine access level and filters
     const isUserAdmin = isAdmin(session?.user?.email)
     const userEmail = session?.user?.email
 
     let interviews: any[] = []
-    
+
     // Helper function to filter interviews for non-admins (allowed types OR owned)
     const filterForAccess = (items: any[]) => {
       if (isUserAdmin) return items
@@ -70,7 +72,7 @@ export async function POST(request: NextRequest) {
         return isAllowedType || isOwner
       })
     }
-    
+
     // If a specific interview ID is provided, focus on that interview
     if (interviewId) {
       const { data: interview, error: interviewError } = await supabase
@@ -78,7 +80,7 @@ export async function POST(request: NextRequest) {
         .select('*')
         .eq('id', interviewId)
         .single()
-      
+
       // Additional security check for direct ID access
       if (interview && !isUserAdmin) {
         const isAllowedType = interview.meeting_type && ALLOWED_TYPES.includes(interview.meeting_type)
@@ -97,16 +99,16 @@ export async function POST(request: NextRequest) {
     // Check if this is a temporal/count question
     else if (isTemporalQuestion(question)) {
       const count = extractCount(question)
-      
+
       // Get recent interviews by date - fetch more for filtering
       const fetchCount = isUserAdmin ? count : count * 3
-      
+
       const { data: recentInterviews, error: recentError } = await supabase
         .from('interviews')
         .select('*')
         .order('meeting_date', { ascending: false })
         .limit(Math.min(fetchCount, 60))
-      
+
       if (recentError) throw recentError
       interviews = filterForAccess(recentInterviews || []).slice(0, count)
     } else {
@@ -116,7 +118,7 @@ export async function POST(request: NextRequest) {
 
         // Fetch more results for client-side filtering to include owned meetings
         const fetchCount = isUserAdmin ? 10 : 30
-        
+
         const { data: similarInterviews, error: searchError } = await supabase
           .rpc('match_interviews', {
             query_embedding: questionEmbedding,
@@ -128,28 +130,28 @@ export async function POST(request: NextRequest) {
         if (searchError) {
           // Fallback if RPC signature doesn't match
           console.warn('RPC match_interviews failed, falling back:', searchError.message)
-          
+
           const { data: fallbackRpc, error: fallbackRpcError } = await supabase
-          .rpc('match_interviews', {
-            query_embedding: questionEmbedding,
-            match_threshold: 0.3,
-            match_count: fetchCount
-          })
-          
+            .rpc('match_interviews', {
+              query_embedding: questionEmbedding,
+              match_threshold: 0.3,
+              match_count: fetchCount
+            })
+
           if (!fallbackRpcError && fallbackRpc) {
             interviews = fallbackRpc
           }
         } else {
           interviews = similarInterviews || []
         }
-        
+
         // Filter for access and limit
         interviews = filterForAccess(interviews).slice(0, 10)
-        
+
       } catch (embeddingError) {
         console.error('Embedding generation error:', embeddingError)
       }
-      
+
       // Fallback: if semantic search failed or returned nothing
       if (interviews.length === 0) {
         const { data: fallbackInterviews, error: fallbackError } = await supabase
@@ -157,7 +159,7 @@ export async function POST(request: NextRequest) {
           .select('*')
           .order('meeting_date', { ascending: false })
           .limit(30)
-        
+
         if (!fallbackError && fallbackInterviews) {
           interviews = filterForAccess(fallbackInterviews).slice(0, 10)
         }
@@ -165,15 +167,15 @@ export async function POST(request: NextRequest) {
     }
 
     if (!interviews || interviews.length === 0) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         answer: "I couldn't find any interviews in your database. Try importing some transcripts first.",
-        sources: [] 
+        sources: []
       })
     }
 
     // Construct context for the LLM
     const isSingleInterview = interviews.length === 1
-    const context = interviews.map((int: any, idx: number) => 
+    const context = interviews.map((int: any, idx: number) =>
       `Interview ${idx + 1}:
        Date: ${new Date(int.meeting_date || int.created_at).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
        Candidate: ${int.candidate_name || 'Unknown'}
@@ -181,22 +183,22 @@ export async function POST(request: NextRequest) {
        Meeting Type: ${int.meeting_title || 'Interview'}
        Position: ${int.position || 'Not specified'}
        Summary: ${int.summary || 'No summary available'}
-       ${isSingleInterview 
-         ? `Full Transcript:\n${int.transcript || 'No transcript'}`
-         : `Transcript Excerpt: ${int.transcript?.slice(0, 800) || 'No transcript'}...`
-       }`
+       ${isSingleInterview
+        ? `Full Transcript:\n${int.transcript || 'No transcript'}`
+        : `Transcript Excerpt: ${int.transcript?.slice(0, 800) || 'No transcript'}...`
+      }`
     ).join('\n\n---\n\n')
 
     // Build conversation history for context
-    const conversationContext = history.length > 0 
-      ? `\n\nPrevious conversation:\n${history.map((msg: {role: string, content: string}) => 
-          `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`
-        ).join('\n\n')}\n\n`
+    const conversationContext = history.length > 0
+      ? `\n\nPrevious conversation:\n${history.map((msg: { role: string, content: string }) =>
+        `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`
+      ).join('\n\n')}\n\n`
       : ''
 
     // Ask Gemini
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
-    
+
     const prompt = `You are an AI assistant helping analyze interview data. You have access to the following interviews:
 
 ${context}

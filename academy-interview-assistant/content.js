@@ -1230,7 +1230,7 @@ function showCandidatePanel(candidate) {
       }
       
       .academy-panel-header {
-        background: #8f917f;
+        background: #b3b5aa;
         padding: 12px 16px;
         display: flex;
         justify-content: space-between;
@@ -1242,7 +1242,7 @@ function showCandidatePanel(candidate) {
         font-weight: 500;
         text-transform: uppercase;
         letter-spacing: 1px;
-        color: #ffffff;
+        color: #000000ff;
         display: flex;
         align-items: center;
         gap: 6px;
