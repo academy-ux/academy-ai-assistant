@@ -29,18 +29,21 @@ function formatTranscript(text: string): TranscriptLine[] {
   if (!text) return []
 
   // Remove Tactiq header if present (can be long / multi-line)
+  // Stop when we hit a known speaker header pattern (timestamped or name: at start of line)
   let cleanText = text.replace(
-    /^Transcript delivered by Tactiq\.io[\s\S]*?(?=(\*\s*\d{1,2}:\d{2}|\bTranscript\b\s*\d{1,2}:\d{2}|\d{1,2}:\d{2}\s+[A-Za-z]))/i,
+    /^Transcript delivered by Tactiq\.io[\s\S]*?(?=(\*\s*\d{1,2}:\d{2}|\bTranscript\b\s*\d{1,2}:\d{2}|\d{1,2}:\d{2}\s+[^:\n]{2,60}:|(?:\n|^)[A-Z][^:\n]{2,60}:))/i,
     ''
   )
   cleanText = cleanText.trim()
 
   const headerRegex = new RegExp(
     [
-      // * 12:34 ✅ : (rachel xie)
+      // Format 1: * 12:34 ✅ : (rachel xie)
       String.raw`\*\s*(?<ts1>\d{1,2}:\d{2})\s*[⏰✅💡📋🎯⚡️💬🔥✨🌟📌⏱️✓]*\s*:\s*\((?<sp1>[^)]+)\)\s*`,
-      // Transcript 00:00 Adam Perlis:
+      // Format 2: [Transcript] 00:00 Adam Perlis:
       String.raw`(?:\bTranscript\b\s*)?(?<ts2>\d{1,2}:\d{2})\s+(?<sp2>[^:\n]{2,60}?):\s*`,
+      // Format 3: Name: [Optional 00:00] (at start of line)
+      String.raw`(?:\n|^)(?<sp3>[A-Z][^:\n]{1,40}?):\s*(?<ts3>\d{1,2}:\d{2})?\s*`
     ].join('|'),
     'g'
   )
@@ -53,7 +56,8 @@ function formatTranscript(text: string): TranscriptLine[] {
   const result: TranscriptLine[] = []
 
   const pushPlain = (content: string) => {
-    const trimmed = content.replace(/\s+/g, ' ').trim()
+    // Keep newlines but collapse extra horizontal space
+    const trimmed = content.replace(/[ \t]+/g, ' ').trim()
     if (!trimmed) return
     result.push({ id: `line-${result.length}`, timestamp: null, speaker: null, content: trimmed })
   }
@@ -68,8 +72,8 @@ function formatTranscript(text: string): TranscriptLine[] {
     const contentEnd = next?.index ?? cleanText.length
     const rawContent = cleanText.slice(headerEnd, contentEnd).trim()
 
-    const ts = h.groups?.ts1 ?? h.groups?.ts2 ?? null
-    const speakerRaw = (h.groups?.sp1 ?? h.groups?.sp2 ?? '').trim()
+    const ts = h.groups?.ts1 ?? h.groups?.ts2 ?? h.groups?.ts3 ?? null
+    const speakerRaw = (h.groups?.sp1 ?? h.groups?.sp2 ?? h.groups?.sp3 ?? '').trim()
     const speaker = speakerRaw ? speakerRaw.replace(/\s*\(chat\)\s*$/i, '').trim() : null
 
     if (!speaker || !rawContent) {
@@ -1813,7 +1817,7 @@ function FeedbackContent() {
                                           </span>
                                         )}
                                       </div>
-                                      <p className="text-sm leading-relaxed font-light ml-10 text-foreground/80">
+                                      <p className="text-sm leading-relaxed font-light ml-10 text-foreground/80 whitespace-pre-wrap">
                                         {transcriptSearch ? (
                                           <span>
                                             {line.content.split(new RegExp(`(${transcriptSearch})`, 'gi')).map((part, i) =>
@@ -1828,7 +1832,7 @@ function FeedbackContent() {
                                       </p>
                                     </>
                                   ) : (
-                                    <p className="text-sm leading-relaxed font-light text-muted-foreground/90 italic">
+                                    <p className="text-sm leading-relaxed font-light text-muted-foreground/90 italic whitespace-pre-wrap">
                                       {line.content}
                                     </p>
                                   )}

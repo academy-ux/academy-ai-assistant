@@ -18,6 +18,7 @@ let authStatus = null; // Stores { authenticated: boolean, user: { name, email, 
 let captionsAutoEnabled = false; // Track if we've already tried to enable captions
 let transcriptBuffer = []; // Store transcript snippets for recovery
 let transcriptSaveInterval = null; // Interval for saving transcript to storage
+let uiChangeNotificationShown = false; // Prevent spamming UI change alerts
 
 // Initialize
 function init() {
@@ -285,7 +286,7 @@ function startMonitoring() {
   setInterval(captureTranscriptSnapshot, 10000);
 
   // Monitor UI structure for significant changes
-  setInterval(monitorUIStructure, 30000); // Check every 30 seconds
+  setInterval(monitorUIStructure, 60000 * 5); // Check every 5 minutes (reduced frequency to avoid annoyance)
 }
 
 // Check if we're already in a meeting (handles page reload scenario)
@@ -505,25 +506,26 @@ function monitorUIStructure() {
 
   // Define critical selectors we depend on
   const criticalSelectors = {
-    // Meeting controls
-    muteButton: '[data-is-muted]',
-    microphoneButton: '[aria-label*="microphone" i]',
-    cameraButton: '[aria-label*="camera" i]',
+    // Meeting controls - using multiple common selectors for robustness
+    muteButton: '[data-is-muted], [jsname="V67SHe"], [aria-label*="microphone" i]',
+    microphoneButton: '[aria-label*="microphone" i], [jsname="V67SHe"]',
+    cameraButton: '[aria-label*="camera" i], [jsname="X9Modb"]',
 
-    // Captions
-    captionsButton: '[aria-label*="captions" i]',
-    captionContainer: '[jsname="tgaKEf"]',
+    // Captions - Google Meet frequently updates these
+    captionsButton: '[aria-label*="Turn on captions"], [aria-label*="captions" i], [jsname="r8qRAd"], button[aria-label*="CC"]',
+    captionContainer: '[jsname="tgaKEf"], [class*="caption-window"]',
 
-    // Participants
-    participantList: '[role="listitem"]',
-    participantName: '[data-participant-id]',
+    // Participants - role="listitem" is only present when sidebar is open
+    // We check for both sidebar items and video tiles
+    participantList: '[role="listitem"], [data-participant-id], [data-self-name], [data-requested-participant-id]',
+    participantName: '[data-participant-id], [data-self-name]',
     selfName: '[data-self-name]',
 
     // Meeting info
-    meetingTitle: '[data-meeting-title]',
+    meetingTitle: '[data-meeting-title], [data-call-title], [data-meeting-code]',
 
     // Leave button
-    leaveButton: '[aria-label*="Leave" i]',
+    leaveButton: '[aria-label*="Leave" i], [aria-label*="End call" i], [jsname="CQylAd"]',
   };
 
   const currentStructure = {};
@@ -617,8 +619,10 @@ function monitorUIStructure() {
 // Show notification when UI changes are detected
 function showUIChangeNotification(issueCount) {
   // Only show once per session
+  if (uiChangeNotificationShown) return;
   if (document.getElementById('academy-ui-change-alert')) return;
 
+  uiChangeNotificationShown = true;
   const notification = document.createElement('div');
   notification.id = 'academy-ui-change-alert';
   notification.style.cssText = `

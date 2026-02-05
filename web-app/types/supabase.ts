@@ -47,6 +47,84 @@ export interface Database {
           last_message_at?: string
         }
       }
+      candidate_notes: {
+        Row: {
+          id: string
+          candidate_email: string
+          content: string
+          created_at: string
+          updated_at: string
+          created_by: string | null
+        }
+        Insert: {
+          id?: string
+          candidate_email: string
+          content: string
+          created_at?: string
+          updated_at?: string
+          created_by?: string | null
+        }
+        Update: {
+          id?: string
+          candidate_email?: string
+          content?: string
+          created_at?: string
+          updated_at?: string
+          created_by?: string | null
+        }
+      }
+      candidate_profiles: {
+        Row: {
+          id: string
+          candidate_email: string
+          pitch: string | null
+          salary_expectations: string | null
+          years_of_experience: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          candidate_email: string
+          pitch?: string | null
+          salary_expectations?: string | null
+          years_of_experience?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          candidate_email?: string
+          pitch?: string | null
+          salary_expectations?: string | null
+          years_of_experience?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      candidate_passwords: {
+        Row: {
+          id: string
+          candidate_email: string
+          password: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          candidate_email: string
+          password?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          candidate_email?: string
+          password?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
       interviews: {
         Row: {
           id: string
