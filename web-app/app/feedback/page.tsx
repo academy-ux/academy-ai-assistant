@@ -1646,7 +1646,7 @@ function FeedbackContent() {
                             key={interview.id}
                             onClick={() => selectInterview(interview)}
                             className={cn(
-                              "w-full text-left border rounded-xl p-4 transition-all",
+                              "w-full text-left border rounded-xl p-4 transition-all group",
                               selectedInterview?.id === interview.id
                                 ? "bg-primary/10 border-primary/40 shadow-sm"
                                 : "bg-card/40 border-border/40 hover:bg-card/60 hover:border-border hover:shadow-sm"
@@ -1729,7 +1729,10 @@ function FeedbackContent() {
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-8 w-8 ml-auto text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full transition-colors"
+                                    className={cn(
+                                      "h-8 w-8 ml-auto text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full transition-all duration-200",
+                                      deletingInterviewId === interview.id ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                    )}
                                     onClick={(e) => handleDeleteInterview(e, interview.id)}
                                     disabled={deletingInterviewId === interview.id}
                                   >
