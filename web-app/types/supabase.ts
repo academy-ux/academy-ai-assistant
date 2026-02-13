@@ -202,6 +202,7 @@ export interface Database {
           poll_interval_minutes: number
           last_poll_time: string | null
           last_poll_file_count: number
+          encrypted_refresh_token: string | null
           created_at: string
           updated_at: string
         }
@@ -213,6 +214,7 @@ export interface Database {
           poll_interval_minutes?: number
           last_poll_time?: string | null
           last_poll_file_count?: number
+          encrypted_refresh_token?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -224,6 +226,7 @@ export interface Database {
           poll_interval_minutes?: number
           last_poll_time?: string | null
           last_poll_file_count?: number
+          encrypted_refresh_token?: string | null
           created_at?: string
           updated_at?: string
         }

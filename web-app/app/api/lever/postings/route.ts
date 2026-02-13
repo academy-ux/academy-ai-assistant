@@ -9,31 +9,31 @@ export async function GET() {
       return NextResponse.json({ error: 'Lever API key not configured' }, { status: 500 })
     }
 
-    // First, try to fetch actual job postings (only published/active ones)
-    const postingsResponse = await fetch(
-      'https://api.lever.co/v1/postings?state=published',
-      {
-        headers: {
-          'Authorization': `Basic ${Buffer.from(leverKey + ':').toString('base64')}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    )
+    // Fetch all active job postings (published + internal)
+    const headers = {
+      'Authorization': `Basic ${Buffer.from(leverKey + ':').toString('base64')}`,
+      'Content-Type': 'application/json',
+    }
+
+    const [publishedRes, internalRes] = await Promise.all([
+      fetch('https://api.lever.co/v1/postings?state=published&limit=100', { headers }),
+      fetch('https://api.lever.co/v1/postings?state=internal&limit=100', { headers }),
+    ])
 
     const postings: any[] = []
 
-    if (postingsResponse.ok) {
-      const postingsData = await postingsResponse.json()
-      
-      // Use actual job postings if available (already filtered to published)
-      for (const posting of postingsData.data || []) {
-        postings.push({
-          id: posting.id,
-          text: posting.text,
-          team: posting.categories?.team || '',
-          location: posting.categories?.location || '',
-          state: posting.state,
-        })
+    for (const res of [publishedRes, internalRes]) {
+      if (res.ok) {
+        const data = await res.json()
+        for (const posting of data.data || []) {
+          postings.push({
+            id: posting.id,
+            text: posting.text,
+            team: posting.categories?.team || '',
+            location: posting.categories?.location || '',
+            state: posting.state,
+          })
+        }
       }
     }
 
@@ -42,12 +42,7 @@ export async function GET() {
       // Get candidate counts per posting
       const oppsResponse = await fetch(
         'https://api.lever.co/v1/opportunities?limit=500&expand=applications',
-        {
-          headers: {
-            'Authorization': `Basic ${Buffer.from(leverKey + ':').toString('base64')}`,
-            'Content-Type': 'application/json',
-          },
-        }
+        { headers }
       )
 
       if (oppsResponse.ok) {

@@ -15,7 +15,6 @@ let candidateInfoPanel = null;
 let detectedParticipants = new Set();
 let currentCandidate = null;
 let authStatus = null; // Stores { authenticated: boolean, user: { name, email, image } }
-let captionsAutoEnabled = false; // Track if we've already tried to enable captions
 let transcriptBuffer = []; // Store transcript snippets for recovery
 let transcriptSaveInterval = null; // Interval for saving transcript to storage
 let uiChangeNotificationShown = false; // Prevent spamming UI change alerts
@@ -281,8 +280,6 @@ function startMonitoring() {
   // Periodic check if we're in a meeting (catches page reloads)
   setInterval(checkIfAlreadyInMeeting, 2000);
 
-  // Periodic check to auto-enable captions
-  setInterval(tryEnableCaptions, 5000);
 
   // Periodic check to capture transcript for recovery
   setInterval(captureTranscriptSnapshot, 10000);
@@ -348,47 +345,6 @@ function isActuallyInMeeting() {
   return false;
 }
 
-// Auto-enable captions in Google Meet
-function tryEnableCaptions() {
-  if (!isInMeeting) return;
-  if (captionsAutoEnabled) return; // Already tried
-
-  // Look for the captions/closed captions button
-  const captionSelectors = [
-    '[aria-label*="Turn on captions"]',
-    '[aria-label*="captions" i][role="button"]',
-    '[data-tooltip*="captions" i]',
-    '[aria-label*="closed captions" i]',
-    'button[aria-label*="CC"]',
-    '[jsname="r8qRAd"]', // Google Meet specific
-  ];
-
-  for (const selector of captionSelectors) {
-    try {
-      const button = document.querySelector(selector);
-      if (button) {
-        // Check if captions are already on
-        const ariaLabel = button.getAttribute('aria-label') || '';
-        const isAlreadyOn = ariaLabel.toLowerCase().includes('turn off') ||
-          ariaLabel.toLowerCase().includes('hide');
-
-        if (!isAlreadyOn) {
-          console.log('[Academy] Auto-enabling captions...');
-          button.click();
-          captionsAutoEnabled = true;
-          console.log('[Academy] ✅ Captions enabled');
-          return;
-        } else {
-          console.log('[Academy] Captions already enabled');
-          captionsAutoEnabled = true;
-          return;
-        }
-      }
-    } catch (e) {
-      console.error('[Academy] Error enabling captions:', e);
-    }
-  }
-}
 
 // Capture transcript snapshot for recovery
 function captureTranscriptSnapshot() {
@@ -904,8 +860,6 @@ function cleanupTranscriptState() {
   // Clear the transcript buffer
   transcriptBuffer = [];
 
-  // Reset caption auto-enable flag
-  captionsAutoEnabled = false;
 
   // Clear transcript from storage (optional - keep for 1 hour in case user wants to review)
   if (meetingCode) {

@@ -233,6 +233,7 @@ export type Database = {
           auto_poll_enabled: boolean | null
           created_at: string | null
           drive_folder_id: string | null
+          encrypted_refresh_token: string | null
           folder_name: string | null
           id: string
           last_poll_file_count: number | null
@@ -245,6 +246,7 @@ export type Database = {
           auto_poll_enabled?: boolean | null
           created_at?: string | null
           drive_folder_id?: string | null
+          encrypted_refresh_token?: string | null
           folder_name?: string | null
           id?: string
           last_poll_file_count?: number | null
@@ -257,6 +259,7 @@ export type Database = {
           auto_poll_enabled?: boolean | null
           created_at?: string | null
           drive_folder_id?: string | null
+          encrypted_refresh_token?: string | null
           folder_name?: string | null
           id?: string
           last_poll_file_count?: number | null

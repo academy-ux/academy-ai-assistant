@@ -1,5 +1,7 @@
 import { type NextAuthOptions } from 'next-auth'
 import GoogleProvider from 'next-auth/providers/google'
+import { encryptToken } from '@/lib/crypto'
+import { supabase } from '@/lib/supabase'
 
 let didLogProfileOnce = false
 let didLogSessionOnce = false
@@ -21,31 +23,47 @@ export function isAdmin(email?: string | null) {
   return result
 }
 
+/**
+ * Exchange a Google refresh token for a fresh access token.
+ * Used by both the NextAuth JWT callback and the cron endpoint.
+ */
+export async function exchangeRefreshToken(refreshToken: string): Promise<{
+  accessToken: string
+  expiresIn: number
+  newRefreshToken?: string
+}> {
+  const response = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: process.env.GOOGLE_CLIENT_ID!,
+      client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+    }),
+  })
+
+  const data = await response.json()
+
+  if (!response.ok) {
+    throw new Error(data.error_description || data.error || 'Token refresh failed')
+  }
+
+  return {
+    accessToken: data.access_token,
+    expiresIn: data.expires_in,
+    newRefreshToken: data.refresh_token, // may be undefined
+  }
+}
+
 async function refreshAccessToken(token: any) {
   try {
-    const response = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_id: process.env.GOOGLE_CLIENT_ID!,
-        client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-        grant_type: 'refresh_token',
-        refresh_token: token.refreshToken,
-      }),
-    })
-
-    const refreshedTokens = await response.json()
-
-    if (!response.ok) {
-      throw refreshedTokens
-    }
-
+    const result = await exchangeRefreshToken(token.refreshToken)
     return {
       ...token,
-      accessToken: refreshedTokens.access_token,
-      expiresAt: Math.floor(Date.now() / 1000 + refreshedTokens.expires_in),
-      // Keep the refresh token if a new one wasn't provided
-      refreshToken: refreshedTokens.refresh_token ?? token.refreshToken,
+      accessToken: result.accessToken,
+      expiresAt: Math.floor(Date.now() / 1000 + result.expiresIn),
+      refreshToken: result.newRefreshToken ?? token.refreshToken,
     }
   } catch (error) {
     console.error('Error refreshing access token:', error)
@@ -80,11 +98,29 @@ export const authOptions: NextAuthOptions = {
           console.log('[nextauth] sign-in profile picture:', (profile as any)?.picture)
           console.log('[nextauth] sign-in user image:', (user as any)?.image)
         }
+
+        // Persist encrypted refresh token for cron-based polling
+        const email = (token.email as string) ?? (user as any)?.email ?? (profile as any)?.email
+        if (account.refresh_token && email) {
+          try {
+            const encrypted = encryptToken(account.refresh_token)
+            await supabase
+              .from('user_settings')
+              .upsert(
+                { user_email: email, encrypted_refresh_token: encrypted },
+                { onConflict: 'user_email' }
+              )
+            console.log('[nextauth] Saved encrypted refresh token for', email)
+          } catch (err) {
+            console.error('[nextauth] Failed to save refresh token:', err)
+          }
+        }
+
         return {
           ...token,
           // Persist basic user fields (NextAuth doesn't do this automatically once we override callbacks)
           name: (token.name as string) ?? (user as any)?.name ?? (profile as any)?.name,
-          email: (token.email as string) ?? (user as any)?.email ?? (profile as any)?.email,
+          email: email,
           picture:
             (token as any).picture ??
             (user as any)?.image ??
