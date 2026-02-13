@@ -3,7 +3,7 @@
 import { useSession, signIn } from 'next-auth/react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { useEffect, useRef, useState, Suspense } from 'react'
+import { useCallback, useEffect, useRef, useState, Suspense } from 'react'
 import { Check, ChevronsUpDown, Search, FileText, User, ClipboardList, CheckCircle, ChevronRight, Calendar, X, ThumbsUp, ThumbsDown, RefreshCw, Trash2, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -220,8 +220,11 @@ function FeedbackContent() {
   // Interview selection state
   const [interviews, setInterviews] = useState<Interview[]>([])
   const [interviewsLoading, setInterviewsLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
   const [selectedInterview, setSelectedInterview] = useState<Interview | null>(null)
   const [interviewSearch, setInterviewSearch] = useState('')
+  const loadMoreRef = useRef<HTMLDivElement>(null)
 
   const [transcript, setTranscript] = useState('')
   const [transcriptFileName, setTranscriptFileName] = useState('')
@@ -421,12 +424,13 @@ function FeedbackContent() {
         }
 
         // Always reload interviews after polling to get latest
-        const interviewsRes = await fetch('/api/interviews?limit=100&offset=0')
+        const interviewsRes = await fetch(`/api/interviews?limit=${PAGE_SIZE}&offset=0`)
         const interviewsData = await interviewsRes.json()
 
         if (interviewsData.interviews && interviewsData.interviews.length > 0) {
           const newInterviews = interviewsData.interviews as Interview[]
           setInterviews(newInterviews)
+          setHasMore(newInterviews.length >= PAGE_SIZE)
 
           // If we imported new transcripts and no interview is selected, select the newest one
           if (result.imported > 0 && !selectedInterview) {
@@ -528,19 +532,22 @@ function FeedbackContent() {
     }
   }, [selectedPosting])
 
+  const PAGE_SIZE = 50
+
   async function loadInterviews() {
     setInterviewsLoading(true)
     try {
-      const res = await fetch('/api/interviews?limit=100&offset=0')
+      const res = await fetch(`/api/interviews?limit=${PAGE_SIZE}&offset=0`)
       const data = await res.json()
       if (data.interviews) {
+        const base = data.interviews as Interview[]
         setInterviews(() => {
-          const base = data.interviews as Interview[]
           if (selectedInterview && !base.some(i => i.id === selectedInterview.id)) {
             return [selectedInterview, ...base]
           }
           return base
         })
+        setHasMore(base.length >= PAGE_SIZE)
       }
     } catch (err) {
       console.error('Failed to load interviews:', err)
@@ -548,6 +555,42 @@ function FeedbackContent() {
       setInterviewsLoading(false)
     }
   }
+
+  const loadMoreInterviews = useCallback(async () => {
+    if (loadingMore || !hasMore) return
+    setLoadingMore(true)
+    try {
+      const res = await fetch(`/api/interviews?limit=${PAGE_SIZE}&offset=${interviews.length}`)
+      const data = await res.json()
+      if (data.interviews) {
+        const more = data.interviews as Interview[]
+        setInterviews(prev => {
+          const existingIds = new Set(prev.map(i => i.id))
+          const unique = more.filter(i => !existingIds.has(i.id))
+          return [...prev, ...unique]
+        })
+        setHasMore(more.length >= PAGE_SIZE)
+      }
+    } catch (err) {
+      console.error('Failed to load more interviews:', err)
+    } finally {
+      setLoadingMore(false)
+    }
+  }, [loadingMore, hasMore, interviews.length])
+
+  // Infinite scroll: observe the sentinel element at the bottom of the list
+  useEffect(() => {
+    const el = loadMoreRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) loadMoreInterviews()
+      },
+      { threshold: 0.1 }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [loadMoreInterviews])
 
   function selectInterview(interview: Interview) {
     // Selecting a new meeting should reset derived state so we can re-analyze cleanly.
@@ -1621,7 +1664,7 @@ function FeedbackContent() {
                         </div>
                       </div>
                     )}
-                    {filteredInterviews.map((interview) => (
+                    {filteredInterviews.map((interview, _idx) => (
                       (() => {
                         const date = new Date(interview.meeting_date || interview.created_at)
                         const today = new Date()
@@ -1749,6 +1792,13 @@ function FeedbackContent() {
                         )
                       })()
                     ))}
+
+                    {/* Lazy load sentinel */}
+                    {hasMore && !interviewSearch && (
+                      <div ref={loadMoreRef} className="flex justify-center py-3">
+                        {loadingMore && <Spinner size={20} className="text-muted-foreground" />}
+                      </div>
+                    )}
                   </div>
                 )}
               </ScrollArea>
