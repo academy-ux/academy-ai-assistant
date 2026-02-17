@@ -16,8 +16,10 @@ let detectedParticipants = new Set();
 let currentCandidate = null;
 let authStatus = null; // Stores { authenticated: boolean, user: { name, email, image } }
 let transcriptBuffer = []; // Store transcript snippets for recovery
+let transcriptFullText = []; // Store FULL transcript for real-time upload
 let transcriptSaveInterval = null; // Interval for saving transcript to storage
 let uiChangeNotificationShown = false; // Prevent spamming UI change alerts
+const HIDE_CAPTIONS_STYLE_ID = 'academy-hide-captions';
 
 // Initialize
 function init() {
@@ -130,12 +132,63 @@ function startMonitoring() {
   // Periodic check if we're in a meeting (catches page reloads)
   setInterval(checkIfAlreadyInMeeting, 2000);
 
+  // Periodic check to capture transcript for recovery AND real-time upload
+  setInterval(captureTranscriptSnapshot, 5000); // Increased frequency for better resolution
 
-  // Periodic check to capture transcript for recovery
-  setInterval(captureTranscriptSnapshot, 10000);
+  // Auto-enable captions (but keep them hidden)
+  setInterval(autoEnableCaptions, 10000);
 
   // Monitor UI structure for significant changes
   setInterval(monitorUIStructure, 60000 * 5); // Check every 5 minutes (reduced frequency to avoid annoyance)
+
+  // Inject styles to hide captions
+  injectHideCaptionsStyle();
+}
+
+function injectHideCaptionsStyle() {
+  if (document.getElementById(HIDE_CAPTIONS_STYLE_ID)) return;
+
+  const style = document.createElement('style');
+  style.id = HIDE_CAPTIONS_STYLE_ID;
+  style.textContent = `
+    /* Hides the main caption container but keeps it in DOM for scraping */
+    .a4cQT, [jsname="tgaKEf"], .iOzk7, .VfPpkd-Bz112c-LgbsSe[aria-label*="Captions"], .VfPpkd-Bz112c-LgbsSe[aria-label*="captions"] {
+      /* Don't use display:none or visibility:hidden as Meet might stop rendering */
+      opacity: 0 !important;
+      pointer-events: none !important;
+      position: absolute !important;
+      top: -9999px !important;
+      height: 1px !important;
+      width: 1px !important;
+      overflow: hidden !important;
+    }
+    
+    /* Hide the "Captions are on" toast if it appears */
+    .MoshIc {
+      display: none !important;
+    }
+  `;
+  document.head.appendChild(style);
+  console.log('[Academy] Injected styles to hide captions');
+}
+
+function autoEnableCaptions() {
+  if (!isInMeeting) return;
+
+  // Check if captions are already on
+  // usually the button has 'aria-pressed="true"' or similar state
+  const captionBtn = document.querySelector('button[aria-label*="Turn on captions"], button[aria-label*="Turn off captions"]');
+
+  if (captionBtn) {
+    const isPressed = captionBtn.getAttribute('aria-pressed') === 'true';
+    const label = captionBtn.getAttribute('aria-label') || '';
+
+    // If button says "Turn on captions", they are OFF
+    if (label.toLowerCase().includes('turn on')) {
+      console.log('[Academy] Auto-enabling captions (hidden)...');
+      captionBtn.click();
+    }
+  }
 }
 
 // Check if we're already in a meeting (handles page reload scenario)
@@ -204,25 +257,21 @@ function captureTranscriptSnapshot() {
   const captionSelectors = [
     '[jsname="tgaKEf"]', // Google Meet caption container
     '[class*="caption"]',
-    '[aria-live="polite"]',
     '[role="log"]',
   ];
 
   let captionText = '';
+  // Try to find the latest caption
+  // Note: Tactiq and others usually observe mutations, but polling works okay if freq is high
+  // A robust implementation would use MutationObserver on the caption container
 
-  for (const selector of captionSelectors) {
-    try {
-      const elements = document.querySelectorAll(selector);
-      elements.forEach(el => {
-        const text = el.textContent?.trim();
-        if (text && text.length > 0) {
-          captionText += text + '\n';
-        }
-      });
-    } catch (e) {
-      // Ignore errors
-    }
-  }
+  // Here we just scrape visible text
+  try {
+    const containers = document.querySelectorAll(captionSelectors.join(','));
+    containers.forEach(c => {
+      if (c.innerText) captionText += c.innerText + '\n';
+    });
+  } catch (e) { }
 
   if (captionText.length > 0) {
     // Add to buffer with timestamp
@@ -234,11 +283,15 @@ function captureTranscriptSnapshot() {
     };
 
     transcriptBuffer.push(snapshot);
+    transcriptFullText.push(`[${new Date().toISOString()}] ${captionText}`);
 
     // Keep only last 50 snapshots (to avoid memory issues)
     if (transcriptBuffer.length > 50) {
       transcriptBuffer = transcriptBuffer.slice(-50);
     }
+
+    // Check if we need to auto-enable captions again (sometimes they turn off)
+    autoEnableCaptions();
 
     // Save to chrome storage
     saveTranscriptToStorage();
@@ -692,6 +745,21 @@ function handleMeetingEnd(trigger) {
       console.log('[Academy] Background notified:', response);
     }
   });
+
+  // UPLOAD TRANSCRIPT IMMEDIATELY (Tactiq style)
+  if (transcriptFullText.length > 0) {
+    console.log('[Academy] Uploading real-time transcript...');
+    const fullText = transcriptFullText.join('\n');
+
+    chrome.runtime.sendMessage({
+      action: 'uploadTranscript',
+      transcript: fullText,
+      meetingCode: meetingCode,
+      title: meetingTitle || `Meeting ${meetingCode}`
+    }, (response) => {
+      console.log('[Academy] Upload response:', response);
+    });
+  }
 
   // Reset after delay to allow for rejoining
   setTimeout(() => {
