@@ -714,7 +714,7 @@ function watchForMeetingEnd() {
   }, 1000);
 }
 
-function handleMeetingEnd(trigger) {
+async function handleMeetingEnd(trigger) {
   if (meetingEndTriggered) return;
   if (!isInMeeting) return;
 
@@ -732,11 +732,54 @@ function handleMeetingEnd(trigger) {
     return;
   }
 
-  // Send message to background script
+  // UPLOAD TRANSCRIPT IMMEDIATELY (Tactiq style)
+  let uploadedInterviewId = null;
+
+  if (transcriptFullText.length > 0) {
+    console.log('[Academy] Uploading real-time transcript...');
+    const fullText = transcriptFullText.join('\n');
+
+    try {
+      // Wrap in promise to wait for it (with timeout)
+      await new Promise(resolve => {
+        let resolved = false;
+        const timer = setTimeout(() => {
+          if (!resolved) {
+            console.warn('[Academy] Upload timed out');
+            resolved = true;
+            resolve();
+          }
+        }, 3000); // 3 second timeout
+
+        chrome.runtime.sendMessage({
+          action: 'uploadTranscript',
+          transcript: fullText,
+          meetingCode: meetingCode,
+          title: meetingTitle || `Meeting ${meetingCode}`
+        }, (response) => {
+          if (resolved) return;
+          clearTimeout(timer);
+          resolved = true;
+
+          console.log('[Academy] Upload response:', response);
+          if (response && response.success && response.id) {
+            uploadedInterviewId = response.id;
+            console.log('[Academy] Got uploaded interview ID:', uploadedInterviewId);
+          }
+          resolve();
+        });
+      });
+    } catch (e) {
+      console.error('[Academy] Upload exception:', e);
+    }
+  }
+
+  // Send message to background script to OPEN THE TAB
   chrome.runtime.sendMessage({
     action: 'meetingEnded',
     meetingCode: meetingCode,
     meetingTitle: meetingTitle,
+    interviewId: uploadedInterviewId, // Pass the ID we just got!
     timestamp: Date.now()
   }, (response) => {
     if (chrome.runtime.lastError) {
@@ -745,21 +788,6 @@ function handleMeetingEnd(trigger) {
       console.log('[Academy] Background notified:', response);
     }
   });
-
-  // UPLOAD TRANSCRIPT IMMEDIATELY (Tactiq style)
-  if (transcriptFullText.length > 0) {
-    console.log('[Academy] Uploading real-time transcript...');
-    const fullText = transcriptFullText.join('\n');
-
-    chrome.runtime.sendMessage({
-      action: 'uploadTranscript',
-      transcript: fullText,
-      meetingCode: meetingCode,
-      title: meetingTitle || `Meeting ${meetingCode}`
-    }, (response) => {
-      console.log('[Academy] Upload response:', response);
-    });
-  }
 
   // Reset after delay to allow for rejoining
   setTimeout(() => {
@@ -991,6 +1019,20 @@ function detectParticipants() {
 function isLikelyTeamMember(name) {
   if (!name) return true;
   const lowerName = name.toLowerCase().trim();
+
+  // Known team members to exclude from candidate search
+  const knownTeamMembers = [
+    'wei pan',
+    'ivan parra sanchez',
+    'olga dyakova',
+    'adam perlis',
+    'towsiful islam',
+    'academy'
+  ];
+
+  if (knownTeamMembers.some(member => lowerName.includes(member))) {
+    return true;
+  }
 
   // Skip "You" (Google Meet specific)
   if (lowerName === 'you' || lowerName === 'presentation' || lowerName === 'you (presentation)') return true;

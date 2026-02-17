@@ -142,117 +142,6 @@ async function searchCandidate(name, email) {
   }
 }
 
-// Get a random candidate from Lever with complete profile (LinkedIn, email, portfolio)
-async function getRandomCandidate() {
-  const webAppUrl = await getWebAppUrl()
-
-  try {
-    // First, get all candidates
-    const response = await fetch(
-      `${webAppUrl}/api/lever/candidates`,
-      {
-        method: 'GET',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' }
-      }
-    )
-
-    if (!response.ok) {
-      console.log('[Academy] Failed to fetch candidates:', response.status)
-      return { success: false, error: 'Failed to fetch candidates' }
-    }
-
-    const data = await response.json()
-
-    if (!data.success || !data.candidates || data.candidates.length === 0) {
-      console.log('[Academy] No candidates found')
-      return { success: false, error: 'No candidates found' }
-    }
-
-    console.log('[Academy] Found', data.candidates.length, 'candidates, searching for ones with complete profiles...')
-
-    // Try to find candidates with complete profiles
-    const candidatesWithDetails = []
-
-    // Check up to 50 random candidates to find ones with links (increased from 20)
-    const candidatesToCheck = Math.min(50, data.candidates.length)
-    const checkedIndices = new Set()
-
-    for (let i = 0; i < candidatesToCheck; i++) {
-      // Pick a random candidate we haven't checked yet
-      let randomIndex
-      do {
-        randomIndex = Math.floor(Math.random() * data.candidates.length)
-      } while (checkedIndices.has(randomIndex))
-
-      checkedIndices.add(randomIndex)
-      const candidate = data.candidates[randomIndex]
-
-      // Search for this candidate to get full details with links
-      const searchResult = await searchCandidate(candidate.name)
-
-      if (searchResult.success && searchResult.candidates && searchResult.candidates.length > 0) {
-        const fullCandidate = searchResult.candidates[0]
-
-        // Calculate completeness score
-        let score = 0
-        const hasResume = !!fullCandidate.resumeUrl
-        const hasLinkedIn = !!fullCandidate.links?.linkedin
-        const hasPortfolio = !!fullCandidate.links?.portfolio
-        const hasGitHub = !!fullCandidate.links?.github
-        const hasEmail = !!fullCandidate.email
-
-        if (hasResume) score += 4       // Resume is most important
-        if (hasLinkedIn) score += 3     // LinkedIn is important
-        if (hasPortfolio) score += 2    // Portfolio is great
-        if (hasEmail) score += 1
-        if (hasGitHub) score += 1
-
-        // STRICT FILTER: Must have at least ONE of: resume, LinkedIn, or portfolio
-        const meetsRequirements = hasResume || hasLinkedIn || hasPortfolio
-
-        if (meetsRequirements) {
-          candidatesWithDetails.push({ candidate: fullCandidate, score })
-          const features = []
-          if (hasResume) features.push('resume')
-          if (hasLinkedIn) features.push('LinkedIn')
-          if (hasPortfolio) features.push('portfolio')
-          if (hasGitHub) features.push('GitHub')
-          console.log('[Academy] ✓ Candidate:', fullCandidate.name, 'score:', score, 'has:', features.join(', '))
-        } else {
-          console.log('[Academy] ✗ Skipping:', fullCandidate.name, '(no resume/LinkedIn/portfolio)')
-        }
-      }
-
-      // Stop early if we found 5 good candidates
-      if (candidatesWithDetails.length >= 5) break
-    }
-
-    // If we found candidates with links, pick the best one
-    if (candidatesWithDetails.length > 0) {
-      // Sort by score (highest first) and pick randomly from top candidates
-      candidatesWithDetails.sort((a, b) => b.score - a.score)
-
-      // Pick randomly from top 3 or all if less than 3
-      const topCandidates = candidatesWithDetails.slice(0, Math.min(3, candidatesWithDetails.length))
-      const randomPick = topCandidates[Math.floor(Math.random() * topCandidates.length)]
-
-      console.log('[Academy] Selected candidate:', randomPick.candidate.name, 'with score:', randomPick.score)
-      return { success: true, candidate: randomPick.candidate }
-    }
-
-    // No candidates with complete profiles found
-    console.log('[Academy] No candidates found with LinkedIn, portfolio, or resume')
-    return {
-      success: false,
-      error: 'No candidates found with complete profiles. Please ensure candidates in Lever have LinkedIn, portfolio, or resume links.'
-    }
-  } catch (error) {
-    console.error('[Academy] Error getting random candidate:', error)
-    return { success: false, error: error.message }
-  }
-}
-
 // Listen for messages from content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   const tabId = sender.tab?.id
@@ -273,13 +162,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   if (request.action === 'searchCandidate') {
     searchCandidate(request.name, request.email)
-      .then(result => sendResponse(result))
-      .catch(error => sendResponse({ success: false, error: error.message }))
-    return true
-  }
-
-  if (request.action === 'getRandomCandidate') {
-    getRandomCandidate()
       .then(result => sendResponse(result))
       .catch(error => sendResponse({ success: false, error: error.message }))
     return true
@@ -374,6 +256,12 @@ async function handleMeetingEnded(request, tabId) {
   const params = new URLSearchParams()
   if (request.meetingCode) params.set('meeting', request.meetingCode)
   if (request.meetingTitle) params.set('title', request.meetingTitle)
+
+  // If we have an interview ID from the upload, use it to open that specific interview
+  if (request.interviewId) {
+    params.set('interviewId', request.interviewId)
+  }
+
   params.set('ts', Date.now().toString())
 
   const url = `${webAppUrl}/feedback?${params.toString()}`
