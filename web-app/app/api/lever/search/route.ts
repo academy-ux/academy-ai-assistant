@@ -174,19 +174,33 @@ export async function GET(request: NextRequest) {
         else if (name.includes(' ' + searchQuery + ' ') || name.endsWith(' ' + searchQuery)) {
           score = 85
         }
+        // Query contains Name (e.g. Query "Adam Perlis (External)", Lever: "Adam Perlis")
+        else if (searchQuery.includes(name) && name.length > 3) {
+          score = 80
+        }
         // All words in query appear in name as full words
         else {
           const queryWords = searchQuery.split(/\s+/).filter(w => w.length > 0)
           const nameWords = name.split(/\s+/)
 
           const allWordsPresent = queryWords.every((qw: string) =>
-            nameWords.some((nw: string) => nw === qw || (qw.length > 2 && nw.startsWith(qw)))
+            nameWords.some((nw: string) => nw === qw || nw.startsWith(qw))
           )
 
           if (allWordsPresent) {
             score = 70
+          } else {
+            // Fuzzy match: If significant overlap (e.g. "Adam Perlis (External)" -> matches 2/3 words)
+            const matchingWords = queryWords.filter(qw =>
+              nameWords.some((nw: string) => nw === qw || nw.startsWith(qw) || (qw.length > 3 && qw.startsWith(nw)))
+            )
+
+            // If we have at least 2 matching words and > 50% match
+            // e.g. "Adam Perlis (External)" -> 2/3 words match -> 66% -> Match!
+            if (matchingWords.length >= 2 && matchingWords.length >= queryWords.length * 0.5) {
+              score = 70
+            }
           }
-          // Note: Removed 60-point fallback - we only want strong matches (70+)
         }
 
         // Only include matches with score >= MIN_SCORE_THRESHOLD
