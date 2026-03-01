@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "seo-aeo-best-practices": {
+      "source": "sanity-io/agent-toolkit",
+      "sourceType": "github",
+      "computedHash": "a2122ad11c627122fafbabf7826ea8d832bd3f4ab57ed12b5c06f49caba3301a"
+    }
+  }
+}
