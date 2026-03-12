@@ -399,10 +399,30 @@ export default function CandidateReportPage() {
         }
     }, [shareLoading, postingId, projectTitle])
 
+    // Check if a doc already exists for this posting
+    const checkExistingDoc = useCallback(async () => {
+        if (!postingId) return
+        try {
+            const res = await fetch(`/api/report/${postingId}/export-doc`)
+            if (res.ok) {
+                const data = await res.json()
+                if (data.exists) {
+                    setExportResult({
+                        url: data.url,
+                        folderUrl: data.folderUrl,
+                        synced: true,
+                        stats: null,
+                    })
+                }
+            }
+        } catch (_) {}
+    }, [postingId])
+
     useEffect(() => {
         fetchData()
         fetchStages()
-    }, [fetchData, fetchStages])
+        checkExistingDoc()
+    }, [fetchData, fetchStages, checkExistingDoc])
 
     // Fetch experience + generate pitches after candidates are loaded
     useEffect(() => {

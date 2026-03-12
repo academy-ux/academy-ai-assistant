@@ -18,7 +18,7 @@ const COLORS = {
     warmGray:   { red: 0.68,  green: 0.69,  blue: 0.65  },  // #ADAFA6
     divider:    { red: 0.82,  green: 0.83,  blue: 0.80  },  // #D1D4CC
     cream:      { red: 0.93,  green: 0.90,  blue: 0.82  },  // #EDE6D2
-    link:       { red: 0.067, green: 0.067, blue: 0.067 },  // #111111 — black links
+    link:       { red: 0.102, green: 0.396, blue: 0.863 },  // #1A65DC — Google blue
 }
 
 const FONTS = { heading: 'Helvetica Neue', body: 'Helvetica Neue' }
@@ -156,8 +156,8 @@ class DocBuilder {
                     location: { index: this.idx },
                     uri: logoUrl,
                     objectSize: {
-                        height: { magnitude: 27, unit: 'PT' },
-                        width: { magnitude: 118, unit: 'PT' },
+                        height: { magnitude: 20, unit: 'PT' },
+                        width: { magnitude: 88, unit: 'PT' },
                     },
                 }
             })
@@ -179,7 +179,7 @@ class DocBuilder {
         }
         this.newline()
         this.paragraphStyle(start, {
-            spaceBelow: { magnitude: 20, unit: 'PT' },
+            spaceBelow: { magnitude: 32, unit: 'PT' },
         }, 'spaceBelow')
         return this
     }
@@ -593,9 +593,10 @@ function buildDocContent(b: DocBuilder, projectTitle: string, groups: CandidateG
     b.subtitle(`Updated: ${today}`)
 
     const sections: { heading: string; candidates: LeverCandidate[]; type: 'presenting' | 'standard' | 'archived' }[] = [
+        { heading: 'Client Interview', candidates: groups.interviewing, type: 'standard' },
         { heading: 'Presenting', candidates: groups.presenting, type: 'presenting' },
-        { heading: 'Interviewed + Interested', candidates: [...groups.interviewing, ...groups.portfolio], type: 'standard' },
-        { heading: 'Applied / Interested', candidates: groups.applied, type: 'standard' },
+        { heading: 'Portfolio Interview', candidates: groups.portfolio, type: 'standard' },
+        { heading: 'Sourced', candidates: groups.applied, type: 'standard' },
         { heading: 'Client Passed', candidates: groups.clientPassed, type: 'archived' },
         { heading: 'Withdrew', candidates: groups.withdrew, type: 'archived' },
     ]
@@ -615,7 +616,46 @@ function buildDocContent(b: DocBuilder, projectTitle: string, groups: CandidateG
     }
 }
 
-// ─── Route Handler ───────────────────────────────────────────────
+// ─── Route Handlers ─────────────────────────────────────────────
+
+export async function GET(
+    request: NextRequest,
+    { params }: { params: { id: string } }
+) {
+    try {
+        const token = await getToken({ req: request })
+        if (!token?.accessToken) {
+            return NextResponse.json({ exists: false })
+        }
+
+        const postingId = params.id
+        const auth = new google.auth.OAuth2()
+        auth.setCredentials({ access_token: token.accessToken as string })
+        const drive = google.drive({ version: 'v3', auth })
+
+        const documentId = await findExistingDoc(drive, postingId)
+        if (!documentId) {
+            return NextResponse.json({ exists: false })
+        }
+
+        // Get folder info
+        let folderId: string | null = null
+        try {
+            const file = await drive.files.get({ fileId: documentId, fields: 'parents' })
+            folderId = file.data.parents?.[0] || null
+        } catch (_) {}
+
+        return NextResponse.json({
+            exists: true,
+            url: `https://docs.google.com/document/d/${documentId}/edit`,
+            folderUrl: folderId ? `https://drive.google.com/drive/folders/${folderId}` : null,
+            documentId,
+        })
+    } catch (error) {
+        console.error('[Export Doc] Check error:', error)
+        return NextResponse.json({ exists: false })
+    }
+}
 
 export async function POST(
     request: NextRequest,
