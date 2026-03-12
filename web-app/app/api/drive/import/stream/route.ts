@@ -296,6 +296,28 @@ export async function POST(req: NextRequest) {
                 generatedTitle = `${metadata.meetingCategory} ${meetingDate}`
               }
 
+              // Final dedup check: same generated title + owner = Tactiq vs Google native duplicate
+              if (token.email) {
+                const { data: existingByTitle } = await supabase
+                  .from('interviews')
+                  .select('id')
+                  .eq('meeting_title', generatedTitle)
+                  .eq('owner_email', token.email)
+                  .maybeSingle()
+                if (existingByTitle) {
+                  skippedCount++
+                  safeEnqueue(
+                    encoder.encode(`data: ${JSON.stringify({
+                      type: 'result',
+                      name: file.name,
+                      status: 'skipped',
+                      reason: 'already_imported'
+                    })}\n\n`)
+                  )
+                  return
+                }
+              }
+
               // Save to Supabase
               const { error } = await supabase.from('interviews').insert({
                 meeting_title: generatedTitle,

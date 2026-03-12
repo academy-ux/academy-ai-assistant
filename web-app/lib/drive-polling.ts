@@ -272,6 +272,18 @@ export async function pollFolder(
           generatedTitle = `${metadata.meetingCategory} ${meetingDate}`
         }
 
+        // Final dedup check: same generated title + owner = Tactiq vs Google native duplicate
+        const { data: existingByTitle } = await supabase
+          .from('interviews')
+          .select('id')
+          .eq('meeting_title', generatedTitle)
+          .eq('owner_email', userEmail)
+          .maybeSingle()
+        if (existingByTitle) {
+          console.log(`[Poll] Skipping duplicate title: ${generatedTitle}`)
+          return 'skipped'
+        }
+
         const { error } = await supabase.from('interviews').insert({
           meeting_title: generatedTitle,
           meeting_type: metadata.meetingCategory,
