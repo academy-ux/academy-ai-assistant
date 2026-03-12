@@ -261,7 +261,7 @@ function FeedbackContent() {
   const [submitSuccess, setSubmitSuccess] = useState(false)
   const [submitDbStatus, setSubmitDbStatus] = useState<{ updated?: boolean; inserted?: boolean; error?: string } | null>(null)
   const [error, setError] = useState('')
-  const [activeView, setActiveView] = useState<'transcript' | 'form'>('transcript')
+  const [activeView, setActiveView] = useState<'transcript' | 'form'>('form')
   const [transcriptSearch, setTranscriptSearch] = useState('')
   const [deletingInterviewId, setDeletingInterviewId] = useState<string | null>(null)
 
@@ -1822,18 +1822,6 @@ function FeedbackContent() {
                 {/* Segmented Control */}
                 <div className="bg-muted p-1 rounded-lg w-full flex">
                   <button
-                    onClick={() => setActiveView('transcript')}
-                    className={cn(
-                      "flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center justify-center gap-2",
-                      activeView === 'transcript'
-                        ? "bg-background shadow-sm text-foreground"
-                        : "text-muted-foreground hover:text-foreground hover:bg-background/50"
-                    )}
-                  >
-                    <FileText className="h-4 w-4" />
-                    Transcript
-                  </button>
-                  <button
                     onClick={() => setActiveView('form')}
                     className={cn(
                       "flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center justify-center gap-2",
@@ -1844,6 +1832,18 @@ function FeedbackContent() {
                   >
                     <ClipboardList className="h-4 w-4" />
                     Evaluation Form
+                  </button>
+                  <button
+                    onClick={() => setActiveView('transcript')}
+                    className={cn(
+                      "flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center justify-center gap-2",
+                      activeView === 'transcript'
+                        ? "bg-background shadow-sm text-foreground"
+                        : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                    )}
+                  >
+                    <FileText className="h-4 w-4" />
+                    Transcript
                   </button>
                 </div>
 

@@ -1,6 +1,7 @@
 "use client"
 
 import { cn } from '@/lib/utils'
+import { motion } from 'motion/react'
 
 interface TabOption {
     value: string
@@ -18,32 +19,42 @@ interface ReportTabsProps {
 
 export function ReportTabs({ options, onChange, ClassName, activeTab }: ReportTabsProps) {
     return (
-        <div className={cn("flex gap-2 overflow-x-auto pb-4 scrollbar-hide", ClassName)}>
-            {options.map((option) => (
-                <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => onChange?.(option.value)}
-                    className={cn(
-                        "px-4 py-1.5 text-[10px] rounded-full transition-all font-bold whitespace-nowrap flex items-center gap-2 border",
-                        activeTab === option.value
-                            ? "bg-peach text-foreground border-peach/50 shadow-sm"
-                            : "bg-card/40 text-muted-foreground/50 hover:bg-card/60 hover:text-foreground border-border/20"
-                    )}
-                >
-                    <span className="uppercase tracking-[0.2em]">{option.label}</span>
-                    {option.count !== undefined && (
-                        <span className={cn(
-                            "h-4 min-w-[1rem] px-1 rounded-full flex items-center justify-center text-[9px] font-black transition-all",
-                            activeTab === option.value
-                                ? "bg-foreground/10 text-foreground"
-                                : "bg-muted/30 text-muted-foreground/40"
-                        )}>
-                            {option.count}
-                        </span>
-                    )}
-                </button>
-            ))}
+        <div className={cn("flex gap-1 overflow-x-auto scrollbar-hide -mb-px", ClassName)}>
+            {options.map((option) => {
+                const isActive = activeTab === option.value
+                return (
+                    <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => onChange?.(option.value)}
+                        className={cn(
+                            "relative px-4 py-3 text-[11px] font-bold tracking-wide whitespace-nowrap flex items-center gap-2 transition-colors duration-200",
+                            isActive
+                                ? "text-foreground"
+                                : "text-muted-foreground/50 hover:text-foreground/70"
+                        )}
+                    >
+                        <span>{option.label}</span>
+                        {option.count !== undefined && option.count > 0 && (
+                            <span className={cn(
+                                "h-[18px] min-w-[18px] px-1.5 rounded-full flex items-center justify-center text-[10px] font-bold tabular-nums transition-all",
+                                isActive
+                                    ? "bg-peach/80 text-foreground"
+                                    : "bg-muted/40 text-muted-foreground/50"
+                            )}>
+                                {option.count}
+                            </span>
+                        )}
+                        {isActive && (
+                            <motion.div
+                                layoutId="tab-indicator"
+                                className="absolute bottom-0 left-2 right-2 h-[2px] bg-foreground rounded-full"
+                                transition={{ type: "spring", bounce: 0.15, duration: 0.5 }}
+                            />
+                        )}
+                    </button>
+                )
+            })}
         </div>
     )
 }

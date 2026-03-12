@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Loader2, ArrowRight } from 'lucide-react'
 
@@ -52,37 +51,30 @@ export default function ReportIndexPage() {
                     <p className="text-muted-foreground mt-2">Select a project to view the candidate report.</p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="divide-y divide-border rounded-lg border">
                     {postings.map((posting) => (
-                        <Link key={posting.id} href={`/report/${posting.id}`} className="block group">
-                            <Card className="h-full transition-all duration-200 hover:shadow-lg hover:border-primary/20">
-                                <CardHeader>
-                                    <div className="flex justify-between items-start gap-4">
-                                        <CardTitle className="leading-tight group-hover:text-primary transition-colors">
-                                            {posting.text}
-                                        </CardTitle>
-                                        {posting.count > 0 && (
-                                            <Badge variant="secondary" className="shrink-0">
-                                                {posting.count} candidates
-                                            </Badge>
-                                        )}
-                                    </div>
-                                    <CardDescription className="flex flex-col gap-1 mt-2">
-                                        <span>{posting.team}</span>
-                                        <span>{posting.location}</span>
-                                    </CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="flex items-center text-sm font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity -translate-x-2 group-hover:translate-x-0 duration-200">
-                                        View Report <ArrowRight className="ml-1 w-4 h-4" />
-                                    </div>
-                                </CardContent>
-                            </Card>
+                        <Link key={posting.id} href={`/report/${posting.id}`} className="flex items-center justify-between gap-4 px-5 py-4 group hover:bg-muted/50 transition-colors">
+                            <div className="min-w-0 flex-1">
+                                <div className="font-medium group-hover:text-primary transition-colors truncate">
+                                    {posting.text}
+                                </div>
+                                <div className="text-sm text-muted-foreground mt-0.5">
+                                    {posting.team} · {posting.location}
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3 shrink-0">
+                                {posting.count > 0 && (
+                                    <Badge variant="secondary">
+                                        {posting.count} candidates
+                                    </Badge>
+                                )}
+                                <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                            </div>
                         </Link>
                     ))}
 
                     {postings.length === 0 && (
-                        <div className="col-span-full text-center py-12 text-muted-foreground">
+                        <div className="text-center py-12 text-muted-foreground">
                             No active job postings found in Lever.
                         </div>
                     )}

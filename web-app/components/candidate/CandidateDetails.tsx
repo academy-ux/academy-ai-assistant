@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect, useState, useCallback, useMemo } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { Candidate } from "./CandidateCard"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { ExternalLink, MapPin, Mail, Calendar, Loader2, MessageSquare, Plus, Globe, Lock, Save, Pencil, Linkedin, Sparkles, Briefcase } from "lucide-react"
+import { MapPin, Mail, Loader2, Plus, Globe, Lock, Save, Pencil, Linkedin, Sparkles, Briefcase, ExternalLink } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
     Select,
@@ -20,6 +20,7 @@ import { useSession } from "next-auth/react"
 
 interface CandidateDetailsProps {
     candidate: Candidate & { answers?: any[] }
+    postingId?: string
     onRefresh?: () => void
 }
 
@@ -37,7 +38,23 @@ interface Meeting {
     meeting_date: string
 }
 
-export function CandidateDetails({ candidate, onRefresh }: CandidateDetailsProps) {
+function nameToColor(name: string): string {
+    let hash = 0
+    for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash)
+    }
+    const colors = [
+        "from-amber-200 to-orange-200",
+        "from-emerald-200 to-teal-200",
+        "from-blue-200 to-indigo-200",
+        "from-rose-200 to-pink-200",
+        "from-violet-200 to-purple-200",
+        "from-cyan-200 to-sky-200",
+    ]
+    return colors[Math.abs(hash) % colors.length]
+}
+
+export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateDetailsProps) {
     const { data: session } = useSession()
     const [stages, setStages] = useState<{ id: string; text: string }[]>([])
     const [loadingStages, setLoadingStages] = useState(false)
@@ -53,15 +70,16 @@ export function CandidateDetails({ candidate, onRefresh }: CandidateDetailsProps
     const [savingPassword, setSavingPassword] = useState(false)
     const [isEditingPassword, setIsEditingPassword] = useState(false)
 
-    // Executive Sell Profile Data
     const [profilePitch, setProfilePitch] = useState("")
     const [profileSalary, setProfileSalary] = useState("")
     const [profileExp, setProfileExp] = useState("")
+    const [profileTotalExp, setProfileTotalExp] = useState("")
+    const [expSummary, setExpSummary] = useState("")
     const [savingProfile, setSavingProfile] = useState(false)
     const [isEditingPitch, setIsEditingPitch] = useState(false)
     const [isEditingMetadata, setIsEditingMetadata] = useState(false)
+    const [generatingPitch, setGeneratingPitch] = useState(false)
 
-    // Normalize links
     const normalizedLinks = candidate.links?.map(link => {
         if (typeof link === 'string') return { url: link, type: 'Link' }
         return link
@@ -82,7 +100,10 @@ export function CandidateDetails({ candidate, onRefresh }: CandidateDetailsProps
                 fetch(`/api/candidates/${candidate.email || 'unknown'}/meeting-info?${query.toString()}`),
                 fetch(`/api/candidates/${candidate.email || 'unknown'}/portfolio-password`),
                 fetch(`/api/candidates/${candidate.email || 'unknown'}/profile`),
-                fetch(`/api/lever/candidates/${candidate.id}/resume-info`)
+                fetch(`/api/lever/candidates/${candidate.id}/resume-info?${new URLSearchParams({
+                    ...(postingId ? { postingId } : {}),
+                    ...(candidate.email ? { email: candidate.email } : {})
+                }).toString()}`)
             ])
 
             if (notesRes.ok) {
@@ -97,10 +118,18 @@ export function CandidateDetails({ candidate, onRefresh }: CandidateDetailsProps
 
             if (passwordRes.ok) {
                 const data = await passwordRes.json()
-                if (data.password) setPortfolioPassword(data.password)
+                if (data.password) {
+                    setPortfolioPassword(data.password)
+                } else if (candidate.answers) {
+                    // Try to extract portfolio password from Lever application answers
+                    const pwAnswer = candidate.answers.find((a: any) => {
+                        const q = (a.text || '').toLowerCase()
+                        return q.includes('password') || q.includes('passcode') || q.includes('portfolio')
+                    })
+                    if (pwAnswer?.value) setPortfolioPassword(pwAnswer.value)
+                }
             }
 
-            // Sync Profile Data
             if (profileRes.ok) {
                 const data = await profileRes.json()
                 if (data.profile) {
@@ -116,16 +145,22 @@ export function CandidateDetails({ candidate, onRefresh }: CandidateDetailsProps
                 }
             }
 
-            if (!profileExp && resumeRes.ok) {
+            if (resumeRes.ok) {
                 const data = await resumeRes.json()
-                if (data.years) setProfileExp(data.years)
+                if (data.relevantYears != null) {
+                    setProfileExp(`${data.relevantYears} yr relevant`)
+                    if (data.totalYears) setProfileTotalExp(`${data.totalYears} yr total`)
+                    if (data.summary) setExpSummary(data.summary)
+                } else if (!profileExp && data.years) {
+                    setProfileExp(data.years)
+                }
             }
         } catch (e) {
             console.error("Failed to fetch context", e)
         } finally {
             setLoadingContext(false)
         }
-    }, [candidate.email, candidate.name, candidate.id, candidate.answers, profileExp])
+    }, [candidate.email, candidate.name, candidate.id, candidate.answers, profileExp, postingId])
 
     useEffect(() => {
         async function fetchStages() {
@@ -238,144 +273,215 @@ export function CandidateDetails({ candidate, onRefresh }: CandidateDetailsProps
         }
     }
 
-    const currentStageObj = stages.find(s => s.text.toLowerCase() === candidate.stage.toLowerCase())
+    const handleGeneratePitch = async () => {
+        setGeneratingPitch(true)
+        try {
+            const res = await fetch(`/api/candidates/${candidate.email || 'unknown'}/generate-pitch`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    candidateName: candidate.name,
+                    postingId: postingId,
+                })
+            })
+            const data = await res.json()
+            if (res.ok && data.pitch) {
+                setProfilePitch(data.pitch)
+                setIsEditingPitch(true)
+                toast.success("Pitch generated — review and save when ready")
+            } else {
+                toast.error(data.error || "Failed to generate pitch")
+            }
+        } catch (e) {
+            toast.error("An error occurred while generating the pitch")
+        } finally {
+            setGeneratingPitch(false)
+        }
+    }
 
-    const displayedPitch = profilePitch || (meetings.length > 0 ? meetings[0].summary : candidate.headline)
+    const currentStageObj = stages.find(s => s.text.toLowerCase() === candidate.stage.toLowerCase())
+    const hasPitch = !!profilePitch
+    const avatarGradient = nameToColor(candidate.name)
+    const initials = candidate.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
 
     return (
-        <div className="flex flex-col h-full space-y-12">
-            <div className="space-y-6">
-                <div>
-                    <h2 className="text-4xl font-black tracking-tighter text-foreground leading-none flex flex-wrap items-baseline gap-x-2">
-                        {candidate.name}
-                        <span className="text-foreground/10 font-thin">|</span>
-                        <div className="flex items-center gap-4 text-[10px] tracking-widest uppercase font-black">
-                            {linkedIn && (
-                                <a href={linkedIn.url} target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Linkedin</a>
-                            )}
-                            {portfolio && (
-                                <a href={portfolio.url} target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors flex items-center gap-1.5">
-                                    Portfolio {portfolioPassword && <Lock className="w-2 h-2 opacity-30 text-peach" />}
-                                </a>
-                            )}
-                        </div>
-                    </h2>
-                </div>
-
-                <div className="grid grid-cols-3 gap-6 border-y border-border/10 py-6 relative group/meta">
-                    <div className="space-y-1">
-                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-foreground/40">Location</span>
-                        <p className="text-sm font-bold tracking-tight">{candidate.location || "Remote"}</p>
+        <div className="flex flex-col h-full space-y-8">
+            {/* Hero */}
+            <div className="space-y-5">
+                <div className="flex items-start gap-4">
+                    <div className={cn("w-14 h-14 rounded-2xl bg-gradient-to-br flex items-center justify-center text-foreground/70 font-bold text-base shrink-0", avatarGradient)}>
+                        {initials}
                     </div>
-
-                    <div className="space-y-1 relative">
-                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-foreground/40">Exp</span>
-                        {isEditingMetadata ? (
-                            <Input
-                                value={profileExp}
-                                onChange={(e) => setProfileExp(e.target.value)}
-                                className="h-6 p-0 text-sm font-bold bg-transparent border-none border-b border-primary/20 rounded-none focus:ring-0"
-                                autoFocus
-                            />
-                        ) : (
-                            <p className="text-sm font-bold tracking-tight">{profileExp || "—"}</p>
-                        )}
-                    </div>
-
-                    <div className="space-y-1 relative">
-                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-foreground/40">Expectations</span>
-                        {isEditingMetadata ? (
-                            <Input
-                                value={profileSalary}
-                                onChange={(e) => setProfileSalary(e.target.value)}
-                                className="h-6 p-0 text-sm font-bold bg-transparent border-none border-b border-primary/20 rounded-none focus:ring-0"
-                            />
-                        ) : (
-                            <p className="text-sm font-bold tracking-tight italic truncate">{profileSalary || "—"}</p>
-                        )}
-                    </div>
-
-                    <div className="absolute top-2 right-0">
-                        {isEditingMetadata ? (
-                            <button onClick={handleSaveProfile} disabled={savingProfile} className="text-primary hover:scale-110 transition-transform">
-                                {savingProfile ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                            </button>
-                        ) : (
-                            <button onClick={() => setIsEditingMetadata(true)} className="opacity-0 group-hover/meta:opacity-100 text-muted-foreground/30 hover:text-primary transition-all">
-                                <Pencil className="w-3 h-3" />
-                            </button>
-                        )}
+                    <div className="min-w-0 flex-1">
+                        <h2 className="text-2xl font-bold tracking-tight text-foreground leading-tight">
+                            {candidate.name}
+                        </h2>
+                        <p className="text-sm text-muted-foreground mt-0.5 truncate">
+                            {candidate.headline || "No headline"}
+                        </p>
                     </div>
                 </div>
 
-                <div className="space-y-4 group/pitch">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-primary">
-                            <span className="text-[10px] font-black uppercase tracking-[0.3em]">The Pitch</span>
-                            <Sparkles className="w-3 h-3 animate-pulse" />
-                        </div>
-                        {isEditingPitch ? (
-                            <button
-                                onClick={handleSaveProfile}
-                                disabled={savingProfile}
-                                className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2"
-                            >
-                                {savingProfile ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                                SAVE PITCH
-                            </button>
-                        ) : (
-                            <button
-                                onClick={() => {
-                                    if (!profilePitch) setProfilePitch(displayedPitch)
-                                    setIsEditingPitch(true)
-                                }}
-                                className="opacity-0 group-hover/pitch:opacity-100 text-[10px] font-black uppercase tracking-widest text-muted-foreground/30 hover:text-primary transition-all flex items-center gap-2"
-                            >
-                                <Pencil className="w-3 h-3" />
-                                EDIT PITCH
-                            </button>
-                        )}
-                    </div>
-
-                    <div className="relative">
-                        {isEditingPitch ? (
-                            <Textarea
-                                value={profilePitch}
-                                onChange={(e) => setProfilePitch(e.target.value)}
-                                className="min-h-[250px] text-lg text-foreground/90 leading-relaxed font-medium bg-input/40 border-primary/5 rounded-2xl p-6 focus:bg-input transition-all resize-none shadow-inner"
-                                placeholder="Refine the pitch for the executive team..."
-                            />
-                        ) : (
-                            <p className="text-lg text-foreground/90 leading-relaxed font-medium italic">
-                                "{displayedPitch}"
-                            </p>
-                        )}
-                    </div>
+                {/* Quick links */}
+                <div className="flex items-center gap-2 flex-wrap">
+                    {linkedIn && (
+                        <a href={linkedIn.url} target="_blank" rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/30 text-xs font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-all">
+                            <Linkedin className="w-3 h-3" /> LinkedIn
+                        </a>
+                    )}
+                    {portfolio && (
+                        <a href={portfolio.url} target="_blank" rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/30 text-xs font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-all">
+                            <Globe className="w-3 h-3" /> Portfolio
+                            {portfolioPassword && <Lock className="w-2.5 h-2.5 text-peach" />}
+                        </a>
+                    )}
+                    {candidate.email && (
+                        <a href={`mailto:${candidate.email}`}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/30 text-xs font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-all">
+                            <Mail className="w-3 h-3" /> Email
+                        </a>
+                    )}
                 </div>
             </div>
 
-            <div className="space-y-6 pt-6 border-t border-border/5">
-                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-foreground/40">Recruiter Controls</span>
+            {/* Info Card */}
+            <div className="bg-muted/20 rounded-xl p-5 relative group/meta">
+                <div className="space-y-3 pr-8">
+                    {[
+                        { label: "Location", value: candidate.location || "Remote", editable: false },
+                        { label: "Relevant Exp", value: profileExp, editable: true, field: "exp" },
+                        { label: "Total Exp", value: profileTotalExp, editable: false },
+                        { label: "Salary", value: profileSalary, editable: true, field: "salary" },
+                    ].filter(item => item.value || item.editable).map((item) => (
+                        <div key={item.label} className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50">{item.label}</span>
+                            {isEditingMetadata && item.editable ? (
+                                <Input
+                                    value={item.field === "exp" ? profileExp : profileSalary}
+                                    onChange={(e) => item.field === "exp" ? setProfileExp(e.target.value) : setProfileSalary(e.target.value)}
+                                    className="h-6 w-40 p-0 text-sm font-bold text-right bg-transparent border-none border-b border-primary/20 rounded-none focus:ring-0"
+                                    autoFocus={item.field === "exp"}
+                                />
+                            ) : (
+                                <span className="text-sm font-bold tracking-tight truncate max-w-[200px]">{item.value || "—"}</span>
+                            )}
+                        </div>
+                    ))}
+                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-input/20 p-5 rounded-2xl border border-border/5 space-y-2">
-                        <span className="text-[9px] font-black uppercase tracking-widest text-foreground/20">Pipeline Stage</span>
+                <div className="absolute top-4 right-4">
+                    {isEditingMetadata ? (
+                        <button onClick={handleSaveProfile} disabled={savingProfile}
+                            className="p-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-all">
+                            {savingProfile ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                        </button>
+                    ) : (
+                        <button onClick={() => setIsEditingMetadata(true)}
+                            className="p-1.5 rounded-lg opacity-0 group-hover/meta:opacity-100 text-muted-foreground/30 hover:text-foreground hover:bg-muted/30 transition-all">
+                            <Pencil className="w-3 h-3" />
+                        </button>
+                    )}
+                </div>
+                {expSummary && (
+                    <p className="text-[11px] text-muted-foreground/50 mt-3 pt-3 border-t border-border/10 leading-relaxed">
+                        {expSummary}
+                    </p>
+                )}
+            </div>
+
+            {/* The Pitch */}
+            <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <Sparkles className="w-3.5 h-3.5 text-peach" />
+                        <span className="text-xs font-bold text-foreground/70">The Pitch</span>
+                    </div>
+                    {hasPitch && (
+                        <div className="flex items-center gap-1.5">
+                            <button
+                                onClick={handleGeneratePitch}
+                                disabled={generatingPitch}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider text-peach hover:text-foreground hover:bg-peach/10 transition-all"
+                            >
+                                {generatingPitch ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                                {generatingPitch ? "Generating..." : "Regenerate"}
+                            </button>
+                            {isEditingPitch ? (
+                                <button
+                                    onClick={handleSaveProfile}
+                                    disabled={savingProfile}
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-wider hover:bg-primary/90 transition-all"
+                                >
+                                    {savingProfile ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                                    Save
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={() => setIsEditingPitch(true)}
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider text-muted-foreground/40 hover:text-foreground hover:bg-muted/30 transition-all"
+                                >
+                                    <Pencil className="w-3 h-3" /> Edit
+                                </button>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                {!hasPitch && !isEditingPitch ? (
+                    <div className="bg-muted/20 rounded-xl p-6 border border-border/20 flex flex-col items-center gap-3">
+                        <p className="text-sm text-muted-foreground/60 text-center">
+                            Generate a pitch from interview transcripts and the job description
+                        </p>
+                        <button
+                            onClick={handleGeneratePitch}
+                            disabled={generatingPitch}
+                            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-foreground text-background text-xs font-bold tracking-wide hover:bg-foreground/90 transition-all disabled:opacity-70 shadow-sm"
+                        >
+                            {generatingPitch ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                            {generatingPitch ? "Generating pitch..." : "Generate Pitch"}
+                        </button>
+                    </div>
+                ) : isEditingPitch ? (
+                    <Textarea
+                        value={profilePitch}
+                        onChange={(e) => setProfilePitch(e.target.value)}
+                        className="min-h-[200px] text-sm text-foreground leading-relaxed font-medium bg-muted/20 border-border/20 rounded-xl p-4 focus:bg-muted/30 transition-all resize-none"
+                        placeholder="Write the executive pitch..."
+                    />
+                ) : (
+                    <div className="bg-muted/15 rounded-xl p-4 border border-border/10">
+                        <p className="text-sm text-foreground/80 leading-relaxed">
+                            {profilePitch}
+                        </p>
+                    </div>
+                )}
+            </div>
+
+            {/* Controls */}
+            <div className="space-y-4 pt-4 border-t border-border/15">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">Pipeline Controls</span>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="bg-muted/15 p-4 rounded-xl space-y-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/40">Stage</span>
                         <div onClick={(e) => e.stopPropagation()}>
                             <Select
                                 onValueChange={handleStageUpdate}
                                 value={currentStageObj?.id}
                                 disabled={updating || loadingStages}
                             >
-                                <SelectTrigger className="h-9 w-full bg-input/50 border-transparent rounded-xl px-4 text-[11px] font-black uppercase tracking-[0.1em] text-foreground hover:bg-input transition-all">
+                                <SelectTrigger className="h-9 w-full bg-card border-border/30 rounded-lg px-3 text-xs font-bold text-foreground hover:bg-card/80 transition-all">
                                     {updating ? (
-                                        <Loader2 className="h-4 w-4 animate-spin mx-auto text-primary" />
+                                        <Loader2 className="h-3.5 w-3.5 animate-spin mx-auto text-primary" />
                                     ) : (
                                         <SelectValue placeholder={candidate.stage} />
                                     )}
                                 </SelectTrigger>
-                                <SelectContent className="rounded-xl border-border/10 shadow-2xl bg-background/95 backdrop-blur-md">
+                                <SelectContent className="rounded-xl border-border/30 shadow-xl bg-background/95 backdrop-blur-md">
                                     {stages.map((stage) => (
-                                        <SelectItem key={stage.id} value={stage.id} className="text-[11px] font-black uppercase tracking-[0.1em] rounded-lg my-1 mx-1">
+                                        <SelectItem key={stage.id} value={stage.id} className="text-xs font-medium rounded-lg my-0.5 mx-1">
                                             {stage.text}
                                         </SelectItem>
                                     ))}
@@ -385,13 +491,13 @@ export function CandidateDetails({ candidate, onRefresh }: CandidateDetailsProps
                     </div>
 
                     {portfolio && (
-                        <div className="bg-input/20 p-5 rounded-2xl border border-border/5 space-y-2">
-                            <span className="text-[9px] font-black uppercase tracking-widest text-foreground/20">Portfolio Password</span>
+                        <div className="bg-muted/15 p-4 rounded-xl space-y-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/40">Portfolio PW</span>
                             <div className="relative group/pw">
                                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/30 group-focus-within/pw:text-primary transition-colors" />
                                 <Input
                                     type={isEditingPassword ? "text" : "password"}
-                                    placeholder="PW"
+                                    placeholder="Password"
                                     value={portfolioPassword}
                                     onChange={(e) => {
                                         setPortfolioPassword(e.target.value)
@@ -401,60 +507,66 @@ export function CandidateDetails({ candidate, onRefresh }: CandidateDetailsProps
                                         if (portfolioPassword) handleSavePassword()
                                         else setIsEditingPassword(false)
                                     }}
-                                    className="h-9 pl-9 pr-12 bg-input/50 border-transparent rounded-xl text-xs font-bold tracking-widest focus:bg-input transition-all"
+                                    className="h-9 pl-9 pr-10 bg-card border-border/30 rounded-lg text-xs font-medium focus:bg-card/80 transition-all"
                                 />
                                 {isEditingPassword && (
-                                    <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                                        {savingPassword ? <Loader2 className="h-3 w-3 animate-spin text-primary" /> : <Save className="h-3.5 w-3.5 text-primary" />}
+                                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                        {savingPassword ? <Loader2 className="h-3 w-3 animate-spin text-primary" /> : <Save className="h-3 w-3 text-primary" />}
                                     </div>
                                 )}
                             </div>
                         </div>
                     )}
                 </div>
+            </div>
 
-                <div className="space-y-4">
-                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-foreground/40">Team Feedback</span>
-                    <div className="relative group/note">
-                        <Textarea
-                            placeholder="Add team feedback..."
-                            value={newNote}
-                            onChange={(e) => setNewNote(e.target.value)}
-                            className="min-h-[100px] bg-input/10 border-transparent rounded-2xl p-4 text-[13px] font-medium placeholder:text-[9px] placeholder:font-black focus:bg-input/30 transition-all resize-none shadow-sm"
-                        />
-                        <Button
-                            size="icon"
-                            disabled={!newNote.trim() || savingNote}
-                            onClick={handleAddNote}
-                            className="absolute bottom-3 right-3 h-8 w-8 rounded-full bg-peach text-foreground shadow-sm hover:scale-105 transition-transform"
-                        >
-                            {savingNote ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                        </Button>
-                    </div>
+            {/* Notes */}
+            <div className="space-y-3 pt-4 border-t border-border/15">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">Team Feedback</span>
 
-                    <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                <div className="relative">
+                    <Textarea
+                        placeholder="Add a note..."
+                        value={newNote}
+                        onChange={(e) => setNewNote(e.target.value)}
+                        className="min-h-[80px] bg-muted/15 border-border/15 rounded-xl p-3 pr-12 text-xs font-medium focus:bg-muted/25 transition-all resize-none"
+                    />
+                    <Button
+                        size="icon"
+                        disabled={!newNote.trim() || savingNote}
+                        onClick={handleAddNote}
+                        className="absolute bottom-2.5 right-2.5 h-7 w-7 rounded-lg bg-peach text-foreground shadow-sm hover:bg-peach/80 transition-all"
+                    >
+                        {savingNote ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                    </Button>
+                </div>
+
+                {notes.length > 0 && (
+                    <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
                         {notes.map((note) => (
-                            <div key={note.id} className="space-y-2 p-4 rounded-xl bg-card/[0.03] border border-border/5 hover:border-border/10 transition-all">
-                                <div className="flex items-center justify-between text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
-                                    <span className="text-primary/60">{note.created_by}</span>
-                                    <span>{new Date(note.created_at).toLocaleDateString()}</span>
+                            <div key={note.id} className="p-3 rounded-xl bg-card/50 border border-border/10 hover:border-border/20 transition-all">
+                                <div className="flex items-center justify-between mb-1.5">
+                                    <span className="text-[10px] font-bold text-primary/60">{note.created_by}</span>
+                                    <span className="text-[10px] text-muted-foreground/30">{new Date(note.created_at).toLocaleDateString()}</span>
                                 </div>
-                                <p className="text-xs font-medium text-foreground/80 leading-normal">{note.content}</p>
+                                <p className="text-xs text-foreground/70 leading-relaxed">{note.content}</p>
                             </div>
                         ))}
                     </div>
-                </div>
+                )}
             </div>
 
-            <div className="pt-4 pb-12">
+            {/* Lever Link */}
+            <div className="pt-4 pb-8">
                 <a
                     href={`https://hire.lever.co/candidates/${candidate.id}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-3 w-full py-4 rounded-2xl bg-foreground text-background font-black uppercase tracking-[0.2em] text-[11px] hover:bg-foreground/90 transition-all shadow-xl hover:-translate-y-1"
+                    className="flex items-center justify-center gap-2.5 w-full py-3 rounded-xl bg-foreground text-background text-xs font-bold tracking-wide hover:bg-foreground/90 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
                 >
-                    <Briefcase className="w-4 h-4" />
-                    Official Lever Profile
+                    <Briefcase className="w-3.5 h-3.5" />
+                    View in Lever
+                    <ExternalLink className="w-3 h-3 opacity-50" />
                 </a>
             </div>
         </div>

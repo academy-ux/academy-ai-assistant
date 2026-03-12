@@ -18,6 +18,11 @@ export default withAuth(
         if (req.nextUrl.pathname === '/api/lever/search') {
           return true
         }
+
+        // Allow public share data routes (token-scoped only)
+        if (req.nextUrl.pathname.match(/^\/api\/share\/[0-9a-f-]{36}\//)) {
+          return true
+        }
         
         // Allow auth check endpoint for Chrome extension
         if (req.nextUrl.pathname === '/api/auth/check') {

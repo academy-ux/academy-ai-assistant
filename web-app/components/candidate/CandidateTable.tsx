@@ -1,7 +1,7 @@
 "use client"
 
 import { Badge } from "@/components/ui/badge"
-import { MapPin, ChevronRight, Mail, Linkedin, Globe, Loader2 } from "lucide-react"
+import { MapPin, ChevronRight, Linkedin, Globe, Loader2, Briefcase } from "lucide-react"
 import { Candidate } from "./CandidateCard"
 import { cn } from "@/lib/utils"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -14,6 +14,13 @@ import {
 } from "@/components/ui/select"
 import { useState } from "react"
 import { toast } from "sonner"
+import { motion } from "motion/react"
+
+export interface ExperienceData {
+    relevantYears: number
+    totalYears: number
+    summary: string
+}
 
 interface CandidateTableProps {
     candidates: Candidate[]
@@ -21,9 +28,30 @@ interface CandidateTableProps {
     selectedId?: string
     stages?: { id: string, text: string }[]
     onRefresh?: () => void
+    experienceMap?: Record<string, ExperienceData | null>
+    experienceLoading?: boolean
 }
 
-export function CandidateTable({ candidates, onSelect, selectedId, stages, onRefresh }: CandidateTableProps) {
+// Generate a consistent warm color from a name
+function nameToColor(name: string): string {
+    let hash = 0
+    for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash)
+    }
+    const colors = [
+        "from-amber-200 to-orange-200",
+        "from-emerald-200 to-teal-200",
+        "from-blue-200 to-indigo-200",
+        "from-rose-200 to-pink-200",
+        "from-violet-200 to-purple-200",
+        "from-cyan-200 to-sky-200",
+        "from-lime-200 to-green-200",
+        "from-yellow-200 to-amber-200",
+    ]
+    return colors[Math.abs(hash) % colors.length]
+}
+
+export function CandidateTable({ candidates, onSelect, selectedId, stages, onRefresh, experienceMap, experienceLoading }: CandidateTableProps) {
     const [updatingId, setUpdatingId] = useState<string | null>(null)
 
     const handleUpdateStage = async (candidateId: string, stageId: string) => {
@@ -52,15 +80,27 @@ export function CandidateTable({ candidates, onSelect, selectedId, stages, onRef
 
     if (candidates.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center py-32 border-t border-border/20 mt-10">
-                <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground/40">No candidates in this stage</p>
+            <div className="flex flex-col items-center justify-center py-32">
+                <div className="w-12 h-12 rounded-2xl bg-muted/30 flex items-center justify-center mb-4">
+                    <MapPin className="w-5 h-5 text-muted-foreground/30" />
+                </div>
+                <p className="text-sm font-medium text-muted-foreground/60">No candidates in this stage</p>
+                <p className="text-xs text-muted-foreground/30 mt-1">Candidates will appear here as they progress</p>
             </div>
         )
     }
 
     return (
-        <div className="divide-y divide-border/20 border-t border-border/20">
-            {candidates.map((candidate) => {
+        <div className="space-y-1">
+            {/* Column headers */}
+            <div className="grid grid-cols-[1fr_220px_100px_160px_80px] gap-x-6 items-center px-5 pb-2 pt-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/40">Candidate</span>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/40">Stage</span>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/40">Experience</span>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/40">Location</span>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/40 text-right">Links</span>
+            </div>
+            {candidates.map((candidate, index) => {
                 const normalizedLinks = candidate.links.map(link => {
                     if (typeof link === 'string') return { url: link, type: 'Link' }
                     return link
@@ -77,20 +117,29 @@ export function CandidateTable({ candidates, onSelect, selectedId, stages, onRef
 
                 const isSelected = selectedId === candidate.id
                 const isUpdating = updatingId === candidate.id
+                const avatarGradient = nameToColor(candidate.name)
+                const exp = experienceMap?.[candidate.id]
 
                 return (
-                    <div
+                    <motion.div
                         key={candidate.id}
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: Math.min(index * 0.04, 0.4), ease: [0.16, 1, 0.3, 1] }}
                         onClick={() => onSelect(candidate)}
                         className={cn(
-                            "group flex flex-col md:flex-row gap-8 items-start md:items-center py-8 px-4 transition-all duration-300 cursor-pointer",
-                            isSelected ? "bg-primary/[0.03]" : "hover:bg-muted/30"
+                            "group grid grid-cols-[1fr_220px_100px_160px_80px] gap-x-6 items-center py-4 px-5 rounded-2xl transition-all duration-200 cursor-pointer border",
+                            isSelected
+                                ? "bg-card border-border/40 shadow-sm ring-1 ring-primary/10"
+                                : "bg-card/40 border-transparent hover:bg-card hover:border-border/30 hover:shadow-sm"
                         )}
                     >
-                        {/* Candidate Header / Info */}
-                        <div className="flex items-center gap-5 w-80 lg:w-96 min-w-0">
-                            <Avatar className="h-10 w-10 rounded-full border border-border/10">
-                                <AvatarFallback className="bg-muted/50 text-muted-foreground font-medium text-xs">{initials}</AvatarFallback>
+                        {/* Avatar + Info */}
+                        <div className="flex items-center gap-4 min-w-0">
+                            <Avatar className="h-10 w-10 rounded-xl border-0 shrink-0">
+                                <AvatarFallback className={cn("bg-gradient-to-br text-foreground/70 font-bold text-[11px] rounded-xl", avatarGradient)}>
+                                    {initials}
+                                </AvatarFallback>
                             </Avatar>
 
                             <div className="flex-1 min-w-0 space-y-0.5">
@@ -99,39 +148,30 @@ export function CandidateTable({ candidates, onSelect, selectedId, stages, onRef
                                         {candidate.name}
                                     </h3>
                                     {candidate.archivedAt && (
-                                        <Badge variant="outline" className="text-[8px] uppercase tracking-widest font-black py-0 h-3.5 border-destructive/20 text-destructive bg-destructive/[0.03]">Archived</Badge>
+                                        <Badge variant="outline" className="text-[9px] uppercase tracking-wider font-bold py-0 h-4 border-destructive/20 text-destructive/70 bg-destructive/5 rounded-md">
+                                            Archived
+                                        </Badge>
                                     )}
-                                    {(() => {
-                                        const expMatch = candidate.headline.match(/(\d+)\+?\s*(?:years|yrs)/i)
-                                        if (expMatch) {
-                                            return (
-                                                <Badge variant="outline" className="text-[8px] uppercase tracking-widest font-black py-0 h-3.5 border-primary/20 text-primary bg-primary/[0.03]">
-                                                    {expMatch[1]}+ EXP
-                                                </Badge>
-                                            )
-                                        }
-                                        return null
-                                    })()}
                                 </div>
-                                <p className="text-[11px] text-muted-foreground font-medium italic truncate opacity-60">
+                                <p className="text-xs text-muted-foreground truncate">
                                     {candidate.headline || "No headline"}
                                 </p>
                             </div>
                         </div>
 
-                        {/* Stage Selector */}
-                        <div className="w-48 px-2" onClick={(e) => e.stopPropagation()}>
+                        {/* Stage */}
+                        <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
                             <Select
                                 disabled={isUpdating}
                                 onValueChange={(value) => handleUpdateStage(candidate.id, value)}
                                 defaultValue={stages?.find(s => s.text === candidate.stage)?.id}
                             >
-                                <SelectTrigger className="h-auto w-fit px-0 py-0 border-none bg-transparent shadow-none focus:ring-0 text-[10px] font-black uppercase tracking-widest text-primary/80 hover:text-primary transition-colors justify-start gap-2">
+                                <SelectTrigger className="h-7 w-full px-3 py-0 border border-border/30 bg-muted/20 shadow-none rounded-lg text-[9px] font-bold uppercase tracking-wide text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-all justify-start gap-2">
                                     {isUpdating ? (
                                         <Loader2 className="h-3 w-3 animate-spin" />
                                     ) : (
                                         <>
-                                            <div className="w-1.5 h-1.5 rounded-full bg-peach animate-pulse" />
+                                            <div className="w-1.5 h-1.5 rounded-full bg-peach shrink-0" />
                                             <SelectValue placeholder={candidate.stage} />
                                         </>
                                     )}
@@ -141,7 +181,7 @@ export function CandidateTable({ candidates, onSelect, selectedId, stages, onRef
                                         <SelectItem
                                             key={stage.id}
                                             value={stage.id}
-                                            className="text-[10px] font-black uppercase tracking-widest focus:bg-primary/5 focus:text-primary rounded-lg my-1 mx-1"
+                                            className="text-[10px] font-bold uppercase tracking-wider focus:bg-primary/5 focus:text-primary rounded-lg my-0.5 mx-1"
                                         >
                                             {stage.text}
                                         </SelectItem>
@@ -150,22 +190,43 @@ export function CandidateTable({ candidates, onSelect, selectedId, stages, onRef
                             </Select>
                         </div>
 
-                        {/* Location */}
-                        <div className="w-48 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 whitespace-nowrap">
-                            <MapPin className="w-3 h-3 opacity-50" />
-                            {candidate.location && typeof candidate.location === 'string' ? candidate.location : "Remote"}
+                        {/* Experience */}
+                        <div className="flex items-center gap-1.5 min-w-0">
+                            {experienceLoading ? (
+                                <Loader2 className="w-3 h-3 animate-spin text-muted-foreground/30" />
+                            ) : exp ? (
+                                <div className="flex items-center gap-1.5" title={exp.summary}>
+                                    <Briefcase className="w-3 h-3 text-muted-foreground/40 shrink-0" />
+                                    <span className="text-xs font-bold tabular-nums text-foreground">
+                                        {exp.relevantYears} yr
+                                    </span>
+                                    {exp.totalYears > exp.relevantYears && (
+                                        <span className="text-[10px] text-muted-foreground/40">
+                                            / {exp.totalYears}
+                                        </span>
+                                    )}
+                                </div>
+                            ) : (
+                                <span className="text-xs text-muted-foreground/30">—</span>
+                            )}
                         </div>
 
-                        {/* Social & Action */}
-                        <div className="flex items-center gap-4 ml-auto">
-                            <div className="flex items-center gap-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {/* Location */}
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground/60 min-w-0">
+                            <MapPin className="w-3 h-3 shrink-0" />
+                            <span className="truncate">{candidate.location && typeof candidate.location === 'string' ? candidate.location : "Remote"}</span>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-3 justify-end">
+                            <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                                 {linkedIn && (
                                     <a
                                         href={linkedIn.url}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         onClick={(e) => e.stopPropagation()}
-                                        className="text-muted-foreground/30 hover:text-primary transition-colors"
+                                        className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-primary hover:bg-primary/5 transition-all"
                                     >
                                         <Linkedin className="w-3.5 h-3.5" />
                                     </a>
@@ -176,15 +237,18 @@ export function CandidateTable({ candidates, onSelect, selectedId, stages, onRef
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         onClick={(e) => e.stopPropagation()}
-                                        className="text-muted-foreground/30 hover:text-primary transition-colors"
+                                        className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-primary hover:bg-primary/5 transition-all"
                                     >
                                         <Globe className="w-3.5 h-3.5" />
                                     </a>
                                 )}
                             </div>
-                            <ChevronRight className="h-4 w-4 text-muted-foreground/10 group-hover:text-primary transition-all duration-300 transform group-hover:translate-x-1" />
+                            <ChevronRight className={cn(
+                                "h-4 w-4 transition-all duration-200",
+                                isSelected ? "text-primary" : "text-muted-foreground/15 group-hover:text-muted-foreground/40 group-hover:translate-x-0.5"
+                            )} />
                         </div>
-                    </div>
+                    </motion.div>
                 )
             })}
         </div>
