@@ -27,22 +27,25 @@ const Orb = React.forwardRef<HTMLDivElement, OrbProps>(
           sizeClasses[size],
           className
         )}
+        style={{ willChange: agentState ? 'transform' : 'auto' }}
         {...props}
       >
-        {/* Gradient background */}
+        {/* Gradient background — transitions smoothly between animation states */}
         <div
           className={cn(
             "absolute inset-0 rounded-full",
-            "bg-gradient-to-br",
+            "transition-[transform,opacity] duration-700 ease-smooth",
             agentState === "talking" && "animate-pulse",
             agentState === "thinking" && "animate-spin-slow",
-            agentState === "listening" && "animate-bounce-subtle"
+            agentState === "listening" && "animate-bounce-subtle",
+            !agentState && "scale-100"
           )}
           style={{
-            background: `linear-gradient(135deg, ${colors[0]} 0%, ${colors[1]} 100%)`
+            background: `linear-gradient(135deg, ${colors[0]} 0%, ${colors[1]} 100%)`,
+            backfaceVisibility: 'hidden',
           }}
         />
-        
+
         {/* Inner glow */}
         <div
           className={cn(
@@ -50,21 +53,24 @@ const Orb = React.forwardRef<HTMLDivElement, OrbProps>(
             "bg-gradient-to-br from-white/40 to-transparent"
           )}
         />
-        
-        {/* Animated ring for active states */}
-        {agentState && (
-          <div
-            className={cn(
-              "absolute inset-0 rounded-full",
-              "border-2 border-white/30",
-              agentState === "talking" && "animate-ping",
-              agentState === "thinking" && "animate-pulse",
-              agentState === "listening" && "animate-pulse"
-            )}
-            style={{ animationDuration: "2s" }}
-          />
-        )}
-        
+
+        {/* Animated ring for active states — fades in/out smoothly */}
+        <div
+          className={cn(
+            "absolute inset-0 rounded-full",
+            "border-2 border-white/30",
+            "transition-opacity duration-500 ease-smooth",
+            agentState ? "opacity-100" : "opacity-0",
+            agentState === "talking" && "animate-ping",
+            agentState === "thinking" && "animate-pulse",
+            agentState === "listening" && "animate-pulse"
+          )}
+          style={{
+            animationDuration: "2.5s",
+            backfaceVisibility: 'hidden',
+          }}
+        />
+
         {/* Center highlight */}
         <div
           className="absolute top-1/4 left-1/4 w-1/4 h-1/4 rounded-full bg-white/50 blur-sm"

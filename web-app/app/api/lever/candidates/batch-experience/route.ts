@@ -50,22 +50,11 @@ async function analyzeCandidate(
     if (!res.ok) return { id: candidateId, result: null }
 
     const data = await res.json()
-    const latestResume = data.data?.[0]?.parsed
+    // Lever uses 'parsedData' not 'parsed'
+    const latestResume = data.data?.[0]?.parsedData
 
     if (!latestResume?.positions?.length) {
-        // Try basic calculation from positions
-        let totalYears = 0
-        if (latestResume?.positions) {
-            let earliestDate = new Date()
-            latestResume.positions.forEach((pos: any) => {
-                if (pos.start?.year) {
-                    const startDate = new Date(pos.start.year, (pos.start.month || 1) - 1)
-                    if (startDate < earliestDate) earliestDate = startDate
-                }
-            })
-            totalYears = new Date().getFullYear() - earliestDate.getFullYear()
-        }
-        return { id: candidateId, result: totalYears > 0 ? { relevantYears: totalYears, totalYears, summary: `${totalYears} years total` } : null }
+        return { id: candidateId, result: null }
     }
 
     if (!process.env.GEMINI_API_KEY) {
@@ -75,7 +64,7 @@ async function analyzeCandidate(
     // Format positions
     const positionsText = latestResume.positions.map((pos: any, i: number) => {
         const start = pos.start ? `${pos.start.month || '?'}/${pos.start.year || '?'}` : 'Unknown'
-        const end = pos.end ? `${pos.end.month || '?'}/${pos.end.year || '?'}` : 'Present'
+        const end = pos.end?.year ? `${pos.end.month || '?'}/${pos.end.year}` : 'Present'
         return `${i + 1}. ${pos.title || 'Unknown Title'} at ${pos.org || 'Unknown Company'} (${start} - ${end})`
     }).join('\n')
 
@@ -173,7 +162,8 @@ export async function POST(request: NextRequest) {
                     if (!res.ok) return { id: c.id, cached: false, result: null }
 
                     const data = await res.json()
-                    const latestResume = data.data?.[0]?.parsed
+                    // Lever uses 'parsedData' not 'parsed'
+                    const latestResume = data.data?.[0]?.parsedData
 
                     if (!latestResume?.positions?.length) {
                         return { id: c.id, cached: false, result: null }
@@ -181,7 +171,7 @@ export async function POST(request: NextRequest) {
 
                     const positionsText = latestResume.positions.map((pos: any, idx: number) => {
                         const start = pos.start ? `${pos.start.month || '?'}/${pos.start.year || '?'}` : 'Unknown'
-                        const end = pos.end ? `${pos.end.month || '?'}/${pos.end.year || '?'}` : 'Present'
+                        const end = pos.end?.year ? `${pos.end.month || '?'}/${pos.end.year}` : 'Present'
                         return `${idx + 1}. ${pos.title || 'Unknown Title'} at ${pos.org || 'Unknown Company'} (${start} - ${end})`
                     }).join('\n')
 

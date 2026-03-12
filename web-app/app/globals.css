@@ -123,6 +123,24 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Promote animated elements to GPU layer for smoother compositing */
+  [class*="animate-"] {
+    will-change: transform, opacity;
+    backface-visibility: hidden;
+  }
+
+  /* Respect reduced motion preferences */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }
 
 @layer components {
@@ -131,7 +149,7 @@
     @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg;
     @apply bg-primary text-primary-foreground;
     @apply border border-primary/20;
-    @apply transition-all duration-200 ease-out;
+    @apply transition-all duration-300 ease-smooth;
     @apply hover:brightness-105 hover:shadow-sm;
     @apply active:scale-[0.98];
   }
@@ -145,7 +163,7 @@
 
   /* Interactive card hover */
   .card-interactive {
-    @apply transition-all duration-200 ease-out;
+    @apply transition-all duration-300 ease-smooth;
     @apply hover:shadow-md hover:border-border;
     @apply hover:-translate-y-0.5;
   }

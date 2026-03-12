@@ -273,7 +273,7 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
         }
     }
 
-    const handleGeneratePitch = async () => {
+    const handleGeneratePitch = async (autoSave = false) => {
         setGeneratingPitch(true)
         try {
             const res = await fetch(`/api/candidates/${candidate.email || 'unknown'}/generate-pitch`, {
@@ -287,13 +287,29 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
             const data = await res.json()
             if (res.ok && data.pitch) {
                 setProfilePitch(data.pitch)
-                setIsEditingPitch(true)
-                toast.success("Pitch generated — review and save when ready")
-            } else {
+                if (autoSave && candidate.email) {
+                    // Auto-save the pitch directly
+                    await fetch(`/api/candidates/${candidate.email}/profile`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            pitch: data.pitch,
+                            salary_expectations: profileSalary,
+                            years_of_experience: profileExp
+                        })
+                    })
+                    toast.success("Pitch auto-generated and saved")
+                } else {
+                    setIsEditingPitch(true)
+                    toast.success("Pitch generated — review and save when ready")
+                }
+            } else if (!autoSave) {
                 toast.error(data.error || "Failed to generate pitch")
             }
         } catch (e) {
-            toast.error("An error occurred while generating the pitch")
+            if (!autoSave) {
+                toast.error("An error occurred while generating the pitch")
+            }
         } finally {
             setGeneratingPitch(false)
         }
@@ -326,20 +342,20 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                 <div className="flex items-center gap-2 flex-wrap">
                     {linkedIn && (
                         <a href={linkedIn.url} target="_blank" rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/30 text-xs font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-all">
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/30 text-xs font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors duration-200">
                             <Linkedin className="w-3 h-3" /> LinkedIn
                         </a>
                     )}
                     {portfolio && (
                         <a href={portfolio.url} target="_blank" rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/30 text-xs font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-all">
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/30 text-xs font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors duration-200">
                             <Globe className="w-3 h-3" /> Portfolio
                             {portfolioPassword && <Lock className="w-2.5 h-2.5 text-peach" />}
                         </a>
                     )}
                     {candidate.email && (
                         <a href={`mailto:${candidate.email}`}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/30 text-xs font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-all">
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/30 text-xs font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors duration-200">
                             <Mail className="w-3 h-3" /> Email
                         </a>
                     )}
@@ -374,12 +390,12 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                 <div className="absolute top-4 right-4">
                     {isEditingMetadata ? (
                         <button onClick={handleSaveProfile} disabled={savingProfile}
-                            className="p-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-all">
+                            className="p-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors duration-200">
                             {savingProfile ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
                         </button>
                     ) : (
                         <button onClick={() => setIsEditingMetadata(true)}
-                            className="p-1.5 rounded-lg opacity-0 group-hover/meta:opacity-100 text-muted-foreground/30 hover:text-foreground hover:bg-muted/30 transition-all">
+                            className="p-1.5 rounded-lg opacity-0 group-hover/meta:opacity-100 text-muted-foreground/30 hover:text-foreground hover:bg-muted/30 transition-[color,background-color,opacity] duration-200">
                             <Pencil className="w-3 h-3" />
                         </button>
                     )}
@@ -401,9 +417,9 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                     {hasPitch && (
                         <div className="flex items-center gap-1.5">
                             <button
-                                onClick={handleGeneratePitch}
+                                onClick={() => handleGeneratePitch()}
                                 disabled={generatingPitch}
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider text-peach hover:text-foreground hover:bg-peach/10 transition-all"
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider text-peach hover:text-foreground hover:bg-peach/10 transition-colors duration-200"
                             >
                                 {generatingPitch ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
                                 {generatingPitch ? "Generating..." : "Regenerate"}
@@ -430,24 +446,30 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                 </div>
 
                 {!hasPitch && !isEditingPitch ? (
-                    <div className="bg-muted/20 rounded-xl p-6 border border-border/20 flex flex-col items-center gap-3">
-                        <p className="text-sm text-muted-foreground/60 text-center">
-                            Generate a pitch from interview transcripts and the job description
-                        </p>
-                        <button
-                            onClick={handleGeneratePitch}
-                            disabled={generatingPitch}
-                            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-foreground text-background text-xs font-bold tracking-wide hover:bg-foreground/90 transition-all disabled:opacity-70 shadow-sm"
-                        >
-                            {generatingPitch ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                            {generatingPitch ? "Generating pitch..." : "Generate Pitch"}
-                        </button>
-                    </div>
+                    loadingContext ? (
+                        <div className="bg-muted/20 rounded-xl p-6 border border-border/20 flex items-center justify-center">
+                            <Loader2 className="w-4 h-4 animate-spin text-muted-foreground/30" />
+                        </div>
+                    ) : (
+                        <div className="bg-muted/20 rounded-xl p-6 border border-border/20 flex flex-col items-center gap-3">
+                            <p className="text-sm text-muted-foreground/60 text-center">
+                                Generate a pitch from interview transcripts and the job description
+                            </p>
+                            <button
+                                onClick={() => handleGeneratePitch()}
+                                disabled={generatingPitch}
+                                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-foreground text-background text-xs font-bold tracking-wide hover:bg-foreground/90 transition-[color,background-color,transform] duration-200 ease-smooth disabled:opacity-70 shadow-sm"
+                            >
+                                {generatingPitch ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                                {generatingPitch ? "Generating pitch..." : "Generate Pitch"}
+                            </button>
+                        </div>
+                    )
                 ) : isEditingPitch ? (
                     <Textarea
                         value={profilePitch}
                         onChange={(e) => setProfilePitch(e.target.value)}
-                        className="min-h-[200px] text-sm text-foreground leading-relaxed font-medium bg-muted/20 border-border/20 rounded-xl p-4 focus:bg-muted/30 transition-all resize-none"
+                        className="min-h-[200px] text-sm text-foreground leading-relaxed font-medium bg-muted/20 border-border/20 rounded-xl p-4 focus:bg-muted/30 transition-[background-color,border-color] duration-200 resize-none"
                         placeholder="Write the executive pitch..."
                     />
                 ) : (
@@ -472,7 +494,7 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                                 value={currentStageObj?.id}
                                 disabled={updating || loadingStages}
                             >
-                                <SelectTrigger className="h-9 w-full bg-card border-border/30 rounded-lg px-3 text-xs font-bold text-foreground hover:bg-card/80 transition-all">
+                                <SelectTrigger className="h-9 w-full bg-card border-border/30 rounded-lg px-3 text-xs font-bold text-foreground hover:bg-card/80 transition-colors duration-200">
                                     {updating ? (
                                         <Loader2 className="h-3.5 w-3.5 animate-spin mx-auto text-primary" />
                                     ) : (
@@ -529,13 +551,13 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                         placeholder="Add a note..."
                         value={newNote}
                         onChange={(e) => setNewNote(e.target.value)}
-                        className="min-h-[80px] bg-muted/15 border-border/15 rounded-xl p-3 pr-12 text-xs font-medium focus:bg-muted/25 transition-all resize-none"
+                        className="min-h-[80px] bg-muted/15 border-border/15 rounded-xl p-3 pr-12 text-xs font-medium focus:bg-muted/25 transition-[background-color,border-color] duration-200 resize-none"
                     />
                     <Button
                         size="icon"
                         disabled={!newNote.trim() || savingNote}
                         onClick={handleAddNote}
-                        className="absolute bottom-2.5 right-2.5 h-7 w-7 rounded-lg bg-peach text-foreground shadow-sm hover:bg-peach/80 transition-all"
+                        className="absolute bottom-2.5 right-2.5 h-7 w-7 rounded-lg bg-peach text-foreground shadow-sm hover:bg-peach/80 transition-colors duration-200"
                     >
                         {savingNote ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
                     </Button>
@@ -544,7 +566,7 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                 {notes.length > 0 && (
                     <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
                         {notes.map((note) => (
-                            <div key={note.id} className="p-3 rounded-xl bg-card/50 border border-border/10 hover:border-border/20 transition-all">
+                            <div key={note.id} className="p-3 rounded-xl bg-card/50 border border-border/10 hover:border-border/20 transition-colors duration-200">
                                 <div className="flex items-center justify-between mb-1.5">
                                     <span className="text-[10px] font-bold text-primary/60">{note.created_by}</span>
                                     <span className="text-[10px] text-muted-foreground/30">{new Date(note.created_at).toLocaleDateString()}</span>
@@ -562,7 +584,7 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                     href={`https://hire.lever.co/candidates/${candidate.id}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2.5 w-full py-3 rounded-xl bg-foreground text-background text-xs font-bold tracking-wide hover:bg-foreground/90 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+                    className="flex items-center justify-center gap-2.5 w-full py-3 rounded-xl bg-foreground text-background text-xs font-bold tracking-wide hover:bg-foreground/90 transition-[background-color,box-shadow,transform] duration-300 ease-smooth shadow-lg hover:shadow-xl hover:-translate-y-0.5"
                 >
                     <Briefcase className="w-3.5 h-3.5" />
                     View in Lever

@@ -68,7 +68,8 @@ export async function GET(
         }
 
         const data = await res.json()
-        const latestResume = data.data?.[0]?.parsed
+        // Lever uses 'parsedData' not 'parsed'
+        const latestResume = data.data?.[0]?.parsedData
 
         if (!latestResume) {
             return NextResponse.json({ years: null })
@@ -124,7 +125,7 @@ export async function GET(
         // Format positions for the prompt
         const positionsText = latestResume.positions.map((pos: any, i: number) => {
             const start = pos.start ? `${pos.start.month || '?'}/${pos.start.year || '?'}` : 'Unknown'
-            const end = pos.end ? `${pos.end.month || '?'}/${pos.end.year || '?'}` : 'Present'
+            const end = pos.end?.year ? `${pos.end.month || '?'}/${pos.end.year}` : 'Present'
             return `${i + 1}. ${pos.title || 'Unknown Title'} at ${pos.org || 'Unknown Company'} (${start} - ${end})\n   ${pos.summary || ''}`
         }).join('\n')
 

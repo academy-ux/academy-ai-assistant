@@ -62,7 +62,7 @@ function HomeContent() {
           <div className="flex flex-col sm:flex-row gap-4 pt-2 animate-fade-in-up" style={{ animationDelay: '400ms' }}>
             <Button 
               size="lg" 
-              className="h-14 px-8 text-base rounded-full gap-3 shadow-xl shadow-primary/20 hover:shadow-2xl hover:shadow-primary/30 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] bg-primary text-primary-foreground border border-white/10"
+              className="h-14 px-8 text-base rounded-full gap-3 shadow-xl shadow-primary/20 hover:shadow-2xl hover:shadow-primary/30 transition-all duration-500 ease-smooth hover:scale-[1.02] active:scale-[0.98] bg-primary text-primary-foreground border border-white/10"
               onClick={() => signIn('google')}
             >
               Sign in with Google
@@ -86,7 +86,7 @@ function HomeContent() {
             </div>
             
             {/* Floating Card 1: Status */}
-            <div className="absolute top-10 right-0 p-6 bg-card/60 backdrop-blur-xl border border-white/20 rounded-3xl shadow-2xl shadow-black/5 animate-fade-in-left hover:-translate-y-1 transition-transform duration-500 cursor-default ring-1 ring-black/5" style={{ animationDelay: '700ms' }}>
+            <div className="absolute top-10 right-0 p-6 bg-card/60 backdrop-blur-xl border border-white/20 rounded-3xl shadow-2xl shadow-black/5 animate-fade-in-left hover:-translate-y-1 transition-transform duration-700 ease-smooth cursor-default ring-1 ring-black/5" style={{ animationDelay: '700ms' }}>
               <div className="flex items-center gap-5">
                 <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-white to-white/50 shadow-inner flex items-center justify-center border border-white/40">
                    <FileText className="h-6 w-6 text-primary" />
@@ -99,7 +99,7 @@ function HomeContent() {
             </div>
             
             {/* Floating Card 2: Match Score */}
-            <div className="absolute bottom-20 left-10 p-6 bg-card/60 backdrop-blur-xl border border-white/20 rounded-3xl shadow-2xl shadow-black/5 animate-fade-in-right hover:-translate-y-1 transition-transform duration-500 cursor-default ring-1 ring-black/5" style={{ animationDelay: '900ms' }}>
+            <div className="absolute bottom-20 left-10 p-6 bg-card/60 backdrop-blur-xl border border-white/20 rounded-3xl shadow-2xl shadow-black/5 animate-fade-in-right hover:-translate-y-1 transition-transform duration-700 ease-smooth cursor-default ring-1 ring-black/5" style={{ animationDelay: '900ms' }}>
               <div className="flex items-center gap-5">
                 <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-white to-white/50 shadow-inner flex items-center justify-center border border-white/40">
                    <BarChart3 className="h-6 w-6 text-peach" />

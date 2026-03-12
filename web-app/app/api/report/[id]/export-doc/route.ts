@@ -7,6 +7,35 @@ import { generatePitch, fetchJobDescription } from '@/lib/pitch'
 
 const FOLDER_NAME = 'Academy Reports'
 
+// ─── Design Tokens (Academy brand: academyux.com) ───────────────
+// Neue Haas Grotesk Display → "Helvetica Neue" in Google Docs
+// Palette: charcoal / sage / cream / warm gray
+const COLORS = {
+    black:      { red: 0.067, green: 0.067, blue: 0.067 },  // #111111
+    charcoal:   { red: 0.153, green: 0.153, blue: 0.153 },  // #272727
+    body:       { red: 0.34,  green: 0.34,  blue: 0.34  },  // #575757
+    sage:       { red: 0.56,  green: 0.58,  blue: 0.53  },  // #8F937F — darkest olive
+    warmGray:   { red: 0.68,  green: 0.69,  blue: 0.65  },  // #ADAFA6
+    divider:    { red: 0.82,  green: 0.83,  blue: 0.80  },  // #D1D4CC
+    cream:      { red: 0.93,  green: 0.90,  blue: 0.82  },  // #EDE6D2
+    link:       { red: 0.34,  green: 0.34,  blue: 0.34  },  // #575757 — understated links
+}
+
+const FONTS = { heading: 'Helvetica Neue', body: 'Helvetica Neue' }
+
+const PT = {
+    brand: 8,
+    title: 22,
+    subtitle: 8.5,
+    sectionHead: 9,
+    candidateName: 10,
+    bodyText: 8.5,
+    pitchText: 8,
+    metaText: 7.5,
+}
+
+// ─── Candidate Grouping ──────────────────────────────────────────
+
 interface CandidateGroups {
     presenting: LeverCandidate[]
     interviewing: LeverCandidate[]
@@ -18,17 +47,12 @@ interface CandidateGroups {
 
 function groupCandidates(candidates: LeverCandidate[]): CandidateGroups {
     const groups: CandidateGroups = {
-        presenting: [],
-        interviewing: [],
-        portfolio: [],
-        applied: [],
-        clientPassed: [],
-        withdrew: [],
+        presenting: [], interviewing: [], portfolio: [],
+        applied: [], clientPassed: [], withdrew: [],
     }
 
     candidates.forEach(c => {
         const stage = c.stage.toLowerCase()
-
         if (c.archivedAt) {
             const reason = (c.archivedReason || '').toLowerCase()
             if (reason.includes('withdrew') || reason.includes('withdraw') || reason.includes('declined')) {
@@ -38,16 +62,10 @@ function groupCandidates(candidates: LeverCandidate[]): CandidateGroups {
             }
             return
         }
-
-        if (stage === 'client interview') {
-            groups.interviewing.push(c)
-        } else if (stage === 'portfolio interview') {
-            groups.portfolio.push(c)
-        } else if (stage.includes('present') || stage.includes('client') || stage.includes('offer')) {
-            groups.presenting.push(c)
-        } else {
-            groups.applied.push(c)
-        }
+        if (stage === 'client interview') groups.interviewing.push(c)
+        else if (stage === 'portfolio interview') groups.portfolio.push(c)
+        else if (stage.includes('present') || stage.includes('client') || stage.includes('offer')) groups.presenting.push(c)
+        else groups.applied.push(c)
     })
 
     return groups
@@ -56,29 +74,482 @@ function groupCandidates(candidates: LeverCandidate[]): CandidateGroups {
 function getCandidateLinks(c: LeverCandidate): { linkedin: string | null; portfolio: string | null } {
     let linkedin: string | null = null
     let portfolio: string | null = null
-
     for (const link of c.links || []) {
         const url = typeof link === 'string' ? link : link.url
         if (!url) continue
-        if (url.includes('linkedin.com')) {
-            linkedin = url
-        } else if (!portfolio) {
-            portfolio = url
-        }
+        if (url.includes('linkedin.com')) linkedin = url
+        else if (!portfolio) portfolio = url
     }
-
     return { linkedin, portfolio }
 }
 
-function formatCandidateEntry(c: LeverCandidate): string {
-    const { linkedin, portfolio } = getCandidateLinks(c)
-    const parts = [c.name]
-    if (linkedin) parts.push('LinkedIn')
-    if (portfolio) parts.push('Portfolio')
-    const location = typeof c.location === 'string' ? c.location : ''
-    if (location) parts.push(`Location: ${location}`)
-    return parts.join(' | ')
+// ─── Document Builder ────────────────────────────────────────────
+
+class DocBuilder {
+    requests: any[] = []
+    idx = 1
+
+    text(content: string) {
+        this.requests.push({ insertText: { location: { index: this.idx }, text: content } })
+        this.idx += content.length
+        return this
+    }
+
+    newline(count = 1) { return this.text('\n'.repeat(count)) }
+
+    styledText(content: string, style: Record<string, any>, fields: string) {
+        const start = this.idx
+        this.text(content)
+        this.requests.push({
+            updateTextStyle: {
+                range: { startIndex: start, endIndex: this.idx },
+                textStyle: style, fields,
+            }
+        })
+        return this
+    }
+
+    paragraphStyle(startIdx: number, style: Record<string, any>, fields: string) {
+        this.requests.push({
+            updateParagraphStyle: {
+                range: { startIndex: startIdx, endIndex: this.idx },
+                paragraphStyle: style, fields,
+            }
+        })
+        return this
+    }
+
+    hr() {
+        const start = this.idx
+        this.text('\n')
+        this.requests.push({
+            updateParagraphStyle: {
+                range: { startIndex: start, endIndex: this.idx },
+                paragraphStyle: {
+                    borderBottom: {
+                        color: { color: { rgbColor: COLORS.divider } },
+                        width: { magnitude: 0.5, unit: 'PT' },
+                        padding: { magnitude: 8, unit: 'PT' },
+                        dashStyle: 'SOLID',
+                    },
+                    spaceBelow: { magnitude: 12, unit: 'PT' },
+                },
+                fields: 'borderBottom,spaceBelow',
+            }
+        })
+        this.requests.push({
+            updateTextStyle: {
+                range: { startIndex: start, endIndex: this.idx },
+                textStyle: { fontSize: { magnitude: 1, unit: 'PT' } },
+                fields: 'fontSize',
+            }
+        })
+        return this
+    }
+
+    brandHeader(logoUrl?: string) {
+        const start = this.idx
+        if (logoUrl) {
+            // Insert logo as inline image
+            this.requests.push({
+                insertInlineImage: {
+                    location: { index: this.idx },
+                    uri: logoUrl,
+                    objectSize: {
+                        height: { magnitude: 18, unit: 'PT' },
+                        width: { magnitude: 18, unit: 'PT' },
+                    },
+                }
+            })
+            this.idx += 1 // inline image takes 1 index
+        } else {
+            // Fallback: text-based brand
+            this.text('academy')
+            this.requests.push({
+                updateTextStyle: {
+                    range: { startIndex: start, endIndex: start + 7 },
+                    textStyle: {
+                        fontSize: { magnitude: PT.brand, unit: 'PT' },
+                        weightedFontFamily: { fontFamily: FONTS.heading, weight: 700 },
+                        foregroundColor: { color: { rgbColor: COLORS.charcoal } },
+                    },
+                    fields: 'fontSize,weightedFontFamily,foregroundColor',
+                }
+            })
+        }
+        this.newline()
+        this.paragraphStyle(start, {
+            spaceBelow: { magnitude: 20, unit: 'PT' },
+        }, 'spaceBelow')
+        return this
+    }
+
+    title(content: string) {
+        const start = this.idx
+        this.text(content)
+        this.newline()
+        this.requests.push({
+            updateTextStyle: {
+                range: { startIndex: start, endIndex: start + content.length },
+                textStyle: {
+                    fontSize: { magnitude: PT.title, unit: 'PT' },
+                    weightedFontFamily: { fontFamily: FONTS.heading, weight: 500 },
+                    foregroundColor: { color: { rgbColor: COLORS.black } },
+                },
+                fields: 'fontSize,weightedFontFamily,foregroundColor',
+            }
+        })
+        this.paragraphStyle(start, {
+            spaceBelow: { magnitude: 2, unit: 'PT' },
+            lineSpacing: 105,
+        }, 'spaceBelow,lineSpacing')
+        return this
+    }
+
+    subtitle(content: string) {
+        const start = this.idx
+        this.text(content)
+        this.newline()
+        this.requests.push({
+            updateTextStyle: {
+                range: { startIndex: start, endIndex: start + content.length },
+                textStyle: {
+                    fontSize: { magnitude: PT.subtitle, unit: 'PT' },
+                    weightedFontFamily: { fontFamily: FONTS.body, weight: 400 },
+                    foregroundColor: { color: { rgbColor: COLORS.warmGray } },
+                },
+                fields: 'fontSize,weightedFontFamily,foregroundColor',
+            }
+        })
+        this.paragraphStyle(start, {
+            spaceBelow: { magnitude: 4, unit: 'PT' },
+        }, 'spaceBelow')
+        return this
+    }
+
+    sectionHeading(content: string) {
+        const start = this.idx
+        this.text(content.toUpperCase())
+        this.newline()
+        this.requests.push({
+            updateTextStyle: {
+                range: { startIndex: start, endIndex: start + content.length },
+                textStyle: {
+                    fontSize: { magnitude: PT.sectionHead, unit: 'PT' },
+                    weightedFontFamily: { fontFamily: FONTS.heading, weight: 500 },
+                    foregroundColor: { color: { rgbColor: COLORS.sage } },
+                    smallCaps: false,
+                },
+                fields: 'fontSize,weightedFontFamily,foregroundColor,smallCaps',
+            }
+        })
+        this.paragraphStyle(start, {
+            spaceAbove: { magnitude: 24, unit: 'PT' },
+            spaceBelow: { magnitude: 4, unit: 'PT' },
+            borderBottom: {
+                color: { color: { rgbColor: COLORS.divider } },
+                width: { magnitude: 0.5, unit: 'PT' },
+                padding: { magnitude: 6, unit: 'PT' },
+                dashStyle: 'SOLID',
+            },
+        }, 'spaceAbove,spaceBelow,borderBottom')
+        return this
+    }
+
+    candidateEntry(c: LeverCandidate, opts?: { pitch?: string }) {
+        const { linkedin, portfolio } = getCandidateLinks(c)
+        const location = typeof c.location === 'string' ? c.location : ''
+        const lineStart = this.idx
+
+        const nameStart = this.idx
+        this.text(c.name)
+        this.requests.push({
+            updateTextStyle: {
+                range: { startIndex: nameStart, endIndex: this.idx },
+                textStyle: {
+                    bold: true,
+                    fontSize: { magnitude: PT.candidateName, unit: 'PT' },
+                    weightedFontFamily: { fontFamily: FONTS.body, weight: 700 },
+                    foregroundColor: { color: { rgbColor: COLORS.charcoal } },
+                },
+                fields: 'bold,fontSize,weightedFontFamily,foregroundColor',
+            }
+        })
+
+        if (linkedin) {
+            this.styledText('  ·  ', {
+                foregroundColor: { color: { rgbColor: COLORS.divider } },
+                fontSize: { magnitude: PT.metaText, unit: 'PT' },
+                weightedFontFamily: { fontFamily: FONTS.body, weight: 400 },
+            }, 'foregroundColor,fontSize,weightedFontFamily')
+            const ls = this.idx
+            this.text('LinkedIn')
+            this.requests.push({
+                updateTextStyle: {
+                    range: { startIndex: ls, endIndex: this.idx },
+                    textStyle: {
+                        link: { url: linkedin },
+                        foregroundColor: { color: { rgbColor: COLORS.link } },
+                        fontSize: { magnitude: PT.metaText, unit: 'PT' },
+                        weightedFontFamily: { fontFamily: FONTS.body, weight: 500 },
+                        underline: false,
+                    },
+                    fields: 'link,foregroundColor,fontSize,weightedFontFamily,underline',
+                }
+            })
+        }
+
+        if (portfolio) {
+            this.styledText('  ·  ', {
+                foregroundColor: { color: { rgbColor: COLORS.divider } },
+                fontSize: { magnitude: PT.metaText, unit: 'PT' },
+                weightedFontFamily: { fontFamily: FONTS.body, weight: 400 },
+            }, 'foregroundColor,fontSize,weightedFontFamily')
+            const ps = this.idx
+            this.text('Portfolio')
+            this.requests.push({
+                updateTextStyle: {
+                    range: { startIndex: ps, endIndex: this.idx },
+                    textStyle: {
+                        link: { url: portfolio },
+                        foregroundColor: { color: { rgbColor: COLORS.link } },
+                        fontSize: { magnitude: PT.metaText, unit: 'PT' },
+                        weightedFontFamily: { fontFamily: FONTS.body, weight: 500 },
+                        underline: false,
+                    },
+                    fields: 'link,foregroundColor,fontSize,weightedFontFamily,underline',
+                }
+            })
+        }
+
+        if (location) {
+            this.styledText('  ·  ', {
+                foregroundColor: { color: { rgbColor: COLORS.divider } },
+                fontSize: { magnitude: PT.metaText, unit: 'PT' },
+                weightedFontFamily: { fontFamily: FONTS.body, weight: 400 },
+            }, 'foregroundColor,fontSize,weightedFontFamily')
+            this.styledText(location, {
+                foregroundColor: { color: { rgbColor: COLORS.sage } },
+                fontSize: { magnitude: PT.metaText, unit: 'PT' },
+                weightedFontFamily: { fontFamily: FONTS.body, weight: 400 },
+            }, 'foregroundColor,fontSize,weightedFontFamily')
+        }
+
+        this.newline()
+        this.paragraphStyle(lineStart, {
+            spaceAbove: { magnitude: 10, unit: 'PT' },
+            spaceBelow: { magnitude: opts?.pitch ? 1 : 6, unit: 'PT' },
+        }, 'spaceAbove,spaceBelow')
+
+        if (opts?.pitch) {
+            const pitchStart = this.idx
+            this.text(opts.pitch)
+            this.newline()
+            this.requests.push({
+                updateTextStyle: {
+                    range: { startIndex: pitchStart, endIndex: pitchStart + opts.pitch.length },
+                    textStyle: {
+                        fontSize: { magnitude: PT.pitchText, unit: 'PT' },
+                        weightedFontFamily: { fontFamily: FONTS.body, weight: 400 },
+                        foregroundColor: { color: { rgbColor: COLORS.sage } },
+                    },
+                    fields: 'fontSize,weightedFontFamily,foregroundColor',
+                }
+            })
+            this.paragraphStyle(pitchStart, {
+                spaceBelow: { magnitude: 10, unit: 'PT' },
+                lineSpacing: 130,
+                indentStart: { magnitude: 0, unit: 'PT' },
+            }, 'spaceBelow,lineSpacing,indentStart')
+        }
+
+        return this
+    }
+
+    archivedEntry(c: LeverCandidate) {
+        const { linkedin, portfolio } = getCandidateLinks(c)
+        const location = typeof c.location === 'string' ? c.location : ''
+        const reason = c.archivedReason || ''
+        const lineStart = this.idx
+
+        const nameStart = this.idx
+        this.text(c.name)
+        this.requests.push({
+            updateTextStyle: {
+                range: { startIndex: nameStart, endIndex: this.idx },
+                textStyle: {
+                    bold: true,
+                    fontSize: { magnitude: PT.bodyText, unit: 'PT' },
+                    weightedFontFamily: { fontFamily: FONTS.body, weight: 600 },
+                    foregroundColor: { color: { rgbColor: COLORS.sage } },
+                },
+                fields: 'bold,fontSize,weightedFontFamily,foregroundColor',
+            }
+        })
+
+        if (linkedin) {
+            this.styledText('  ·  ', { foregroundColor: { color: { rgbColor: COLORS.divider } }, fontSize: { magnitude: PT.metaText, unit: 'PT' } }, 'foregroundColor,fontSize')
+            const ls = this.idx
+            this.text('LinkedIn')
+            this.requests.push({ updateTextStyle: { range: { startIndex: ls, endIndex: this.idx }, textStyle: { link: { url: linkedin }, foregroundColor: { color: { rgbColor: COLORS.warmGray } }, fontSize: { magnitude: PT.metaText, unit: 'PT' }, underline: false }, fields: 'link,foregroundColor,fontSize,underline' } })
+        }
+        if (portfolio) {
+            this.styledText('  ·  ', { foregroundColor: { color: { rgbColor: COLORS.divider } }, fontSize: { magnitude: PT.metaText, unit: 'PT' } }, 'foregroundColor,fontSize')
+            const ps = this.idx
+            this.text('Portfolio')
+            this.requests.push({ updateTextStyle: { range: { startIndex: ps, endIndex: this.idx }, textStyle: { link: { url: portfolio }, foregroundColor: { color: { rgbColor: COLORS.warmGray } }, fontSize: { magnitude: PT.metaText, unit: 'PT' }, underline: false }, fields: 'link,foregroundColor,fontSize,underline' } })
+        }
+        if (location) {
+            this.styledText('  ·  ', { foregroundColor: { color: { rgbColor: COLORS.divider } }, fontSize: { magnitude: PT.metaText, unit: 'PT' } }, 'foregroundColor,fontSize')
+            this.styledText(location, { foregroundColor: { color: { rgbColor: COLORS.warmGray } }, fontSize: { magnitude: PT.metaText, unit: 'PT' } }, 'foregroundColor,fontSize')
+        }
+        if (reason) {
+            this.styledText(`  (${reason})`, {
+                foregroundColor: { color: { rgbColor: COLORS.warmGray } },
+                fontSize: { magnitude: PT.metaText, unit: 'PT' },
+                italic: true,
+                weightedFontFamily: { fontFamily: FONTS.body, weight: 400 },
+            }, 'foregroundColor,fontSize,italic,weightedFontFamily')
+        }
+
+        this.newline()
+        this.paragraphStyle(lineStart, {
+            spaceAbove: { magnitude: 4, unit: 'PT' },
+            spaceBelow: { magnitude: 4, unit: 'PT' },
+        }, 'spaceAbove,spaceBelow')
+        return this
+    }
+
+    emptyState(message: string) {
+        const start = this.idx
+        this.text(message)
+        this.newline()
+        this.requests.push({
+            updateTextStyle: {
+                range: { startIndex: start, endIndex: start + message.length },
+                textStyle: {
+                    italic: true,
+                    fontSize: { magnitude: PT.bodyText, unit: 'PT' },
+                    foregroundColor: { color: { rgbColor: COLORS.warmGray } },
+                    weightedFontFamily: { fontFamily: FONTS.body, weight: 400 },
+                },
+                fields: 'italic,fontSize,foregroundColor,weightedFontFamily',
+            }
+        })
+        this.paragraphStyle(start, {
+            spaceAbove: { magnitude: 6, unit: 'PT' },
+            spaceBelow: { magnitude: 6, unit: 'PT' },
+        }, 'spaceAbove,spaceBelow')
+        return this
+    }
+
+    documentMargins() {
+        this.requests.push({
+            updateDocumentStyle: {
+                documentStyle: {
+                    marginTop: { magnitude: 54, unit: 'PT' },
+                    marginBottom: { magnitude: 54, unit: 'PT' },
+                    marginLeft: { magnitude: 60, unit: 'PT' },
+                    marginRight: { magnitude: 60, unit: 'PT' },
+                },
+                fields: 'marginTop,marginBottom,marginLeft,marginRight',
+            }
+        })
+        return this
+    }
 }
+
+// ─── Helpers ─────────────────────────────────────────────────────
+
+async function findExistingDoc(drive: any, postingId: string): Promise<string | null> {
+    try {
+        const res = await drive.files.list({
+            q: `appProperties has { key='academyPostingId' and value='${postingId}' } and mimeType='application/vnd.google-apps.document' and trashed=false`,
+            fields: 'files(id)',
+            spaces: 'drive',
+        })
+        if (res.data.files && res.data.files.length > 0) {
+            return res.data.files[0].id
+        }
+    } catch (err) {
+        console.error('[Export] Failed to search for existing doc:', err)
+    }
+    return null
+}
+
+async function clearDocContent(docsApi: any, documentId: string) {
+    // Get the doc to find its content length
+    const doc = await docsApi.documents.get({ documentId })
+    const body = doc.data.body
+    if (!body?.content) return
+
+    // Find the end index (last structural element before the trailing newline)
+    const endIndex = body.content[body.content.length - 1]?.endIndex
+    if (!endIndex || endIndex <= 2) return
+
+    // Delete everything except the trailing newline
+    await docsApi.documents.batchUpdate({
+        documentId,
+        requestBody: {
+            requests: [{
+                deleteContentRange: {
+                    range: { startIndex: 1, endIndex: endIndex - 1 }
+                }
+            }]
+        }
+    })
+}
+
+async function ensureFolder(drive: any): Promise<string> {
+    const folderSearch = await drive.files.list({
+        q: `name = '${FOLDER_NAME}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+        fields: 'files(id)',
+        spaces: 'drive',
+    })
+
+    if (folderSearch.data.files && folderSearch.data.files.length > 0) {
+        return folderSearch.data.files[0].id
+    }
+
+    const folder = await drive.files.create({
+        requestBody: { name: FOLDER_NAME, mimeType: 'application/vnd.google-apps.folder' },
+        fields: 'id',
+    })
+    return folder.data.id
+}
+
+function buildDocContent(b: DocBuilder, projectTitle: string, groups: CandidateGroups, pitchMap: Map<string, string>) {
+    const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+
+    b.documentMargins()
+    b.brandHeader()
+    b.title(projectTitle || 'Candidate Presentation')
+    b.subtitle(`Updated ${today}`)
+    b.hr()
+
+    const sections: { heading: string; candidates: LeverCandidate[]; type: 'presenting' | 'standard' | 'archived' }[] = [
+        { heading: 'Presenting', candidates: groups.presenting, type: 'presenting' },
+        { heading: 'Interviewed + Interested', candidates: [...groups.interviewing, ...groups.portfolio], type: 'standard' },
+        { heading: 'Applied / Interested', candidates: groups.applied, type: 'standard' },
+        { heading: 'Client Passed', candidates: groups.clientPassed, type: 'archived' },
+        { heading: 'Withdrew', candidates: groups.withdrew, type: 'archived' },
+    ]
+
+    for (const section of sections) {
+        b.sectionHeading(section.heading)
+        if (section.candidates.length === 0) {
+            b.emptyState('No candidates in this stage.')
+            continue
+        }
+        for (const c of section.candidates) {
+            if (section.type === 'presenting') b.candidateEntry(c, { pitch: pitchMap.get(c.id) })
+            else if (section.type === 'archived') b.archivedEntry(c)
+            else b.candidateEntry(c)
+        }
+    }
+}
+
+// ─── Route Handler ───────────────────────────────────────────────
 
 export async function POST(
     request: NextRequest,
@@ -94,17 +565,17 @@ export async function POST(
         const body = await request.json()
         const { projectTitle } = body
 
-        // 1. Fetch candidates
+        // 1. Fetch candidates & group
         const candidates = await fetchCandidatesForPosting(postingId)
         const groups = groupCandidates(candidates)
 
-        // 2. Fetch job description (for pitch generation)
+        // 2. Fetch job description
         const jobDescription = await fetchJobDescription(postingId)
 
-        // 3. Generate pitches for presenting candidates (in parallel)
+        // 3. Generate pitches for presenting candidates
         const pitchMap = new Map<string, string>()
         if (groups.presenting.length > 0) {
-            const pitchPromises = groups.presenting.map(async (c) => {
+            await Promise.all(groups.presenting.map(async (c) => {
                 try {
                     const pitch = await generatePitch({
                         email: c.email || null,
@@ -115,307 +586,81 @@ export async function POST(
                 } catch (err) {
                     console.error(`[Export] Failed to generate pitch for ${c.name}:`, err)
                 }
-            })
-            await Promise.all(pitchPromises)
+            }))
         }
 
-        // 4. Build document content
+        // 4. Set up Google APIs
         const auth = new google.auth.OAuth2()
         auth.setCredentials({ access_token: token.accessToken as string })
-        const docs = google.docs({ version: 'v1', auth })
+        const docsApi = google.docs({ version: 'v1', auth })
         const drive = google.drive({ version: 'v3', auth })
 
-        // Create the document
-        const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-        const docTitle = `Academy Candidate Presentation - ${projectTitle || 'Report'}`
+        // 5. Check for existing doc (sync mode)
+        let documentId = await findExistingDoc(drive, postingId)
+        let synced = false
 
-        const doc = await docs.documents.create({
-            requestBody: { title: docTitle },
-        })
-        const documentId = doc.data.documentId!
-
-        // Build the document using batch update requests
-        const requests: any[] = []
-        let idx = 1 // Google Docs index starts at 1
-
-        // Helper to insert text and advance index
-        function insertText(text: string) {
-            requests.push({
-                insertText: { location: { index: idx }, text }
-            })
-            idx += text.length
-        }
-
-        function insertBoldText(text: string) {
-            const start = idx
-            insertText(text)
-            requests.push({
-                updateTextStyle: {
-                    range: { startIndex: start, endIndex: idx },
-                    textStyle: { bold: true },
-                    fields: 'bold',
-                }
-            })
-        }
-
-        function insertHeading(text: string) {
-            const start = idx
-            insertText(text + '\n')
-            requests.push({
-                updateParagraphStyle: {
-                    range: { startIndex: start, endIndex: idx },
-                    paragraphStyle: { namedStyleType: 'HEADING_2' },
-                    fields: 'namedStyleType',
-                }
-            })
-        }
-
-        function insertLink(text: string, url: string) {
-            const start = idx
-            insertText(text)
-            requests.push({
-                updateTextStyle: {
-                    range: { startIndex: start, endIndex: idx },
-                    textStyle: { link: { url } },
-                    fields: 'link',
-                }
-            })
-        }
-
-        function insertHorizontalRule() {
-            requests.push({
-                insertSectionBreak: { location: { index: idx }, sectionType: 'CONTINUOUS' }
-            })
-            idx += 1
-        }
-
-        // --- Document Structure ---
-
-        // Title
-        const titleStart = idx
-        insertText(`Academy Candidate Presentation - ${projectTitle || 'Report'}\n`)
-        requests.push({
-            updateParagraphStyle: {
-                range: { startIndex: titleStart, endIndex: idx },
-                paragraphStyle: { namedStyleType: 'HEADING_1' },
-                fields: 'namedStyleType',
-            }
-        })
-
-        // Date
-        insertText(`Updated: ${today}\n\n`)
-
-        // --- Presenting Section ---
-        insertHeading('Presenting')
-
-        if (groups.presenting.length > 0) {
-            for (const c of groups.presenting) {
-                const { linkedin, portfolio } = getCandidateLinks(c)
-                const location = typeof c.location === 'string' ? c.location : ''
-
-                insertBoldText(c.name)
-                if (linkedin) {
-                    insertText(' | ')
-                    insertLink('LinkedIn', linkedin)
-                }
-                if (portfolio) {
-                    insertText(' | ')
-                    insertLink('Portfolio', portfolio)
-                }
-                if (location) {
-                    insertText(' | ')
-                    insertBoldText('Location: ')
-                    insertText(location)
-                }
-                insertText('\n')
-
-                // Add pitch if available
-                const pitch = pitchMap.get(c.id)
-                if (pitch) {
-                    insertText(pitch + '\n')
-                }
-                insertText('\n')
-            }
+        if (documentId) {
+            // Clear existing content and re-populate
+            await clearDocContent(docsApi, documentId)
+            synced = true
+            console.log(`[Export] Syncing existing doc ${documentId}`)
         } else {
-            insertText('No candidates currently presenting.\n\n')
-        }
-
-        // --- Interviewed + Interested Section ---
-        insertHeading('Interviewed + Interested')
-
-        const interviewed = [...groups.interviewing, ...groups.portfolio]
-        if (interviewed.length > 0) {
-            for (const c of interviewed) {
-                const { linkedin, portfolio } = getCandidateLinks(c)
-                const location = typeof c.location === 'string' ? c.location : ''
-
-                insertText('• ')
-                insertBoldText(c.name)
-                if (linkedin) {
-                    insertText(' | ')
-                    insertLink('LinkedIn', linkedin)
-                }
-                if (portfolio) {
-                    insertText(' | ')
-                    insertLink('Portfolio', portfolio)
-                }
-                if (location) {
-                    insertText(' | ')
-                    insertBoldText('Location: ')
-                    insertText(location)
-                }
-                insertText('\n\n')
-            }
-        } else {
-            insertText('No candidates in this stage.\n\n')
-        }
-
-        // --- Applied / Interested Section ---
-        insertHeading('Applied / Interested')
-
-        if (groups.applied.length > 0) {
-            for (const c of groups.applied) {
-                const { linkedin, portfolio } = getCandidateLinks(c)
-                const location = typeof c.location === 'string' ? c.location : ''
-
-                insertText('• ')
-                insertBoldText(c.name)
-                if (linkedin) {
-                    insertText(' | ')
-                    insertLink('LinkedIn', linkedin)
-                }
-                if (portfolio) {
-                    insertText(' | ')
-                    insertLink('Portfolio', portfolio)
-                }
-                if (location) {
-                    insertText(' | ')
-                    insertBoldText('Location: ')
-                    insertText(location)
-                }
-                insertText('\n\n')
-            }
-        } else {
-            insertText('No candidates in this stage.\n\n')
-        }
-
-        // --- Client Passed Section ---
-        insertHeading('Client Passed')
-
-        if (groups.clientPassed.length > 0) {
-            for (const c of groups.clientPassed) {
-                const { linkedin, portfolio } = getCandidateLinks(c)
-                const location = typeof c.location === 'string' ? c.location : ''
-
-                insertText('• ')
-                insertBoldText(c.name)
-                if (linkedin) {
-                    insertText(' | ')
-                    insertLink('LinkedIn', linkedin)
-                }
-                if (portfolio) {
-                    insertText(' | ')
-                    insertLink('Portfolio', portfolio)
-                }
-                if (location) {
-                    insertText(' | ')
-                    insertBoldText('Location: ')
-                    insertText(location)
-                }
-                const reason = c.archivedReason || ''
-                if (reason) {
-                    insertText(` (${reason})`)
-                }
-                insertText('\n\n')
-            }
-        } else {
-            insertText('No candidates in this stage.\n\n')
-        }
-
-        // --- Withdrew Section ---
-        insertHeading('Withdrew')
-
-        if (groups.withdrew.length > 0) {
-            for (const c of groups.withdrew) {
-                const { linkedin, portfolio } = getCandidateLinks(c)
-                const location = typeof c.location === 'string' ? c.location : ''
-
-                insertText('• ')
-                insertBoldText(c.name)
-                if (linkedin) {
-                    insertText(' | ')
-                    insertLink('LinkedIn', linkedin)
-                }
-                if (portfolio) {
-                    insertText(' | ')
-                    insertLink('Portfolio', portfolio)
-                }
-                if (location) {
-                    insertText(' | ')
-                    insertBoldText('Location: ')
-                    insertText(location)
-                }
-                const reason = c.archivedReason || ''
-                if (reason) {
-                    insertText(` (${reason})`)
-                }
-                insertText('\n\n')
-            }
-        } else {
-            insertText('No candidates in this stage.\n\n')
-        }
-
-        // Apply all formatting
-        await docs.documents.batchUpdate({
-            documentId,
-            requestBody: { requests },
-        })
-
-        // 5. Move to Academy Reports folder
-        let folderId: string | null = null
-        try {
-            // Search for existing folder
-            const folderSearch = await drive.files.list({
-                q: `name = '${FOLDER_NAME}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
-                fields: 'files(id)',
-                spaces: 'drive',
+            // Create new doc
+            const docTitle = `Academy Candidate Presentation — ${projectTitle || 'Report'}`
+            const doc = await docsApi.documents.create({
+                requestBody: { title: docTitle },
             })
+            documentId = doc.data.documentId!
 
-            if (folderSearch.data.files && folderSearch.data.files.length > 0) {
-                folderId = folderSearch.data.files[0].id!
-            } else {
-                // Create the folder
-                const folder = await drive.files.create({
-                    requestBody: {
-                        name: FOLDER_NAME,
-                        mimeType: 'application/vnd.google-apps.folder',
-                    },
-                    fields: 'id',
-                })
-                folderId = folder.data.id!
-            }
-
-            // Move doc into folder
-            const file = await drive.files.get({
-                fileId: documentId,
-                fields: 'parents',
-            })
-            const previousParents = (file.data.parents || []).join(',')
+            // Tag with posting ID for future sync
             await drive.files.update({
                 fileId: documentId,
-                addParents: folderId,
-                removeParents: previousParents,
-                fields: 'id, parents',
+                requestBody: { appProperties: { academyPostingId: postingId } },
             })
-        } catch (folderErr) {
-            console.error('[Export] Failed to move to folder (non-fatal):', folderErr)
+            console.log(`[Export] Created new doc ${documentId}`)
+        }
+
+        // 6. Build and apply content
+        const b = new DocBuilder()
+        buildDocContent(b, projectTitle, groups, pitchMap)
+
+        await docsApi.documents.batchUpdate({
+            documentId,
+            requestBody: { requests: b.requests },
+        })
+
+        // 7. Move to folder (only for new docs)
+        let folderId: string | null = null
+        if (!synced) {
+            try {
+                folderId = await ensureFolder(drive)
+                const file = await drive.files.get({ fileId: documentId, fields: 'parents' })
+                const previousParents = (file.data.parents || []).join(',')
+                await drive.files.update({
+                    fileId: documentId,
+                    addParents: folderId,
+                    removeParents: previousParents,
+                    fields: 'id, parents',
+                })
+            } catch (folderErr) {
+                console.error('[Export] Failed to move to folder (non-fatal):', folderErr)
+            }
+        } else {
+            // Get existing folder ID for the response
+            try {
+                const file = await drive.files.get({ fileId: documentId, fields: 'parents' })
+                folderId = file.data.parents?.[0] || null
+            } catch (_) {}
         }
 
         const docUrl = `https://docs.google.com/document/d/${documentId}/edit`
+        const folderUrl = folderId ? `https://drive.google.com/drive/folders/${folderId}` : null
 
         return NextResponse.json({
             success: true,
+            synced,
             url: docUrl,
+            folderUrl,
             documentId,
             stats: {
                 presenting: groups.presenting.length,

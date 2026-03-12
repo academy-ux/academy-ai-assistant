@@ -16,6 +16,11 @@ const nextConfig = {
         hostname: '*.googleusercontent.com',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'img.logo.dev',
+        pathname: '/**',
+      },
     ],
   },
 }
