@@ -18,20 +18,20 @@ const COLORS = {
     warmGray:   { red: 0.68,  green: 0.69,  blue: 0.65  },  // #ADAFA6
     divider:    { red: 0.82,  green: 0.83,  blue: 0.80  },  // #D1D4CC
     cream:      { red: 0.93,  green: 0.90,  blue: 0.82  },  // #EDE6D2
-    link:       { red: 0.34,  green: 0.34,  blue: 0.34  },  // #575757 — understated links
+    link:       { red: 0.067, green: 0.067, blue: 0.067 },  // #111111 — black links
 }
 
 const FONTS = { heading: 'Helvetica Neue', body: 'Helvetica Neue' }
 
 const PT = {
-    brand: 8,
-    title: 22,
-    subtitle: 8.5,
-    sectionHead: 9,
-    candidateName: 10,
-    bodyText: 8.5,
-    pitchText: 8,
-    metaText: 7.5,
+    brand: 10,
+    title: 24,
+    subtitle: 10,
+    sectionHead: 10,
+    candidateName: 13,
+    bodyText: 10,
+    pitchText: 10,
+    metaText: 10,
 }
 
 // ─── Candidate Grouping ──────────────────────────────────────────
@@ -156,8 +156,8 @@ class DocBuilder {
                     location: { index: this.idx },
                     uri: logoUrl,
                     objectSize: {
-                        height: { magnitude: 18, unit: 'PT' },
-                        width: { magnitude: 18, unit: 'PT' },
+                        height: { magnitude: 27, unit: 'PT' },
+                        width: { magnitude: 118, unit: 'PT' },
                     },
                 }
             })
@@ -195,8 +195,9 @@ class DocBuilder {
                     fontSize: { magnitude: PT.title, unit: 'PT' },
                     weightedFontFamily: { fontFamily: FONTS.heading, weight: 500 },
                     foregroundColor: { color: { rgbColor: COLORS.black } },
+                    underline: false,
                 },
-                fields: 'fontSize,weightedFontFamily,foregroundColor',
+                fields: 'fontSize,weightedFontFamily,foregroundColor,underline',
             }
         })
         this.paragraphStyle(start, {
@@ -217,8 +218,9 @@ class DocBuilder {
                     fontSize: { magnitude: PT.subtitle, unit: 'PT' },
                     weightedFontFamily: { fontFamily: FONTS.body, weight: 400 },
                     foregroundColor: { color: { rgbColor: COLORS.warmGray } },
+                    underline: false,
                 },
-                fields: 'fontSize,weightedFontFamily,foregroundColor',
+                fields: 'fontSize,weightedFontFamily,foregroundColor,underline',
             }
         })
         this.paragraphStyle(start, {
@@ -229,27 +231,29 @@ class DocBuilder {
 
     sectionHeading(content: string) {
         const start = this.idx
-        this.text(content.toUpperCase())
+        const upper = content.toUpperCase()
+        this.text(upper)
         this.newline()
         this.requests.push({
             updateTextStyle: {
-                range: { startIndex: start, endIndex: start + content.length },
+                range: { startIndex: start, endIndex: start + upper.length },
                 textStyle: {
+                    bold: false,
                     fontSize: { magnitude: PT.sectionHead, unit: 'PT' },
-                    weightedFontFamily: { fontFamily: FONTS.heading, weight: 500 },
-                    foregroundColor: { color: { rgbColor: COLORS.sage } },
-                    smallCaps: false,
+                    weightedFontFamily: { fontFamily: 'Fragment Mono', weight: 400 },
+                    foregroundColor: { color: { rgbColor: COLORS.charcoal } },
+                    underline: false,
                 },
-                fields: 'fontSize,weightedFontFamily,foregroundColor,smallCaps',
+                fields: 'bold,fontSize,weightedFontFamily,foregroundColor,underline',
             }
         })
         this.paragraphStyle(start, {
-            spaceAbove: { magnitude: 24, unit: 'PT' },
-            spaceBelow: { magnitude: 4, unit: 'PT' },
+            spaceAbove: { magnitude: 32, unit: 'PT' },
+            spaceBelow: { magnitude: 18, unit: 'PT' },
             borderBottom: {
                 color: { color: { rgbColor: COLORS.divider } },
                 width: { magnitude: 0.5, unit: 'PT' },
-                padding: { magnitude: 6, unit: 'PT' },
+                padding: { magnitude: 4, unit: 'PT' },
                 dashStyle: 'SOLID',
             },
         }, 'spaceAbove,spaceBelow,borderBottom')
@@ -259,8 +263,11 @@ class DocBuilder {
     candidateEntry(c: LeverCandidate, opts?: { pitch?: string }) {
         const { linkedin, portfolio } = getCandidateLinks(c)
         const location = typeof c.location === 'string' ? c.location : ''
+
+        // ── Single line: **Name** | LinkedIn | Portfolio | **Location:** X ──
         const lineStart = this.idx
 
+        // Bold name
         const nameStart = this.idx
         this.text(c.name)
         this.requests.push({
@@ -268,20 +275,21 @@ class DocBuilder {
                 range: { startIndex: nameStart, endIndex: this.idx },
                 textStyle: {
                     bold: true,
-                    fontSize: { magnitude: PT.candidateName, unit: 'PT' },
+                    fontSize: { magnitude: PT.bodyText, unit: 'PT' },
                     weightedFontFamily: { fontFamily: FONTS.body, weight: 700 },
                     foregroundColor: { color: { rgbColor: COLORS.charcoal } },
+                    underline: false,
                 },
-                fields: 'bold,fontSize,weightedFontFamily,foregroundColor',
+                fields: 'bold,fontSize,weightedFontFamily,foregroundColor,underline',
             }
         })
 
         if (linkedin) {
-            this.styledText('  ·  ', {
-                foregroundColor: { color: { rgbColor: COLORS.divider } },
-                fontSize: { magnitude: PT.metaText, unit: 'PT' },
-                weightedFontFamily: { fontFamily: FONTS.body, weight: 400 },
-            }, 'foregroundColor,fontSize,weightedFontFamily')
+            this.styledText(' | ', {
+                foregroundColor: { color: { rgbColor: COLORS.warmGray } },
+                fontSize: { magnitude: PT.bodyText, unit: 'PT' },
+                underline: false,
+            }, 'foregroundColor,fontSize,underline')
             const ls = this.idx
             this.text('LinkedIn')
             this.requests.push({
@@ -290,9 +298,9 @@ class DocBuilder {
                     textStyle: {
                         link: { url: linkedin },
                         foregroundColor: { color: { rgbColor: COLORS.link } },
-                        fontSize: { magnitude: PT.metaText, unit: 'PT' },
-                        weightedFontFamily: { fontFamily: FONTS.body, weight: 500 },
-                        underline: false,
+                        fontSize: { magnitude: PT.bodyText, unit: 'PT' },
+                        weightedFontFamily: { fontFamily: FONTS.body, weight: 400 },
+                        underline: true,
                     },
                     fields: 'link,foregroundColor,fontSize,weightedFontFamily,underline',
                 }
@@ -300,11 +308,11 @@ class DocBuilder {
         }
 
         if (portfolio) {
-            this.styledText('  ·  ', {
-                foregroundColor: { color: { rgbColor: COLORS.divider } },
-                fontSize: { magnitude: PT.metaText, unit: 'PT' },
-                weightedFontFamily: { fontFamily: FONTS.body, weight: 400 },
-            }, 'foregroundColor,fontSize,weightedFontFamily')
+            this.styledText(' | ', {
+                foregroundColor: { color: { rgbColor: COLORS.warmGray } },
+                fontSize: { magnitude: PT.bodyText, unit: 'PT' },
+                underline: false,
+            }, 'foregroundColor,fontSize,underline')
             const ps = this.idx
             this.text('Portfolio')
             this.requests.push({
@@ -313,9 +321,9 @@ class DocBuilder {
                     textStyle: {
                         link: { url: portfolio },
                         foregroundColor: { color: { rgbColor: COLORS.link } },
-                        fontSize: { magnitude: PT.metaText, unit: 'PT' },
-                        weightedFontFamily: { fontFamily: FONTS.body, weight: 500 },
-                        underline: false,
+                        fontSize: { magnitude: PT.bodyText, unit: 'PT' },
+                        weightedFontFamily: { fontFamily: FONTS.body, weight: 400 },
+                        underline: true,
                     },
                     fields: 'link,foregroundColor,fontSize,weightedFontFamily,underline',
                 }
@@ -323,25 +331,64 @@ class DocBuilder {
         }
 
         if (location) {
-            this.styledText('  ·  ', {
-                foregroundColor: { color: { rgbColor: COLORS.divider } },
-                fontSize: { magnitude: PT.metaText, unit: 'PT' },
-                weightedFontFamily: { fontFamily: FONTS.body, weight: 400 },
-            }, 'foregroundColor,fontSize,weightedFontFamily')
+            this.styledText(' | ', {
+                foregroundColor: { color: { rgbColor: COLORS.warmGray } },
+                fontSize: { magnitude: PT.bodyText, unit: 'PT' },
+                underline: false,
+            }, 'foregroundColor,fontSize,underline')
+            // Bold "Location:" label
+            this.styledText('Location: ', {
+                bold: true,
+                foregroundColor: { color: { rgbColor: COLORS.charcoal } },
+                fontSize: { magnitude: PT.bodyText, unit: 'PT' },
+                weightedFontFamily: { fontFamily: FONTS.body, weight: 700 },
+                underline: false,
+            }, 'bold,foregroundColor,fontSize,weightedFontFamily,underline')
             this.styledText(location, {
-                foregroundColor: { color: { rgbColor: COLORS.sage } },
-                fontSize: { magnitude: PT.metaText, unit: 'PT' },
+                foregroundColor: { color: { rgbColor: COLORS.body } },
+                fontSize: { magnitude: PT.bodyText, unit: 'PT' },
                 weightedFontFamily: { fontFamily: FONTS.body, weight: 400 },
-            }, 'foregroundColor,fontSize,weightedFontFamily')
+                underline: false,
+            }, 'foregroundColor,fontSize,weightedFontFamily,underline')
         }
 
         this.newline()
-        this.paragraphStyle(lineStart, {
-            spaceAbove: { magnitude: 10, unit: 'PT' },
-            spaceBelow: { magnitude: opts?.pitch ? 1 : 6, unit: 'PT' },
-        }, 'spaceAbove,spaceBelow')
 
+        // If no pitch, add bottom border to the name line itself
+        if (!opts?.pitch) {
+            this.paragraphStyle(lineStart, {
+                spaceAbove: { magnitude: 4, unit: 'PT' },
+                spaceBelow: { magnitude: 4, unit: 'PT' },
+                borderBottom: {
+                    color: { color: { rgbColor: COLORS.divider } },
+                    width: { magnitude: 0.5, unit: 'PT' },
+                    padding: { magnitude: 4, unit: 'PT' },
+                    dashStyle: 'SOLID',
+                },
+            }, 'spaceAbove,spaceBelow,borderBottom')
+        } else {
+            this.paragraphStyle(lineStart, {
+                spaceAbove: { magnitude: 4, unit: 'PT' },
+                spaceBelow: { magnitude: 4, unit: 'PT' },
+            }, 'spaceAbove,spaceBelow')
+        }
+
+        // ── Pitch paragraph (only for presenting) — with blank line separator ──
         if (opts?.pitch) {
+            // Empty line between name and pitch
+            const blankStart = this.idx
+            this.newline()
+            this.paragraphStyle(blankStart, {
+                spaceAbove: { magnitude: 0, unit: 'PT' },
+                spaceBelow: { magnitude: 0, unit: 'PT' },
+            }, 'spaceAbove,spaceBelow')
+            this.requests.push({
+                updateTextStyle: {
+                    range: { startIndex: blankStart, endIndex: this.idx },
+                    textStyle: { fontSize: { magnitude: 4, unit: 'PT' }, underline: false },
+                    fields: 'fontSize,underline',
+                }
+            })
             const pitchStart = this.idx
             this.text(opts.pitch)
             this.newline()
@@ -351,16 +398,22 @@ class DocBuilder {
                     textStyle: {
                         fontSize: { magnitude: PT.pitchText, unit: 'PT' },
                         weightedFontFamily: { fontFamily: FONTS.body, weight: 400 },
-                        foregroundColor: { color: { rgbColor: COLORS.sage } },
+                        foregroundColor: { color: { rgbColor: COLORS.body } },
+                        underline: false,
                     },
-                    fields: 'fontSize,weightedFontFamily,foregroundColor',
+                    fields: 'fontSize,weightedFontFamily,foregroundColor,underline',
                 }
             })
             this.paragraphStyle(pitchStart, {
-                spaceBelow: { magnitude: 10, unit: 'PT' },
+                spaceBelow: { magnitude: 8, unit: 'PT' },
                 lineSpacing: 130,
-                indentStart: { magnitude: 0, unit: 'PT' },
-            }, 'spaceBelow,lineSpacing,indentStart')
+                borderBottom: {
+                    color: { color: { rgbColor: COLORS.divider } },
+                    width: { magnitude: 0.5, unit: 'PT' },
+                    padding: { magnitude: 6, unit: 'PT' },
+                    dashStyle: 'SOLID',
+                },
+            }, 'spaceBelow,lineSpacing,borderBottom')
         }
 
         return this
@@ -372,6 +425,7 @@ class DocBuilder {
         const reason = c.archivedReason || ''
         const lineStart = this.idx
 
+        // ── Single line: **Name** | LinkedIn | Portfolio | **Location:** X *(reason)* ──
         const nameStart = this.idx
         this.text(c.name)
         this.requests.push({
@@ -380,43 +434,52 @@ class DocBuilder {
                 textStyle: {
                     bold: true,
                     fontSize: { magnitude: PT.bodyText, unit: 'PT' },
-                    weightedFontFamily: { fontFamily: FONTS.body, weight: 600 },
-                    foregroundColor: { color: { rgbColor: COLORS.sage } },
+                    weightedFontFamily: { fontFamily: FONTS.body, weight: 700 },
+                    foregroundColor: { color: { rgbColor: COLORS.charcoal } },
+                    underline: false,
                 },
-                fields: 'bold,fontSize,weightedFontFamily,foregroundColor',
+                fields: 'bold,fontSize,weightedFontFamily,foregroundColor,underline',
             }
         })
 
         if (linkedin) {
-            this.styledText('  ·  ', { foregroundColor: { color: { rgbColor: COLORS.divider } }, fontSize: { magnitude: PT.metaText, unit: 'PT' } }, 'foregroundColor,fontSize')
+            this.styledText(' | ', { foregroundColor: { color: { rgbColor: COLORS.warmGray } }, fontSize: { magnitude: PT.bodyText, unit: 'PT' }, underline: false }, 'foregroundColor,fontSize,underline')
             const ls = this.idx
             this.text('LinkedIn')
-            this.requests.push({ updateTextStyle: { range: { startIndex: ls, endIndex: this.idx }, textStyle: { link: { url: linkedin }, foregroundColor: { color: { rgbColor: COLORS.warmGray } }, fontSize: { magnitude: PT.metaText, unit: 'PT' }, underline: false }, fields: 'link,foregroundColor,fontSize,underline' } })
+            this.requests.push({ updateTextStyle: { range: { startIndex: ls, endIndex: this.idx }, textStyle: { link: { url: linkedin }, foregroundColor: { color: { rgbColor: COLORS.link } }, fontSize: { magnitude: PT.bodyText, unit: 'PT' }, underline: true }, fields: 'link,foregroundColor,fontSize,underline' } })
         }
         if (portfolio) {
-            this.styledText('  ·  ', { foregroundColor: { color: { rgbColor: COLORS.divider } }, fontSize: { magnitude: PT.metaText, unit: 'PT' } }, 'foregroundColor,fontSize')
+            this.styledText(' | ', { foregroundColor: { color: { rgbColor: COLORS.warmGray } }, fontSize: { magnitude: PT.bodyText, unit: 'PT' }, underline: false }, 'foregroundColor,fontSize,underline')
             const ps = this.idx
             this.text('Portfolio')
-            this.requests.push({ updateTextStyle: { range: { startIndex: ps, endIndex: this.idx }, textStyle: { link: { url: portfolio }, foregroundColor: { color: { rgbColor: COLORS.warmGray } }, fontSize: { magnitude: PT.metaText, unit: 'PT' }, underline: false }, fields: 'link,foregroundColor,fontSize,underline' } })
+            this.requests.push({ updateTextStyle: { range: { startIndex: ps, endIndex: this.idx }, textStyle: { link: { url: portfolio }, foregroundColor: { color: { rgbColor: COLORS.link } }, fontSize: { magnitude: PT.bodyText, unit: 'PT' }, underline: true }, fields: 'link,foregroundColor,fontSize,underline' } })
         }
         if (location) {
-            this.styledText('  ·  ', { foregroundColor: { color: { rgbColor: COLORS.divider } }, fontSize: { magnitude: PT.metaText, unit: 'PT' } }, 'foregroundColor,fontSize')
-            this.styledText(location, { foregroundColor: { color: { rgbColor: COLORS.warmGray } }, fontSize: { magnitude: PT.metaText, unit: 'PT' } }, 'foregroundColor,fontSize')
+            this.styledText(' | ', { foregroundColor: { color: { rgbColor: COLORS.warmGray } }, fontSize: { magnitude: PT.bodyText, unit: 'PT' }, underline: false }, 'foregroundColor,fontSize,underline')
+            this.styledText('Location: ', { bold: true, foregroundColor: { color: { rgbColor: COLORS.charcoal } }, fontSize: { magnitude: PT.bodyText, unit: 'PT' }, weightedFontFamily: { fontFamily: FONTS.body, weight: 700 }, underline: false }, 'bold,foregroundColor,fontSize,weightedFontFamily,underline')
+            this.styledText(location, { foregroundColor: { color: { rgbColor: COLORS.body } }, fontSize: { magnitude: PT.bodyText, unit: 'PT' }, underline: false }, 'foregroundColor,fontSize,underline')
         }
         if (reason) {
-            this.styledText(`  (${reason})`, {
+            this.styledText(` (${reason})`, {
                 foregroundColor: { color: { rgbColor: COLORS.warmGray } },
-                fontSize: { magnitude: PT.metaText, unit: 'PT' },
+                fontSize: { magnitude: PT.bodyText, unit: 'PT' },
                 italic: true,
                 weightedFontFamily: { fontFamily: FONTS.body, weight: 400 },
-            }, 'foregroundColor,fontSize,italic,weightedFontFamily')
+                underline: false,
+            }, 'foregroundColor,fontSize,italic,weightedFontFamily,underline')
         }
 
         this.newline()
         this.paragraphStyle(lineStart, {
             spaceAbove: { magnitude: 4, unit: 'PT' },
             spaceBelow: { magnitude: 4, unit: 'PT' },
-        }, 'spaceAbove,spaceBelow')
+            borderBottom: {
+                color: { color: { rgbColor: COLORS.divider } },
+                width: { magnitude: 0.5, unit: 'PT' },
+                padding: { magnitude: 4, unit: 'PT' },
+                dashStyle: 'SOLID',
+            },
+        }, 'spaceAbove,spaceBelow,borderBottom')
         return this
     }
 
@@ -432,8 +495,9 @@ class DocBuilder {
                     fontSize: { magnitude: PT.bodyText, unit: 'PT' },
                     foregroundColor: { color: { rgbColor: COLORS.warmGray } },
                     weightedFontFamily: { fontFamily: FONTS.body, weight: 400 },
+                    underline: false,
                 },
-                fields: 'italic,fontSize,foregroundColor,weightedFontFamily',
+                fields: 'italic,fontSize,foregroundColor,weightedFontFamily,underline',
             }
         })
         this.paragraphStyle(start, {
@@ -518,14 +582,15 @@ async function ensureFolder(drive: any): Promise<string> {
     return folder.data.id
 }
 
+const LOGO_URL = 'https://academy-ai-assistant.vercel.app/academy-logo-horizontal-3-1024x235.png'
+
 function buildDocContent(b: DocBuilder, projectTitle: string, groups: CandidateGroups, pitchMap: Map<string, string>) {
     const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
 
     b.documentMargins()
-    b.brandHeader()
+    b.brandHeader(LOGO_URL)
     b.title(projectTitle || 'Candidate Presentation')
-    b.subtitle(`Updated ${today}`)
-    b.hr()
+    b.subtitle(`Updated: ${today}`)
 
     const sections: { heading: string; candidates: LeverCandidate[]; type: 'presenting' | 'standard' | 'archived' }[] = [
         { heading: 'Presenting', candidates: groups.presenting, type: 'presenting' },
@@ -535,7 +600,8 @@ function buildDocContent(b: DocBuilder, projectTitle: string, groups: CandidateG
         { heading: 'Withdrew', candidates: groups.withdrew, type: 'archived' },
     ]
 
-    for (const section of sections) {
+    for (let i = 0; i < sections.length; i++) {
+        const section = sections[i]
         b.sectionHeading(section.heading)
         if (section.candidates.length === 0) {
             b.emptyState('No candidates in this stage.')

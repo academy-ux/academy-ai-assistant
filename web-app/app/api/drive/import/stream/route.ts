@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
               })}\n\n`)
             )
 
-            // Check if already imported (by Drive file ID first, then by file name)
+            // Check if already imported (by Drive file ID, file name, or extension upload match)
             let existing = null
 
             // First check by Drive file ID (most reliable)
@@ -145,6 +145,66 @@ export async function POST(req: NextRequest) {
                 .eq('transcript_file_name', file.name)
                 .maybeSingle()
               existing = existingByName
+            }
+
+            // If still not found, check for Chrome extension uploads (drive_file_id starts with "meet-")
+            // that match on the same date and owner — prevents duplicates across ingestion pathways
+            if (!existing && file.createdTime && token.email) {
+              const fileDate = new Date(file.createdTime)
+              const startOfDay = new Date(fileDate)
+              startOfDay.setHours(0, 0, 0, 0)
+              const endOfDay = new Date(fileDate)
+              endOfDay.setHours(23, 59, 59, 999)
+
+              const { data: existingByDateOwner } = await supabase
+                .from('interviews')
+                .select('id')
+                .eq('owner_email', token.email)
+                .like('drive_file_id', 'meet-%')
+                .gte('meeting_date', startOfDay.toISOString())
+                .lte('meeting_date', endOfDay.toISOString())
+
+              // If there are matches, download the transcript and compare content similarity
+              if (existingByDateOwner && existingByDateOwner.length > 0) {
+                // Download the Drive file text to compare
+                try {
+                  const previewRes = await drive.files.export({
+                    fileId: file.id!,
+                    mimeType: 'text/plain',
+                  })
+                  const previewText = (previewRes.data as string)?.substring(0, 500) || ''
+
+                  for (const candidate of existingByDateOwner) {
+                    const { data: candidateRecord } = await supabase
+                      .from('interviews')
+                      .select('id, transcript')
+                      .eq('id', candidate.id)
+                      .single()
+
+                    if (candidateRecord?.transcript) {
+                      const existingSnippet = candidateRecord.transcript.substring(0, 500)
+                      // Compare first 500 chars — same transcript will have high overlap
+                      const overlap = previewText.split(/\s+/).filter((word: string) =>
+                        existingSnippet.includes(word)
+                      ).length
+                      const totalWords = previewText.split(/\s+/).length
+                      if (totalWords > 0 && overlap / totalWords > 0.6) {
+                        existing = { id: candidateRecord.id }
+                        // Update the existing record with the real Drive file ID for future dedup
+                        await supabase
+                          .from('interviews')
+                          .update({ drive_file_id: file.id })
+                          .eq('id', candidateRecord.id)
+                        console.log(`[Import] Linked extension upload ${candidateRecord.id} to Drive file ${file.id}`)
+                        break
+                      }
+                    }
+                  }
+                } catch (previewError) {
+                  // If we can't preview, skip this check rather than blocking import
+                  console.error('[Import] Preview comparison failed:', previewError)
+                }
+              }
             }
 
             if (existing) {
