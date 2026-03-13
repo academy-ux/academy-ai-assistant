@@ -27,7 +27,7 @@ export async function POST(
         const { stageId } = result.data
 
         const response = await fetch(`https://api.lever.co/v1/opportunities/${opportunityId}/stage`, {
-            method: 'POST',
+            method: 'PUT',
             headers: {
                 'Authorization': `Basic ${Buffer.from(leverKey + ':').toString('base64')}`,
                 'Content-Type': 'application/json',
