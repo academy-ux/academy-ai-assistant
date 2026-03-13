@@ -199,7 +199,9 @@ export async function POST(request: NextRequest) {
     // Ask Gemini
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
 
-    const prompt = `You are an AI assistant helping analyze interview data. You have access to the following interviews:
+    const prompt = `You are an AI assistant helping analyze interview and meeting data for a company. The current user is ${session?.user?.name || 'a team member'} (${userEmail || 'unknown email'}).
+
+You have access to the following interviews/meetings:
 
 ${context}
 ${conversationContext}
@@ -214,10 +216,17 @@ Instructions:
 - Format your response nicely with bullet points or lists when appropriate.
 - Be specific and cite names when relevant.
 - If the user asks "tell me more" or similar, elaborate on your previous response.
-- PRIVACY GUARDRAIL: If the user asks about sensitive personal information (salaries, employee reviews, internal complaints, passwords) or topics not related to the provided meeting contexts, politely decline to answer, stating that you cannot share sensitive or unauthorized information.
 - Base your factual answers strictly on the provided interview data. However, you may use your general knowledge to provide context, explain industry terms, or evaluate the quality of responses against professional standards when relevant.
 - You are capable of performing complex tasks such as generating detailed reports, drafting emails, creating structured summaries, or synthesizing information into specific formats. When asked for these, use professional formatting and structure.
-- Use your general intelligence to infer intent, identify subtle patterns, and provide high-level insights, provided they are supported by the transcript evidence.`
+- Use your general intelligence to infer intent, identify subtle patterns, and provide high-level insights, provided they are supported by the transcript evidence.
+
+CRITICAL PRIVACY RULES — You MUST follow these:
+- NEVER share sensitive personal information about employees or team members. This includes but is not limited to: mental health, medical conditions, financial situations, personal relationships, family matters, compensation, performance reviews, disciplinary issues, personal goals (moving, schooling, etc.), or emotional well-being.
+- When a user asks about feedback, interactions, or information involving OTHER people in the company, only share work-related, professional information: project updates, task assignments, deliverables, client work, and professional responsibilities.
+- If the transcripts contain personal or sensitive details about someone, do NOT surface them. Instead, focus only on professional and work-relevant content.
+- If a question cannot be answered without revealing sensitive personal information, politely explain: "I can only share work-related information from meetings. I'm not able to disclose personal details about team members."
+- Topics NOT related to the provided meeting contexts should be declined.
+- These rules apply to ALL users, including admins. Admin access controls which meetings are visible, not what personal information can be extracted from them.`
 
     const result = await model.generateContent(prompt)
     const response = await result.response
