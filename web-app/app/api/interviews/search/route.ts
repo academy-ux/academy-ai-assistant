@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       let keywordQuery = supabase
         .from('interviews')
         .select('*, similarity:1') // Add dummy similarity for consistent interface
-        .or(`candidate_name.ilike.${searchPattern},position.ilike.${searchPattern},meeting_title.ilike.${searchPattern},transcript.ilike.${searchPattern}`)
+        .or(`candidate_name.ilike.${searchPattern},position.ilike.${searchPattern},meeting_title.ilike.${searchPattern},summary.ilike.${searchPattern},transcript.ilike.${searchPattern}`)
         .limit(limit * 2)
 
       const { data: kwResults, error: kwError } = await keywordQuery

@@ -258,12 +258,10 @@ export function CandidateTable({ candidates, onSelect, selectedId, stages, onRef
                                     </a>
                                 )}
                             </div>
-                            {!readOnly && (
-                                <ChevronRight className={cn(
-                                    "h-4 w-4 transition-[color,transform] duration-300 ease-smooth",
-                                    isSelected ? "text-primary" : "text-muted-foreground/15 group-hover:text-muted-foreground/40 group-hover:translate-x-0.5"
-                                )} />
-                            )}
+                            <ChevronRight className={cn(
+                                "h-4 w-4 transition-[color,transform] duration-300 ease-smooth",
+                                isSelected ? "text-primary" : "text-muted-foreground/15 group-hover:text-muted-foreground/40 group-hover:translate-x-0.5"
+                            )} />
                         </div>
                     </div>
                 )

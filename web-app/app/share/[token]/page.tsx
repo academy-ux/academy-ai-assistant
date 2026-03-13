@@ -4,11 +4,16 @@ import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import { Candidate } from '@/components/candidate/CandidateCard'
 import { CandidateTable } from '@/components/candidate/CandidateTable'
+import { SharedCandidateDetails } from '@/components/candidate/SharedCandidateDetails'
 import { ReportTabs } from '@/components/candidate/ReportTabs'
 import { Search, X, Users, AlertCircle } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence } from 'motion/react'
+import {
+    Sheet,
+    SheetContent,
+} from "@/components/ui/sheet"
 
 export default function SharedReportPage() {
     const params = useParams()
@@ -22,6 +27,7 @@ export default function SharedReportPage() {
     const [activeTab, setActiveTab] = useState("presenting")
     const [searchQuery, setSearchQuery] = useState("")
     const [searchFocused, setSearchFocused] = useState(false)
+    const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null)
 
     const fetchData = useCallback(async () => {
         if (!token) return
@@ -162,6 +168,7 @@ export default function SharedReportPage() {
     ]
 
     const currentCandidates = filteredAndGrouped[activeTab as keyof typeof filteredAndGrouped] || []
+    const selectedCandidate = candidates.find(c => c.id === selectedCandidateId)
 
     return (
         <div className="min-h-screen bg-background">
@@ -231,13 +238,30 @@ export default function SharedReportPage() {
                     >
                         <CandidateTable
                             candidates={currentCandidates}
-                            onSelect={() => {}}
+                            onSelect={(c) => setSelectedCandidateId(c.id)}
+                            selectedId={selectedCandidateId || undefined}
                             stages={stages}
                             readOnly={true}
                         />
                     </motion.div>
                 </AnimatePresence>
             </main>
+
+            {/* Detail Sheet */}
+            <Sheet open={!!selectedCandidateId} onOpenChange={(open) => !open && setSelectedCandidateId(null)}>
+                <SheetContent className="w-full sm:max-w-lg lg:max-w-xl overflow-y-auto border-l border-border/20 bg-background p-0">
+                    <div className="h-full flex flex-col">
+                        <div className="px-8 pt-8 pb-4 border-b border-border/10">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Candidate Profile</span>
+                        </div>
+                        <div className="px-8 py-6 flex-1 overflow-y-auto">
+                            {selectedCandidate && (
+                                <SharedCandidateDetails candidate={selectedCandidate} />
+                            )}
+                        </div>
+                    </div>
+                </SheetContent>
+            </Sheet>
         </div>
     )
 }
