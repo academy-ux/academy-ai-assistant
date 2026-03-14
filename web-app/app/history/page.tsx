@@ -366,7 +366,7 @@ function HistoryContent() {
         const res = await fetch('/api/interviews/search', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query: searchQuery, searchType: 'hybrid' })
+          body: JSON.stringify({ query: searchQuery })
         })
         const data = await res.json()
         if (data.results) {
@@ -709,7 +709,7 @@ function HistoryContent() {
       const res = await fetch('/api/interviews/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: searchQuery, searchType: 'hybrid' })
+        body: JSON.stringify({ query: searchQuery })
       })
       const data = await res.json()
       if (data.results) {
