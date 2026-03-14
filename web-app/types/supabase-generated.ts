@@ -293,6 +293,26 @@ export type Database = {
           transcript: string
         }[]
       }
+      search_interviews: {
+        Args: {
+          search_query: string
+          match_limit?: number
+        }
+        Returns: {
+          id: string
+          created_at: string
+          meeting_title: string
+          meeting_date: string
+          candidate_name: string
+          position: string
+          transcript: string
+          summary: string
+          rating: string
+          meeting_type: string
+          owner_email: string
+          rank: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
