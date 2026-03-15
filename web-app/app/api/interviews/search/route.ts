@@ -6,14 +6,19 @@ import { authOptions, isAdmin } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { searchQuerySchema, validateBody, errorResponse } from '@/lib/validation'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { checkForAbuse } from '@/lib/abuse-detection'
 
 // Allowed meeting types for non-admins
 const ALLOWED_TYPES = ['Status Update', 'Client Call', 'Interview']
 
 export async function POST(request: NextRequest) {
   try {
-    // Rate limit search endpoints
-    const { success, response: rateLimitResponse } = await checkRateLimit(request, 'search')
+    const session = await getServerSession(authOptions)
+    const userEmail = session?.user?.email
+    const isUserAdmin = isAdmin(userEmail)
+
+    // Rate limit search endpoints — user-level
+    const { success, response: rateLimitResponse } = await checkRateLimit(request, 'search', userEmail || undefined)
     if (!success && rateLimitResponse) return rateLimitResponse
 
     const { data: body, error: validationError } = await validateBody(request, searchQuerySchema)
@@ -21,10 +26,19 @@ export async function POST(request: NextRequest) {
 
     const { query, limit } = body
 
-    // Check user permissions
-    const session = await getServerSession(authOptions)
-    const isUserAdmin = isAdmin(session?.user?.email)
-    const userEmail = session?.user?.email
+    // Abuse detection
+    if (userEmail) {
+      const abuse = await checkForAbuse({
+        userEmail,
+        userName: session?.user?.name || undefined,
+        endpoint: '/api/interviews/search',
+        query,
+        isAdmin: isUserAdmin,
+      })
+      if (abuse.blocked) {
+        return NextResponse.json({ error: abuse.reason }, { status: 403 })
+      }
+    }
 
     // Use PostgreSQL full-text search via RPC
     const { data: results, error: searchError } = await supabase

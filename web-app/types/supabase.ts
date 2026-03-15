@@ -9,6 +9,39 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
+      abuse_logs: {
+        Row: {
+          id: string
+          user_email: string
+          user_name: string | null
+          event_type: string
+          severity: string
+          endpoint: string
+          details: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_email: string
+          user_name?: string | null
+          event_type: string
+          severity?: string
+          endpoint: string
+          details?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_email?: string
+          user_name?: string | null
+          event_type?: string
+          severity?: string
+          endpoint?: string
+          details?: Json | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       ai_conversations: {
         Row: {
           id: string
@@ -203,6 +236,9 @@ export interface Database {
           last_poll_time: string | null
           last_poll_file_count: number
           encrypted_refresh_token: string | null
+          is_restricted: boolean
+          restricted_at: string | null
+          restricted_reason: string | null
           created_at: string
           updated_at: string
         }
@@ -215,6 +251,9 @@ export interface Database {
           last_poll_time?: string | null
           last_poll_file_count?: number
           encrypted_refresh_token?: string | null
+          is_restricted?: boolean
+          restricted_at?: string | null
+          restricted_reason?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -227,6 +266,9 @@ export interface Database {
           last_poll_time?: string | null
           last_poll_file_count?: number
           encrypted_refresh_token?: string | null
+          is_restricted?: boolean
+          restricted_at?: string | null
+          restricted_reason?: string | null
           created_at?: string
           updated_at?: string
         }

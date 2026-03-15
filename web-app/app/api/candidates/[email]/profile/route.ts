@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions, isAdmin } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { errorResponse } from '@/lib/validation'
+import { checkForAbuse } from '@/lib/abuse-detection'
 
 export async function GET(
     request: NextRequest,
@@ -11,6 +14,21 @@ export async function GET(
 
         if (!email) {
             return NextResponse.json({ profile: null })
+        }
+
+        // Abuse detection — track candidate profile access patterns
+        const session = await getServerSession(authOptions)
+        const userEmail = session?.user?.email
+        if (userEmail) {
+            const abuse = await checkForAbuse({
+                userEmail,
+                userName: session?.user?.name || undefined,
+                endpoint: `/api/candidates/${email}/profile`,
+                isAdmin: isAdmin(userEmail),
+            })
+            if (abuse.blocked) {
+                return NextResponse.json({ error: abuse.reason }, { status: 403 })
+            }
         }
 
         const { data, error } = await supabase

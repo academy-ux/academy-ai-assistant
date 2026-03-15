@@ -13,16 +13,19 @@ const inMemoryStore = new Map<string, { count: number; resetTime: number }>()
 export const RATE_LIMITS = {
   // Standard API calls
   standard: { requests: 60, window: 60 }, // 60 requests per minute
-  
+
   // AI-powered endpoints (expensive operations)
   ai: { requests: 10, window: 60 }, // 10 requests per minute
-  
+
+  // AI daily cap for non-admins
+  ai_daily: { requests: 100, window: 86400 }, // 100 AI queries per day
+
   // Search endpoints
   search: { requests: 30, window: 60 }, // 30 requests per minute
-  
+
   // File uploads
   upload: { requests: 5, window: 60 }, // 5 uploads per minute
-  
+
   // Import operations (very expensive)
   import: { requests: 3, window: 300 }, // 3 imports per 5 minutes
 }
@@ -105,14 +108,16 @@ function inMemoryRateLimit(
 
 export async function checkRateLimit(
   request: NextRequest,
-  type: RateLimitType = 'standard'
+  type: RateLimitType = 'standard',
+  userEmail?: string
 ): Promise<{ success: boolean; response?: NextResponse }> {
   const config = RATE_LIMITS[type]
-  
-  // Get identifier (IP address or user email from token)
+
+  // Prefer user email for identification (tracks the actual person, not just IP)
+  // Falls back to IP for unauthenticated requests
   const forwarded = request.headers.get('x-forwarded-for')
   const ip = forwarded?.split(',')[0]?.trim() || 'anonymous'
-  const identifier = `${type}:${ip}`
+  const identifier = userEmail ? `${type}:user:${userEmail}` : `${type}:${ip}`
   
   // Try Upstash first (production)
   const upstash = getUpstashRatelimiter()

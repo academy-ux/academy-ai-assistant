@@ -5,6 +5,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions, isAdmin } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { paginationSchema, validateSearchParams, errorResponse } from '@/lib/validation'
+import { checkForAbuse } from '@/lib/abuse-detection'
 
 // Allowed meeting types for non-admins when viewing others' meetings
 const ALLOWED_TYPES = ['Status Update', 'Client Call', 'Interview']
@@ -25,6 +26,19 @@ export async function GET(request: NextRequest) {
     const view = request.nextUrl.searchParams.get('view') || 'mine'
     const isUserAdmin = isAdmin(session?.user?.email)
     const userEmail = session?.user?.email
+
+    // Abuse detection — track pagination patterns
+    if (userEmail) {
+      const abuse = await checkForAbuse({
+        userEmail,
+        userName: session?.user?.name || undefined,
+        endpoint: '/api/interviews',
+        isAdmin: isUserAdmin,
+      })
+      if (abuse.blocked) {
+        return NextResponse.json({ error: abuse.reason }, { status: 403 })
+      }
+    }
 
     console.log(`[Interviews API] view=${view}, isAdmin=${isUserAdmin}, email=${userEmail}`)
 

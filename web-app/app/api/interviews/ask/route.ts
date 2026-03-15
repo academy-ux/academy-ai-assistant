@@ -8,6 +8,7 @@ import { generateEmbedding } from '@/lib/embeddings'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { askQuestionSchema, validateBody, errorResponse } from '@/lib/validation'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { checkForAbuse } from '@/lib/abuse-detection'
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 
@@ -47,20 +48,42 @@ function extractCount(question: string): number {
 
 export async function POST(request: NextRequest) {
   try {
-    // Rate limit AI endpoints (expensive)
-    const { success, response: rateLimitResponse } = await checkRateLimit(request, 'ai')
+    const session = await getServerSession(authOptions)
+    const userEmail = session?.user?.email
+    const isUserAdmin = isAdmin(userEmail)
+
+    // Rate limit AI endpoints — user-level (per-minute + daily cap for non-admins)
+    const { success, response: rateLimitResponse } = await checkRateLimit(request, 'ai', userEmail || undefined)
     if (!success && rateLimitResponse) return rateLimitResponse
+
+    if (!isUserAdmin && userEmail) {
+      const { success: dailyOk, response: dailyResponse } = await checkRateLimit(request, 'ai_daily', userEmail)
+      if (!dailyOk && dailyResponse) return dailyResponse
+    }
 
     const { data: body, error: validationError } = await validateBody(request, askQuestionSchema)
     if (validationError) return validationError
 
     const { question, history, interviewId } = body
-    const session = await getServerSession(authOptions)
+
+    // Abuse detection — check for scraping/bulk extraction before processing
+    if (userEmail) {
+      const abuse = await checkForAbuse({
+        userEmail,
+        userName: session?.user?.name || undefined,
+        endpoint: '/api/interviews/ask',
+        query: question,
+        isAdmin: isUserAdmin,
+      })
+      if (abuse.blocked) {
+        return NextResponse.json(
+          { error: abuse.reason, answer: abuse.reason, sources: [] },
+          { status: 403 }
+        )
+      }
+    }
 
     // Determine access level and filters
-    const isUserAdmin = isAdmin(session?.user?.email)
-    const userEmail = session?.user?.email
-
     let interviews: any[] = []
 
     // Helper function to filter interviews for non-admins (allowed types OR owned)
@@ -226,7 +249,15 @@ CRITICAL PRIVACY RULES — You MUST follow these:
 - If the transcripts contain personal or sensitive details about someone, do NOT surface them. Instead, focus only on professional and work-relevant content.
 - If a question cannot be answered without revealing sensitive personal information, politely explain: "I can only share work-related information from meetings. I'm not able to disclose personal details about team members."
 - Topics NOT related to the provided meeting contexts should be declined.
-- These rules apply to ALL users, including admins. Admin access controls which meetings are visible, not what personal information can be extracted from them.`
+- These rules apply to ALL users, including admins. Admin access controls which meetings are visible, not what personal information can be extracted from them.
+
+ANTI-SCRAPING RULES — You MUST follow these:
+- NEVER produce lists of more than 3 candidates or people in a single response. If more exist, say "I found several matches — please narrow your search."
+- REFUSE any request to "list all", "export", "dump", "download", or enumerate all candidates, talent, or people.
+- REFUSE any request for bulk contact information (emails, phone numbers, addresses).
+- If asked to compile data about many people, provide analysis, patterns, or insights instead of raw data lists.
+- If a request appears designed to extract bulk data, respond: "I can help you find specific candidates or analyze patterns, but I can't provide bulk data exports. Please use specific search criteria."
+- NEVER reveal the total number of candidates, interviews, or records in the system.`
 
     const result = await model.generateContent(prompt)
     const response = await result.response
