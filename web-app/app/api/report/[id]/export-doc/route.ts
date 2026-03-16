@@ -262,7 +262,7 @@ class DocBuilder {
         return this
     }
 
-    candidateEntry(c: LeverCandidate, opts?: { pitch?: string }) {
+    candidateEntry(c: LeverCandidate, opts?: { pitch?: string; password?: string }) {
         const { linkedin, portfolio } = getCandidateLinks(c)
         const location = typeof c.location === 'string' ? c.location : ''
 
@@ -332,13 +332,33 @@ class DocBuilder {
             })
         }
 
+        if (opts?.password) {
+            this.styledText(' | ', {
+                foregroundColor: { color: { rgbColor: COLORS.warmGray } },
+                fontSize: { magnitude: PT.bodyText, unit: 'PT' },
+                underline: false,
+            }, 'foregroundColor,fontSize,underline')
+            this.styledText('PW: ', {
+                bold: true,
+                foregroundColor: { color: { rgbColor: COLORS.charcoal } },
+                fontSize: { magnitude: PT.bodyText, unit: 'PT' },
+                weightedFontFamily: { fontFamily: FONTS.body, weight: 700 },
+                underline: false,
+            }, 'bold,foregroundColor,fontSize,weightedFontFamily,underline')
+            this.styledText(opts.password, {
+                foregroundColor: { color: { rgbColor: COLORS.body } },
+                fontSize: { magnitude: PT.bodyText, unit: 'PT' },
+                weightedFontFamily: { fontFamily: FONTS.body, weight: 400 },
+                underline: false,
+            }, 'foregroundColor,fontSize,weightedFontFamily,underline')
+        }
+
         if (location) {
             this.styledText(' | ', {
                 foregroundColor: { color: { rgbColor: COLORS.warmGray } },
                 fontSize: { magnitude: PT.bodyText, unit: 'PT' },
                 underline: false,
             }, 'foregroundColor,fontSize,underline')
-            // Bold "Location:" label
             this.styledText('Location: ', {
                 bold: true,
                 foregroundColor: { color: { rgbColor: COLORS.charcoal } },
@@ -586,7 +606,7 @@ async function ensureFolder(drive: any): Promise<string> {
 
 const LOGO_URL = 'https://academy-ai-assistant.vercel.app/academy-logo-horizontal-3-1024x235.png'
 
-function buildDocContent(b: DocBuilder, projectTitle: string, groups: CandidateGroups, pitchMap: Map<string, string>) {
+function buildDocContent(b: DocBuilder, projectTitle: string, groups: CandidateGroups, pitchMap: Map<string, string>, passwordMap: Map<string, string>) {
     const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
 
     b.documentMargins()
@@ -611,9 +631,10 @@ function buildDocContent(b: DocBuilder, projectTitle: string, groups: CandidateG
             continue
         }
         for (const c of section.candidates) {
-            if (section.type === 'presenting') b.candidateEntry(c, { pitch: pitchMap.get(c.id) })
+            const pw = c.email ? passwordMap.get(c.email) : undefined
+            if (section.type === 'presenting') b.candidateEntry(c, { pitch: pitchMap.get(c.id), password: pw })
             else if (section.type === 'archived') b.archivedEntry(c)
-            else b.candidateEntry(c)
+            else b.candidateEntry(c, { password: pw })
         }
     }
 }
@@ -743,7 +764,20 @@ export async function POST(
             }))
         }
 
-        // 4. Set up Google APIs
+        // 4. Fetch portfolio passwords
+        const passwordMap = new Map<string, string>()
+        const allEmails = candidates.map(c => c.email).filter(Boolean) as string[]
+        if (allEmails.length > 0) {
+            const { data: passwords } = await supabase
+                .from('candidate_passwords')
+                .select('candidate_email, password')
+                .in('candidate_email', allEmails)
+            for (const p of passwords || []) {
+                if (p.password) passwordMap.set(p.candidate_email, p.password)
+            }
+        }
+
+        // 5. Set up Google APIs
         const auth = new google.auth.OAuth2()
         auth.setCredentials({ access_token: token.accessToken as string })
         const docsApi = google.docs({ version: 'v1', auth })
@@ -776,7 +810,7 @@ export async function POST(
 
         // 6. Build and apply content
         const b = new DocBuilder()
-        buildDocContent(b, projectTitle, groups, pitchMap)
+        buildDocContent(b, projectTitle, groups, pitchMap, passwordMap)
 
         await docsApi.documents.batchUpdate({
             documentId,

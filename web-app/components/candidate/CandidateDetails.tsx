@@ -467,38 +467,20 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                     ))}
                 </div>
 
-                {expSummary ? (
-                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/10">
-                        <p className="text-[11px] text-muted-foreground/50 leading-relaxed">{expSummary}</p>
-                        {isEditingMetadata ? (
-                            <button onClick={() => { handleSaveProfile(); setIsEditingMetadata(false) }} disabled={savingProfile}
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-wider hover:bg-primary/90 transition-colors duration-200 shrink-0">
-                                {savingProfile ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                                Save
-                            </button>
-                        ) : (
-                            <button onClick={() => setIsEditingMetadata(true)}
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-muted-foreground/40 hover:text-foreground hover:bg-muted/30 transition-colors duration-200 text-[10px] font-bold uppercase tracking-wider shrink-0">
-                                <Pencil className="w-2.5 h-2.5" /> Edit
-                            </button>
-                        )}
-                    </div>
-                ) : (
-                    <div className="flex justify-end mt-3">
-                        {isEditingMetadata ? (
-                            <button onClick={() => { handleSaveProfile(); setIsEditingMetadata(false) }} disabled={savingProfile}
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-wider hover:bg-primary/90 transition-colors duration-200">
-                                {savingProfile ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                                Save
-                            </button>
-                        ) : (
-                            <button onClick={() => setIsEditingMetadata(true)}
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-muted-foreground/40 hover:text-foreground hover:bg-muted/30 transition-colors duration-200 text-[10px] font-bold uppercase tracking-wider">
-                                <Pencil className="w-2.5 h-2.5" /> Edit
-                            </button>
-                        )}
-                    </div>
-                )}
+                <div className="flex justify-end mt-3">
+                    {isEditingMetadata ? (
+                        <button onClick={() => { handleSaveProfile(); setIsEditingMetadata(false) }} disabled={savingProfile}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-wider hover:bg-primary/90 transition-colors duration-200">
+                            {savingProfile ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                            Save
+                        </button>
+                    ) : (
+                        <button onClick={() => setIsEditingMetadata(true)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-muted-foreground/40 hover:text-foreground hover:bg-muted/30 transition-colors duration-200 text-[10px] font-bold uppercase tracking-wider">
+                            <Pencil className="w-2.5 h-2.5" /> Edit
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* The Pitch */}

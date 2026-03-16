@@ -33,24 +33,19 @@ export async function GET(
                 .single()
 
             if (cached?.years_of_experience) {
-                // Check if cache is fresh (< 7 days)
-                const updatedAt = new Date(cached.updated_at || 0)
-                const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-                if (updatedAt > sevenDaysAgo) {
-                    try {
-                        const parsed = JSON.parse(cached.years_of_experience)
-                        if (parsed.relevantYears !== undefined) {
-                            return NextResponse.json({
-                                years: `${parsed.relevantYears}`,
-                                totalYears: parsed.totalYears,
-                                relevantYears: parsed.relevantYears,
-                                summary: parsed.summary,
-                                cached: true
-                            })
-                        }
-                    } catch {
-                        // Not JSON — old format, re-analyze
+                try {
+                    const parsed = JSON.parse(cached.years_of_experience)
+                    if (parsed.relevantYears !== undefined) {
+                        return NextResponse.json({
+                            years: `${parsed.relevantYears}`,
+                            totalYears: parsed.totalYears,
+                            relevantYears: parsed.relevantYears,
+                            summary: parsed.summary,
+                            cached: true
+                        })
                     }
+                } catch {
+                    // Not JSON — old format, re-analyze
                 }
             }
         }
