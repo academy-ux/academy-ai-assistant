@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react"
 import { Candidate } from "./CandidateCard"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { MapPin, Mail, Loader2, Plus, Globe, Lock, Save, Pencil, Linkedin, Sparkles, Briefcase, ExternalLink } from "lucide-react"
+import { Mail, Loader2, Plus, Globe, Lock, Save, Pencil, Sparkles, Briefcase, ExternalLink } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
     Select,
@@ -84,8 +84,30 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
         if (typeof link === 'string') return { url: link, type: 'Link' }
         return link
     }) || []
-    const linkedIn = normalizedLinks.find(l => l.url.includes('linkedin.com'))
-    const portfolio = normalizedLinks.find(l => !l.url.includes('linkedin.com'))
+
+    function getLinkInfo(url: string): { label: string; icon: React.ReactNode } {
+        try {
+            const hostname = new URL(url).hostname.replace('www.', '')
+            const faviconUrl = `https://www.google.com/s2/favicons?sz=32&domain=${hostname}`
+            const favicon = <img src={faviconUrl} alt="" className="w-3.5 h-3.5 rounded-sm" />
+
+            if (hostname.includes('linkedin.com')) return { label: 'LinkedIn', icon: favicon }
+            if (hostname.includes('figma.com')) return { label: 'Figma', icon: favicon }
+            if (hostname.includes('github.com')) return { label: 'GitHub', icon: favicon }
+            if (hostname.includes('dribbble.com')) return { label: 'Dribbble', icon: favicon }
+            if (hostname.includes('behance.net')) return { label: 'Behance', icon: favicon }
+            if (hostname.includes('notion.so') || hostname.includes('notion.site')) return { label: 'Notion', icon: favicon }
+            if (hostname.includes('read.cv')) return { label: 'Read.cv', icon: favicon }
+            if (hostname.includes('medium.com')) return { label: 'Medium', icon: favicon }
+            if (hostname.includes('twitter.com') || hostname.includes('x.com')) return { label: 'X', icon: favicon }
+
+            // For everything else, use favicon + cleaned hostname
+            const label = hostname.replace(/\.(com|co|io|org|net|design|me|dev|app|site|xyz)$/i, '')
+            return { label: label.charAt(0).toUpperCase() + label.slice(1), icon: favicon }
+        } catch {
+            return { label: 'Link', icon: <Globe className="w-3 h-3" /> }
+        }
+    }
 
     const fetchContext = useCallback(async () => {
         if (!candidate.email && !candidate.name) return
@@ -340,19 +362,17 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
 
                 {/* Quick links */}
                 <div className="flex items-center gap-2 flex-wrap">
-                    {linkedIn && (
-                        <a href={linkedIn.url} target="_blank" rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/30 text-xs font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors duration-200">
-                            <Linkedin className="w-3 h-3" /> LinkedIn
-                        </a>
-                    )}
-                    {portfolio && (
-                        <a href={portfolio.url} target="_blank" rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/30 text-xs font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors duration-200">
-                            <Globe className="w-3 h-3" /> Portfolio
-                            {portfolioPassword && <Lock className="w-2.5 h-2.5 text-peach" />}
-                        </a>
-                    )}
+                    {normalizedLinks.map((link, i) => {
+                        const info = getLinkInfo(link.url)
+                        const isPortfolio = !link.url.includes('linkedin.com')
+                        return (
+                            <a key={i} href={link.url} target="_blank" rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/30 text-xs font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors duration-200">
+                                {info.icon} {info.label}
+                                {isPortfolio && portfolioPassword && <Lock className="w-2.5 h-2.5 text-peach" />}
+                            </a>
+                        )
+                    })}
                     {candidate.email && (
                         <a href={`mailto:${candidate.email}`}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/30 text-xs font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors duration-200">
@@ -512,7 +532,7 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                         </div>
                     </div>
 
-                    {portfolio && (
+                    {normalizedLinks.some(l => !l.url.includes('linkedin.com')) && (
                         <div className="bg-muted/15 p-4 rounded-xl space-y-2">
                             <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/40">Portfolio PW</span>
                             <div className="relative group/pw">

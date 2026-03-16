@@ -29,8 +29,23 @@ export function CandidateCard({ candidate }: CandidateCardProps) {
         return link
     })
 
-    const linkedIn = normalizedLinks.find(l => l.url.includes('linkedin.com') || l.type?.toLowerCase().includes('linkedin'))
-    const portfolio = normalizedLinks.find(l => !l.url.includes('linkedin.com') && (l.type?.toLowerCase().includes('portfolio') || l.type?.toLowerCase().includes('personal') || l.type?.toLowerCase().includes('website')))
+    function getCardLinkInfo(url: string): { label: string; icon: React.ReactNode } {
+        try {
+            const hostname = new URL(url).hostname.replace('www.', '')
+            const favicon = <img src={`https://www.google.com/s2/favicons?sz=32&domain=${hostname}`} alt="" className="w-3.5 h-3.5 rounded-sm" />
+            if (hostname.includes('linkedin.com')) return { label: 'LinkedIn', icon: favicon }
+            if (hostname.includes('figma.com')) return { label: 'Figma', icon: favicon }
+            if (hostname.includes('github.com')) return { label: 'GitHub', icon: favicon }
+            if (hostname.includes('dribbble.com')) return { label: 'Dribbble', icon: favicon }
+            if (hostname.includes('behance.net')) return { label: 'Behance', icon: favicon }
+            if (hostname.includes('notion.so') || hostname.includes('notion.site')) return { label: 'Notion', icon: favicon }
+            if (hostname.includes('read.cv')) return { label: 'Read.cv', icon: favicon }
+            const label = hostname.replace(/\.(com|co|io|org|net|design|me|dev|app|site|xyz)$/i, '')
+            return { label: label.charAt(0).toUpperCase() + label.slice(1), icon: favicon }
+        } catch {
+            return { label: 'Link', icon: <ExternalLink className="w-3.5 h-3.5" /> }
+        }
+    }
 
     // Extract experience years from headline if possible (simple heuristic)
     const expMatch = candidate.headline.match(/(\d+)\+?\s*(?:years|yrs)/i)
@@ -65,22 +80,17 @@ export function CandidateCard({ candidate }: CandidateCardProps) {
                 </div>
 
                 {/* Footer Actions */}
-                <div className="flex items-center gap-3 pt-2 mt-auto">
-                    {linkedIn && (
-                        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs font-medium" asChild>
-                            <a href={linkedIn.url} target="_blank" rel="noopener noreferrer">
-                                <span className="font-semibold">LI</span> LinkedIn
-                            </a>
-                        </Button>
-                    )}
-                    {portfolio && (
-                        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs font-medium" asChild>
-                            <a href={portfolio.url} target="_blank" rel="noopener noreferrer">
-                                <ExternalLink className="w-3.5 h-3.5" />
-                                Portfolio
-                            </a>
-                        </Button>
-                    )}
+                <div className="flex items-center gap-2 pt-2 mt-auto flex-wrap">
+                    {normalizedLinks.map((link, i) => {
+                        const info = getCardLinkInfo(link.url)
+                        return (
+                            <Button key={i} variant="outline" size="sm" className="h-8 gap-1.5 text-xs font-medium" asChild>
+                                <a href={link.url} target="_blank" rel="noopener noreferrer">
+                                    {info.icon} {info.label}
+                                </a>
+                            </Button>
+                        )
+                    })}
                 </div>
             </div>
         </Card>

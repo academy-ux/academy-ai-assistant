@@ -1,7 +1,7 @@
 "use client"
 
 import { Badge } from "@/components/ui/badge"
-import { MapPin, ChevronRight, Linkedin, Globe, Loader2, Briefcase } from "lucide-react"
+import { MapPin, ChevronRight, Globe, Loader2, Briefcase } from "lucide-react"
 import { Candidate } from "./CandidateCard"
 import { cn } from "@/lib/utils"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -109,8 +109,6 @@ export function CandidateTable({ candidates, onSelect, selectedId, stages, onRef
                     if (typeof link === 'string') return { url: link, type: 'Link' }
                     return link
                 })
-                const linkedIn = normalizedLinks.find(l => l.url.toLowerCase().includes('linkedin.com'))
-                const portfolio = normalizedLinks.find(l => !l.url.toLowerCase().includes('linkedin.com'))
 
                 const initials = candidate.name
                     .split(' ')
@@ -234,29 +232,24 @@ export function CandidateTable({ candidates, onSelect, selectedId, stages, onRef
 
                         {/* Actions */}
                         <div className="flex items-center gap-3 justify-end">
-                            <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                {linkedIn && (
-                                    <a
-                                        href={linkedIn.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        onClick={(e) => e.stopPropagation()}
-                                        className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-primary hover:bg-primary/5 transition-colors duration-200"
-                                    >
-                                        <Linkedin className="w-3.5 h-3.5" />
-                                    </a>
-                                )}
-                                {portfolio && (
-                                    <a
-                                        href={portfolio.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        onClick={(e) => e.stopPropagation()}
-                                        className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-primary hover:bg-primary/5 transition-colors duration-200"
-                                    >
-                                        <Globe className="w-3.5 h-3.5" />
-                                    </a>
-                                )}
+                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                {normalizedLinks.map((link, i) => {
+                                    let hostname = ''
+                                    try { hostname = new URL(link.url).hostname.replace('www.', '') } catch {}
+                                    return (
+                                        <a
+                                            key={i}
+                                            href={link.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-primary hover:bg-primary/5 transition-colors duration-200"
+                                            title={hostname}
+                                        >
+                                            <img src={`https://www.google.com/s2/favicons?sz=32&domain=${hostname}`} alt={hostname} className="w-3.5 h-3.5 rounded-sm" />
+                                        </a>
+                                    )
+                                })}
                             </div>
                             <ChevronRight className={cn(
                                 "h-4 w-4 transition-[color,transform] duration-300 ease-smooth",

@@ -1,7 +1,7 @@
 "use client"
 
 import { Candidate } from "./CandidateCard"
-import { MapPin, Linkedin, Globe, Calendar } from "lucide-react"
+import { Globe, ExternalLink } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface SharedCandidateDetailsProps {
@@ -29,8 +29,24 @@ export function SharedCandidateDetails({ candidate }: SharedCandidateDetailsProp
         if (typeof link === 'string') return { url: link, type: 'Link' }
         return link
     }) || []
-    const linkedIn = normalizedLinks.find(l => l.url.includes('linkedin.com'))
-    const portfolio = normalizedLinks.find(l => !l.url.includes('linkedin.com'))
+
+    function getLinkInfo(url: string): { label: string; icon: React.ReactNode } {
+        try {
+            const hostname = new URL(url).hostname.replace('www.', '')
+            const favicon = <img src={`https://www.google.com/s2/favicons?sz=32&domain=${hostname}`} alt="" className="w-3.5 h-3.5 rounded-sm" />
+            if (hostname.includes('linkedin.com')) return { label: 'LinkedIn', icon: favicon }
+            if (hostname.includes('figma.com')) return { label: 'Figma', icon: favicon }
+            if (hostname.includes('github.com')) return { label: 'GitHub', icon: favicon }
+            if (hostname.includes('dribbble.com')) return { label: 'Dribbble', icon: favicon }
+            if (hostname.includes('behance.net')) return { label: 'Behance', icon: favicon }
+            if (hostname.includes('notion.so') || hostname.includes('notion.site')) return { label: 'Notion', icon: favicon }
+            if (hostname.includes('read.cv')) return { label: 'Read.cv', icon: favicon }
+            const label = hostname.replace(/\.(com|co|io|org|net|design|me|dev|app|site|xyz)$/i, '')
+            return { label: label.charAt(0).toUpperCase() + label.slice(1), icon: favicon }
+        } catch {
+            return { label: 'Link', icon: <Globe className="w-3 h-3" /> }
+        }
+    }
 
     const avatarGradient = nameToColor(candidate.name)
     const initials = candidate.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
@@ -55,18 +71,15 @@ export function SharedCandidateDetails({ candidate }: SharedCandidateDetailsProp
 
                 {/* Links */}
                 <div className="flex items-center gap-2 flex-wrap">
-                    {linkedIn && (
-                        <a href={linkedIn.url} target="_blank" rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/30 text-xs font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors duration-200">
-                            <Linkedin className="w-3 h-3" /> LinkedIn
-                        </a>
-                    )}
-                    {portfolio && (
-                        <a href={portfolio.url} target="_blank" rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/30 text-xs font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors duration-200">
-                            <Globe className="w-3 h-3" /> Portfolio
-                        </a>
-                    )}
+                    {normalizedLinks.map((link, i) => {
+                        const info = getLinkInfo(link.url)
+                        return (
+                            <a key={i} href={link.url} target="_blank" rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/30 text-xs font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors duration-200">
+                                {info.icon} {info.label}
+                            </a>
+                        )
+                    })}
                 </div>
             </div>
 
