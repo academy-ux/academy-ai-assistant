@@ -32,6 +32,21 @@ export async function POST(request: NextRequest) {
                 .map(p => [p.candidate_email, p.pitch])
         )
 
+        // Fallback: check legacy pitches on candidate_profiles for any not in candidate_pitches
+        const missingEmails = emails.filter(e => !existingMap.has(e))
+        if (missingEmails.length > 0) {
+            const { data: legacyPitches } = await supabase
+                .from('candidate_profiles')
+                .select('candidate_email, pitch')
+                .in('candidate_email', missingEmails)
+
+            for (const lp of legacyPitches || []) {
+                if (lp.pitch && lp.pitch.trim().length > 0) {
+                    existingMap.set(lp.candidate_email, lp.pitch)
+                }
+            }
+        }
+
         // Filter to only candidates that need a pitch for this role
         const needsPitch = candidates.filter(c => c.email && !existingMap.has(c.email))
 

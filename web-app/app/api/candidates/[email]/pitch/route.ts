@@ -27,7 +27,18 @@ export async function GET(
         console.error('[Pitch] Supabase read error:', error)
     }
 
-    return NextResponse.json({ pitch: data?.pitch || null })
+    if (data?.pitch) {
+        return NextResponse.json({ pitch: data.pitch })
+    }
+
+    // Fallback: check legacy pitch on candidate_profiles (pre-migration data)
+    const { data: profile } = await supabase
+        .from('candidate_profiles')
+        .select('pitch')
+        .eq('candidate_email', email)
+        .single()
+
+    return NextResponse.json({ pitch: profile?.pitch || null })
 }
 
 /**

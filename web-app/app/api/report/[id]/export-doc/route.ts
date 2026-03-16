@@ -696,6 +696,18 @@ export async function POST(
                 (existingPitches || []).map(p => [p.candidate_email, p.pitch])
             )
 
+            // Fallback: check legacy pitches on candidate_profiles
+            const missingEmails = emails.filter(e => !existingMap.has(e))
+            if (missingEmails.length > 0) {
+                const { data: legacyPitches } = await supabase
+                    .from('candidate_profiles')
+                    .select('candidate_email, pitch')
+                    .in('candidate_email', missingEmails)
+                for (const lp of legacyPitches || []) {
+                    if (lp.pitch && lp.pitch.trim()) existingMap.set(lp.candidate_email, lp.pitch)
+                }
+            }
+
             await Promise.all(groups.presenting.map(async (c) => {
                 try {
                     // Use cached role-specific pitch if available

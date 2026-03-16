@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react"
 import { Candidate } from "./CandidateCard"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Mail, Loader2, Plus, Globe, Lock, Save, Pencil, Sparkles, Briefcase, ExternalLink } from "lucide-react"
+import { Mail, Loader2, Plus, Globe, Lock, Save, Pencil, Sparkles, Briefcase, ExternalLink, Copy, Check } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
     Select,
@@ -70,6 +70,7 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
     const [savingPassword, setSavingPassword] = useState(false)
     const [isEditingPassword, setIsEditingPassword] = useState(false)
 
+    const [profileLocation, setProfileLocation] = useState("")
     const [profilePitch, setProfilePitch] = useState("")
     const [profileSalary, setProfileSalary] = useState("")
     const [profileExp, setProfileExp] = useState("")
@@ -79,6 +80,7 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
     const [isEditingPitch, setIsEditingPitch] = useState(false)
     const [isEditingMetadata, setIsEditingMetadata] = useState(false)
     const [generatingPitch, setGeneratingPitch] = useState(false)
+    const [copiedPassword, setCopiedPassword] = useState(false)
 
     const normalizedLinks = candidate.links?.map(link => {
         if (typeof link === 'string') return { url: link, type: 'Link' }
@@ -112,6 +114,7 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
     const fetchContext = useCallback(async () => {
         if (!candidate.email && !candidate.name) return
         setLoadingContext(true)
+        setProfileLocation(candidate.location || "Remote")
         try {
             const query = new URLSearchParams()
             if (candidate.email) query.append('email', candidate.email)
@@ -159,7 +162,6 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                 const data = await profileRes.json()
                 if (data.profile) {
                     setProfileSalary(data.profile.salary_expectations || "")
-                    setProfileExp(data.profile.years_of_experience || "")
                 } else if (candidate.answers) {
                     const salaryAnswer = candidate.answers?.find(a =>
                         a.text.toLowerCase().includes('salary') ||
@@ -180,7 +182,7 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                     setProfileExp(`${data.relevantYears} yr relevant`)
                     if (data.totalYears) setProfileTotalExp(`${data.totalYears} yr total`)
                     if (data.summary) setExpSummary(data.summary)
-                } else if (!profileExp && data.years) {
+                } else if (data.years) {
                     setProfileExp(data.years)
                 }
             }
@@ -397,25 +399,66 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                         </a>
                     )}
                 </div>
+
+                {/* Portfolio Password — inline near links */}
+                {normalizedLinks.some(l => !l.url.includes('linkedin.com')) && (
+                    <div className="relative group/pw max-w-[200px]">
+                        <Lock className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/30 group-focus-within/pw:text-primary transition-colors" />
+                        <Input
+                            type="text"
+                            placeholder="Portfolio password"
+                            value={portfolioPassword}
+                            onChange={(e) => {
+                                setPortfolioPassword(e.target.value)
+                                if (!isEditingPassword) setIsEditingPassword(true)
+                            }}
+                            onBlur={() => {
+                                if (portfolioPassword) handleSavePassword()
+                                else setIsEditingPassword(false)
+                            }}
+                            className="h-7 pl-8 pr-8 bg-muted/20 border-border/15 rounded-lg text-[11px] font-medium focus:bg-muted/30 transition-all"
+                        />
+                        <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                            {isEditingPassword ? (
+                                savingPassword ? <Loader2 className="h-3 w-3 animate-spin text-primary" /> : <Save className="h-3 w-3 text-primary" />
+                            ) : portfolioPassword ? (
+                                <button
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(portfolioPassword)
+                                        setCopiedPassword(true)
+                                        setTimeout(() => setCopiedPassword(false), 1500)
+                                    }}
+                                    className="text-muted-foreground/30 hover:text-foreground transition-colors"
+                                >
+                                    {copiedPassword ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                                </button>
+                            ) : null}
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Info Card */}
             <div className="bg-muted/20 rounded-xl p-4 md:p-5 relative group/meta">
-                <div className="space-y-3 pr-8">
+                <div className="space-y-3">
                     {[
-                        { label: "Location", value: candidate.location || "Remote", editable: false },
-                        { label: "Relevant Exp", value: profileExp, editable: true, field: "exp" },
-                        { label: "Total Exp", value: profileTotalExp, editable: false },
-                        { label: "Salary", value: profileSalary, editable: true, field: "salary" },
-                    ].filter(item => item.value || item.editable).map((item) => (
+                        { label: "Location", value: profileLocation, field: "location" },
+                        { label: "Relevant Exp", value: profileExp, field: "exp" },
+                        { label: "Total Exp", value: profileTotalExp, field: "totalExp" },
+                        { label: "Salary", value: profileSalary, field: "salary" },
+                    ].filter(item => item.value || isEditingMetadata).map((item) => (
                         <div key={item.label} className="flex items-center justify-between gap-2">
                             <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50 shrink-0">{item.label}</span>
-                            {isEditingMetadata && item.editable ? (
+                            {isEditingMetadata ? (
                                 <Input
-                                    value={item.field === "exp" ? profileExp : profileSalary}
-                                    onChange={(e) => item.field === "exp" ? setProfileExp(e.target.value) : setProfileSalary(e.target.value)}
+                                    value={item.field === "location" ? profileLocation : item.field === "exp" ? profileExp : item.field === "totalExp" ? profileTotalExp : profileSalary}
+                                    onChange={(e) => {
+                                        if (item.field === "location") setProfileLocation(e.target.value)
+                                        else if (item.field === "exp") setProfileExp(e.target.value)
+                                        else if (item.field === "totalExp") setProfileTotalExp(e.target.value)
+                                        else setProfileSalary(e.target.value)
+                                    }}
                                     className="h-6 w-28 md:w-40 p-0 text-sm font-bold text-right bg-transparent border-none border-b border-primary/20 rounded-none focus:ring-0"
-                                    autoFocus={item.field === "exp"}
                                 />
                             ) : (
                                 <span className="text-xs md:text-sm font-bold tracking-tight truncate max-w-[140px] md:max-w-[200px]">{item.value || "—"}</span>
@@ -424,23 +467,37 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                     ))}
                 </div>
 
-                <div className="absolute top-3 right-3 md:top-4 md:right-4">
-                    {isEditingMetadata ? (
-                        <button onClick={handleSaveProfile} disabled={savingProfile}
-                            className="p-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors duration-200">
-                            {savingProfile ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                        </button>
-                    ) : (
-                        <button onClick={() => setIsEditingMetadata(true)}
-                            className="p-1.5 rounded-lg opacity-0 group-hover/meta:opacity-100 text-muted-foreground/30 hover:text-foreground hover:bg-muted/30 transition-[color,background-color,opacity] duration-200">
-                            <Pencil className="w-3 h-3" />
-                        </button>
-                    )}
-                </div>
-                {expSummary && (
-                    <p className="text-[11px] text-muted-foreground/50 mt-3 pt-3 border-t border-border/10 leading-relaxed">
-                        {expSummary}
-                    </p>
+                {expSummary ? (
+                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/10">
+                        <p className="text-[11px] text-muted-foreground/50 leading-relaxed">{expSummary}</p>
+                        {isEditingMetadata ? (
+                            <button onClick={() => { handleSaveProfile(); setIsEditingMetadata(false) }} disabled={savingProfile}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-wider hover:bg-primary/90 transition-colors duration-200 shrink-0">
+                                {savingProfile ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                                Save
+                            </button>
+                        ) : (
+                            <button onClick={() => setIsEditingMetadata(true)}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-muted-foreground/40 hover:text-foreground hover:bg-muted/30 transition-colors duration-200 text-[10px] font-bold uppercase tracking-wider shrink-0">
+                                <Pencil className="w-2.5 h-2.5" /> Edit
+                            </button>
+                        )}
+                    </div>
+                ) : (
+                    <div className="flex justify-end mt-3">
+                        {isEditingMetadata ? (
+                            <button onClick={() => { handleSaveProfile(); setIsEditingMetadata(false) }} disabled={savingProfile}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-wider hover:bg-primary/90 transition-colors duration-200">
+                                {savingProfile ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                                Save
+                            </button>
+                        ) : (
+                            <button onClick={() => setIsEditingMetadata(true)}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-muted-foreground/40 hover:text-foreground hover:bg-muted/30 transition-colors duration-200 text-[10px] font-bold uppercase tracking-wider">
+                                <Pencil className="w-2.5 h-2.5" /> Edit
+                            </button>
+                        )}
+                    </div>
                 )}
             </div>
 
@@ -549,33 +606,6 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                         </div>
                     </div>
 
-                    {normalizedLinks.some(l => !l.url.includes('linkedin.com')) && (
-                        <div className="bg-muted/15 p-4 rounded-xl space-y-2">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/40">Portfolio PW</span>
-                            <div className="relative group/pw">
-                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/30 group-focus-within/pw:text-primary transition-colors" />
-                                <Input
-                                    type={isEditingPassword ? "text" : "password"}
-                                    placeholder="Password"
-                                    value={portfolioPassword}
-                                    onChange={(e) => {
-                                        setPortfolioPassword(e.target.value)
-                                        if (!isEditingPassword) setIsEditingPassword(true)
-                                    }}
-                                    onBlur={() => {
-                                        if (portfolioPassword) handleSavePassword()
-                                        else setIsEditingPassword(false)
-                                    }}
-                                    className="h-9 pl-9 pr-10 bg-card border-border/30 rounded-lg text-xs font-medium focus:bg-card/80 transition-all"
-                                />
-                                {isEditingPassword && (
-                                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                        {savingPassword ? <Loader2 className="h-3 w-3 animate-spin text-primary" /> : <Save className="h-3 w-3 text-primary" />}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    )}
                 </div>
             </div>
 
