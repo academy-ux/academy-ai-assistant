@@ -413,8 +413,7 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                                 if (!isEditingPassword) setIsEditingPassword(true)
                             }}
                             onBlur={() => {
-                                if (portfolioPassword) handleSavePassword()
-                                else setIsEditingPassword(false)
+                                handleSavePassword()
                             }}
                             className="h-7 pl-8 pr-8 bg-muted/20 border-border/15 rounded-lg text-[11px] font-medium focus:bg-muted/30 transition-all"
                         />
