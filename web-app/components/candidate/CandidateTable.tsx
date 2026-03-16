@@ -91,8 +91,8 @@ export function CandidateTable({ candidates, onSelect, selectedId, stages, onRef
     }
 
     const gridCols = readOnly
-        ? "grid-cols-[minmax(0,1fr)_220px_160px_100px]"
-        : "grid-cols-[minmax(0,1fr)_220px_100px_160px_100px]"
+        ? "grid-cols-[minmax(0,280px)_200px_140px_minmax(0,1fr)]"
+        : "grid-cols-[minmax(0,280px)_200px_80px_140px_minmax(0,1fr)]"
 
     return (
         <div className="space-y-1">

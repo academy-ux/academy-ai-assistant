@@ -66,6 +66,7 @@ function groupCandidates(candidates: LeverCandidate[]): CandidateGroups {
         if (stage === 'client interview') groups.interviewing.push(c)
         else if (stage === 'portfolio interview') groups.portfolio.push(c)
         else if (stage.includes('present') || stage.includes('client') || stage.includes('offer')) groups.presenting.push(c)
+        else if (stage.includes('new') || stage.includes('applicant') || stage.includes('applied') || stage.includes('lead')) return
         else groups.applied.push(c)
     })
 
@@ -597,7 +598,7 @@ function buildDocContent(b: DocBuilder, projectTitle: string, groups: CandidateG
         { heading: 'Client Interview', candidates: groups.interviewing, type: 'standard' },
         { heading: 'Presenting', candidates: groups.presenting, type: 'presenting' },
         { heading: 'Portfolio Interview', candidates: groups.portfolio, type: 'standard' },
-        { heading: 'Sourced', candidates: groups.applied, type: 'standard' },
+        { heading: 'In Review', candidates: groups.applied, type: 'standard' },
         { heading: 'Client Passed', candidates: groups.clientPassed, type: 'archived' },
         { heading: 'Withdrew', candidates: groups.withdrew, type: 'archived' },
     ]
