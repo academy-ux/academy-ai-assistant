@@ -4,6 +4,7 @@ import { getToken } from 'next-auth/jwt'
 import { google } from 'googleapis'
 import { fetchCandidatesForPosting, LeverCandidate } from '@/lib/lever'
 import { generatePitch, fetchJobDescription } from '@/lib/pitch'
+import { supabase } from '@/lib/supabase'
 
 const FOLDER_NAME = 'Academy Reports'
 
@@ -678,17 +679,51 @@ export async function POST(
         // 2. Fetch job description
         const jobDescription = await fetchJobDescription(postingId)
 
-        // 3. Generate pitches for presenting candidates
+        // 3. Generate pitches for presenting candidates (role-specific)
         const pitchMap = new Map<string, string>()
         if (groups.presenting.length > 0) {
+            // Check for existing role-specific pitches
+            const emails = groups.presenting.map(c => c.email).filter(Boolean) as string[]
+            const { data: existingPitches } = emails.length > 0
+                ? await supabase
+                    .from('candidate_pitches')
+                    .select('candidate_email, pitch')
+                    .in('candidate_email', emails)
+                    .eq('posting_id', postingId)
+                : { data: [] }
+
+            const existingMap = new Map(
+                (existingPitches || []).map(p => [p.candidate_email, p.pitch])
+            )
+
             await Promise.all(groups.presenting.map(async (c) => {
                 try {
+                    // Use cached role-specific pitch if available
+                    const cached = c.email ? existingMap.get(c.email) : null
+                    if (cached) {
+                        pitchMap.set(c.id, cached)
+                        return
+                    }
+
                     const pitch = await generatePitch({
                         email: c.email || null,
                         candidateName: c.name,
                         jobDescription,
                     })
-                    if (pitch) pitchMap.set(c.id, pitch)
+                    if (pitch) {
+                        pitchMap.set(c.id, pitch)
+                        // Persist to candidate_pitches for future use
+                        if (c.email) {
+                            await supabase
+                                .from('candidate_pitches')
+                                .upsert({
+                                    candidate_email: c.email,
+                                    posting_id: postingId,
+                                    pitch,
+                                    updated_at: new Date().toISOString(),
+                                }, { onConflict: 'candidate_email,posting_id' })
+                        }
+                    }
                 } catch (err) {
                     console.error(`[Export] Failed to generate pitch for ${c.name}:`, err)
                 }

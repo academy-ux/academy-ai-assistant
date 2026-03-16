@@ -1203,7 +1203,7 @@ function HistoryContent() {
           </div>
         </div>
 
-        <div className="flex-1 w-full h-full overflow-y-auto max-w-[2000px] mx-auto px-6 pb-8 md:pb-12 pt-0 custom-scrollbar">
+        <div className="flex-1 w-full h-full overflow-y-auto max-w-[2000px] mx-auto px-4 md:px-6 pb-8 md:pb-12 pt-0 custom-scrollbar">
           {/* Header with Navigation */}
           <div className="mt-8 md:mt-12 mb-10">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
@@ -1217,7 +1217,7 @@ function HistoryContent() {
                 </p>
               </div>
               {activeTab !== 'ask' && (
-                <div className="flex gap-8 items-center">
+                <div className="flex gap-3 md:gap-8 items-center flex-wrap">
                   {/* Background Import Indicator */}
                   {importing && !importOpen && (
                     <button
@@ -1929,31 +1929,33 @@ function HistoryContent() {
 
           {/* Meetings View Toggle + Ask AI Button - only show when on meetings tab */}
           {activeTab === 'meetings' && (
-            <div className="flex items-center justify-between mb-6 gap-4">
-              <div className="flex items-center gap-2 p-1 bg-card/40 backdrop-blur border border-border/40 rounded-full w-fit shadow-sm">
+            <div className="flex items-center justify-between mb-6 gap-3 md:gap-4 flex-wrap">
+              <div className="flex items-center gap-1 md:gap-2 p-1 bg-card/40 backdrop-blur border border-border/40 rounded-full w-fit shadow-sm">
                 <button
                   onClick={() => setViewMode('mine')}
                   className={cn(
-                    "relative px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-2",
+                    "relative px-3 md:px-4 py-2 text-xs md:text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-1.5 md:gap-2",
                     viewMode === 'mine'
                       ? "bg-background text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground hover:bg-background/40"
                   )}
                 >
-                  <User className={cn("h-4 w-4 transition-transform duration-200", viewMode === 'mine' && "scale-110")} />
-                  My Meetings
+                  <User className={cn("h-3.5 w-3.5 md:h-4 md:w-4 transition-transform duration-200", viewMode === 'mine' && "scale-110")} />
+                  <span className="hidden sm:inline">My Meetings</span>
+                  <span className="sm:hidden">Mine</span>
                 </button>
                 <button
                   onClick={() => setViewMode('all')}
                   className={cn(
-                    "relative px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-2",
+                    "relative px-3 md:px-4 py-2 text-xs md:text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-1.5 md:gap-2",
                     viewMode === 'all'
                       ? "bg-background text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground hover:bg-background/40"
                   )}
                 >
-                  <FileText className={cn("h-4 w-4 transition-transform duration-200", viewMode === 'all' && "scale-110")} />
-                  All Meetings
+                  <FileText className={cn("h-3.5 w-3.5 md:h-4 md:w-4 transition-transform duration-200", viewMode === 'all' && "scale-110")} />
+                  <span className="hidden sm:inline">All Meetings</span>
+                  <span className="sm:hidden">All</span>
                   <Badge variant="secondary" className={cn("ml-1 text-xs transition-all duration-200", viewMode === 'all' && "bg-primary/10")}>{totalCount}</Badge>
                 </button>
               </div>
@@ -2404,8 +2406,8 @@ function HistoryContent() {
 
                   {/* Selection Bar - appears when items are selected */}
                   {selectedMeetings.size > 0 && (
-                    <div className="flex items-center justify-between gap-4 py-3 px-4 bg-primary/5 border border-primary/20 rounded-xl animate-in slide-in-from-top-2 duration-200">
-                      <div className="flex items-center gap-4">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 py-3 px-4 bg-primary/5 border border-primary/20 rounded-xl animate-in slide-in-from-top-2 duration-200">
+                      <div className="flex items-center gap-3 sm:gap-4">
                         <button
                           onClick={allFilteredSelected ? deselectAllMeetings : selectAllMeetings}
                           className="flex items-center gap-2 text-sm text-foreground hover:text-primary transition-colors"

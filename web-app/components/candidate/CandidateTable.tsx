@@ -91,13 +91,13 @@ export function CandidateTable({ candidates, onSelect, selectedId, stages, onRef
     }
 
     const gridCols = readOnly
-        ? "grid-cols-[1fr_220px_160px_80px]"
-        : "grid-cols-[1fr_220px_100px_160px_80px]"
+        ? "grid-cols-[minmax(0,1fr)_220px_160px_100px]"
+        : "grid-cols-[minmax(0,1fr)_220px_100px_160px_100px]"
 
     return (
         <div className="space-y-1">
-            {/* Column headers */}
-            <div className={cn("grid gap-x-6 items-center px-5 pb-2 pt-1", gridCols)}>
+            {/* Column headers — hidden on mobile */}
+            <div className={cn("hidden md:grid gap-x-6 items-center px-5 pb-2 pt-1", gridCols)}>
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/40">Candidate</span>
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/40">Stage</span>
                 {!readOnly && <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/40">Experience</span>}
@@ -127,8 +127,10 @@ export function CandidateTable({ candidates, onSelect, selectedId, stages, onRef
                         key={candidate.id}
                         onClick={() => onSelect(candidate)}
                         className={cn(
-                            "group grid gap-x-6 items-center py-4 px-5 rounded-2xl cursor-pointer border",
+                            "group py-4 px-4 md:px-5 rounded-2xl cursor-pointer border",
                             "animate-fade-in-up transition-[background-color,border-color,box-shadow,transform] duration-300 ease-smooth",
+                            // Mobile: flex column layout, Desktop: grid
+                            "flex flex-col gap-3 md:grid md:gap-x-6 md:items-center",
                             gridCols,
                             isSelected
                                 ? "bg-card border-border/40 shadow-sm ring-1 ring-primary/10"
@@ -137,7 +139,7 @@ export function CandidateTable({ candidates, onSelect, selectedId, stages, onRef
                         style={{ animationDelay: `${Math.min(index * 40, 400)}ms` }}
                     >
                         {/* Avatar + Info */}
-                        <div className="flex items-center gap-4 min-w-0">
+                        <div className="flex items-center gap-3 md:gap-4 min-w-0">
                             <Avatar className="h-10 w-10 rounded-xl border-0 shrink-0">
                                 <AvatarFallback className={cn("bg-gradient-to-br text-foreground/70 font-bold text-[11px] rounded-xl", avatarGradient)}>
                                     {initials}
@@ -159,51 +161,110 @@ export function CandidateTable({ candidates, onSelect, selectedId, stages, onRef
                                     {candidate.headline || "No headline"}
                                 </p>
                             </div>
+
+                            {/* Chevron — visible only on mobile, at right edge */}
+                            <ChevronRight className={cn(
+                                "h-4 w-4 md:hidden shrink-0 transition-[color,transform] duration-300 ease-smooth",
+                                isSelected ? "text-primary" : "text-muted-foreground/30"
+                            )} />
                         </div>
 
-                        {/* Stage */}
-                        {readOnly ? (
-                            <div className="shrink-0">
-                                <div className="h-7 px-3 py-0 border border-border/30 bg-muted/20 rounded-lg text-[9px] font-bold uppercase tracking-wide text-muted-foreground flex items-center gap-2">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-peach shrink-0" />
-                                    <span className="truncate">{candidate.stage}</span>
-                                </div>
+                        {/* Mobile: compact metadata row */}
+                        <div className="flex items-center gap-3 flex-wrap md:hidden pl-[52px]">
+                            {/* Stage badge */}
+                            <div className="h-6 px-2.5 py-0 border border-border/30 bg-muted/20 rounded-md text-[9px] font-bold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+                                <div className="w-1.5 h-1.5 rounded-full bg-peach shrink-0" />
+                                <span className="truncate max-w-[120px]">{candidate.stage}</span>
                             </div>
-                        ) : (
-                            <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
-                                <Select
-                                    disabled={isUpdating}
-                                    onValueChange={(value) => handleUpdateStage(candidate.id, value)}
-                                    defaultValue={stages?.find(s => s.text === candidate.stage)?.id}
-                                >
-                                    <SelectTrigger className="h-7 w-full px-3 py-0 border border-border/30 bg-muted/20 shadow-none rounded-lg text-[9px] font-bold uppercase tracking-wide text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors duration-200 justify-start gap-2">
-                                        {isUpdating ? (
-                                            <Loader2 className="h-3 w-3 animate-spin" />
-                                        ) : (
-                                            <>
-                                                <div className="w-1.5 h-1.5 rounded-full bg-peach shrink-0" />
-                                                <SelectValue placeholder={candidate.stage} />
-                                            </>
-                                        )}
-                                    </SelectTrigger>
-                                    <SelectContent className="rounded-xl border-border/40 shadow-2xl bg-background/95 backdrop-blur-md">
-                                        {stages?.map((stage) => (
-                                            <SelectItem
-                                                key={stage.id}
-                                                value={stage.id}
-                                                className="text-[10px] font-bold uppercase tracking-wider focus:bg-primary/5 focus:text-primary rounded-lg my-0.5 mx-1"
-                                            >
-                                                {stage.text}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        )}
 
-                        {/* Experience (hidden in readOnly mode) */}
+                            {/* Experience on mobile */}
+                            {!readOnly && exp && (
+                                <div className="flex items-center gap-1" title={exp.summary}>
+                                    <Briefcase className="w-3 h-3 text-muted-foreground/40 shrink-0" />
+                                    <span className="text-[11px] font-bold tabular-nums text-foreground">
+                                        {exp.relevantYears} yr
+                                    </span>
+                                    {exp.totalYears > exp.relevantYears && (
+                                        <span className="text-[10px] text-muted-foreground/40">
+                                            / {exp.totalYears}
+                                        </span>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Location on mobile */}
+                            <div className="flex items-center gap-1 text-[11px] text-muted-foreground/60">
+                                <MapPin className="w-3 h-3 shrink-0" />
+                                <span className="truncate max-w-[100px]">{candidate.location && typeof candidate.location === 'string' ? candidate.location : "Remote"}</span>
+                            </div>
+
+                            {/* Links on mobile */}
+                            <div className="flex items-center gap-0.5 ml-auto shrink-0">
+                                {normalizedLinks.slice(0, 3).map((link, i) => {
+                                    let hostname = ''
+                                    try { hostname = new URL(link.url).hostname.replace('www.', '') } catch {}
+                                    return (
+                                        <a
+                                            key={i}
+                                            href={link.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="shrink-0 p-1 rounded-md hover:bg-primary/5 transition-colors duration-200"
+                                            title={hostname}
+                                        >
+                                            <img src={`https://www.google.com/s2/favicons?sz=64&domain=${hostname}`} alt={hostname} className="w-3.5 h-3.5 shrink-0" />
+                                        </a>
+                                    )
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Desktop: Stage */}
+                        <div className="hidden md:block">
+                            {readOnly ? (
+                                <div className="shrink-0">
+                                    <div className="h-7 px-3 py-0 border border-border/30 bg-muted/20 rounded-lg text-[9px] font-bold uppercase tracking-wide text-muted-foreground flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-peach shrink-0" />
+                                        <span className="truncate">{candidate.stage}</span>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                                    <Select
+                                        disabled={isUpdating}
+                                        onValueChange={(value) => handleUpdateStage(candidate.id, value)}
+                                        defaultValue={stages?.find(s => s.text === candidate.stage)?.id}
+                                    >
+                                        <SelectTrigger className="h-7 w-full px-3 py-0 border border-border/30 bg-muted/20 shadow-none rounded-lg text-[9px] font-bold uppercase tracking-wide text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors duration-200 justify-start gap-2">
+                                            {isUpdating ? (
+                                                <Loader2 className="h-3 w-3 animate-spin" />
+                                            ) : (
+                                                <>
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-peach shrink-0" />
+                                                    <SelectValue placeholder={candidate.stage} />
+                                                </>
+                                            )}
+                                        </SelectTrigger>
+                                        <SelectContent className="rounded-xl border-border/40 shadow-2xl bg-background/95 backdrop-blur-md">
+                                            {stages?.map((stage) => (
+                                                <SelectItem
+                                                    key={stage.id}
+                                                    value={stage.id}
+                                                    className="text-[10px] font-bold uppercase tracking-wider focus:bg-primary/5 focus:text-primary rounded-lg my-0.5 mx-1"
+                                                >
+                                                    {stage.text}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Desktop: Experience (hidden in readOnly mode) */}
                         {!readOnly && (
-                            <div className="flex items-center gap-1.5 min-w-0">
+                            <div className="hidden md:flex items-center gap-1.5 min-w-0">
                                 {experienceLoading ? (
                                     <Loader2 className="w-3 h-3 animate-spin text-muted-foreground/30" />
                                 ) : exp ? (
@@ -224,15 +285,15 @@ export function CandidateTable({ candidates, onSelect, selectedId, stages, onRef
                             </div>
                         )}
 
-                        {/* Location */}
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground/60 min-w-0">
+                        {/* Desktop: Location */}
+                        <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground/60 min-w-0">
                             <MapPin className="w-3 h-3 shrink-0" />
                             <span className="truncate">{candidate.location && typeof candidate.location === 'string' ? candidate.location : "Remote"}</span>
                         </div>
 
-                        {/* Actions */}
-                        <div className="flex items-center gap-3 justify-end">
-                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                        {/* Desktop: Actions */}
+                        <div className="hidden md:flex items-center gap-3 justify-end">
+                            <div className="flex items-center gap-1 shrink-0">
                                 {normalizedLinks.map((link, i) => {
                                     let hostname = ''
                                     try { hostname = new URL(link.url).hostname.replace('www.', '') } catch {}
@@ -243,10 +304,10 @@ export function CandidateTable({ candidates, onSelect, selectedId, stages, onRef
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             onClick={(e) => e.stopPropagation()}
-                                            className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-primary hover:bg-primary/5 transition-colors duration-200"
+                                            className="shrink-0 p-1.5 rounded-lg hover:bg-primary/5 transition-colors duration-200"
                                             title={hostname}
                                         >
-                                            <img src={`https://www.google.com/s2/favicons?sz=32&domain=${hostname}`} alt={hostname} className="w-3.5 h-3.5 rounded-sm" />
+                                            <img src={`https://www.google.com/s2/favicons?sz=64&domain=${hostname}`} alt={hostname} className="w-4 h-4 shrink-0" />
                                         </a>
                                     )
                                 })}

@@ -160,16 +160,16 @@ export default function ReportIndexPage() {
     }
 
     return (
-        <div className="min-h-screen bg-background p-8 mt-12">
-            <div className="max-w-5xl mx-auto space-y-8">
+        <div className="min-h-screen bg-background px-4 md:p-8 py-6 mt-8 md:mt-12">
+            <div className="max-w-5xl mx-auto space-y-6 md:space-y-8">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Active Projects</h1>
-                    <p className="text-muted-foreground mt-2">Select a project to view the candidate report.</p>
+                    <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Active Projects</h1>
+                    <p className="text-muted-foreground mt-2 text-sm md:text-base">Select a project to view the candidate report.</p>
                 </div>
 
                 <div className="divide-y divide-border rounded-lg border">
                     {postings.map((posting) => (
-                        <Link key={posting.id} href={`/report/${posting.id}`} className="flex items-center justify-between gap-4 px-5 py-4 group hover:bg-muted/50 transition-colors">
+                        <Link key={posting.id} href={`/report/${posting.id}`} className="flex items-center justify-between gap-3 md:gap-4 px-4 md:px-5 py-3 md:py-4 group hover:bg-muted/50 transition-colors">
                             <LogoImg team={posting.team} />
                             <div className="min-w-0 flex-1">
                                 <div className="font-medium group-hover:text-primary transition-colors truncate">

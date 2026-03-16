@@ -401,10 +401,10 @@ export default function InterviewDetailPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-[1600px] mx-auto px-6">
+      <div className="max-w-[1600px] mx-auto px-4 md:px-6">
         {/* Header */}
-        <div className={cn("sticky top-8 z-20 bg-background pb-10 mb-0")}>
-          <div className="flex items-center justify-between gap-6">
+        <div className={cn("sticky top-4 md:top-8 z-20 bg-background pb-6 md:pb-10 mb-0")}>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 md:gap-6">
             <div className="flex items-center gap-3 min-w-0 flex-1">
               <button
                 onClick={() => router.back()}
@@ -484,35 +484,35 @@ export default function InterviewDetailPage() {
               </div>
             </div>
 
-            {/* Tab Navigation */}
-            <div className="flex items-center gap-2 p-1 bg-card/40 backdrop-blur border border-border/40 rounded-full w-fit shadow-sm flex-shrink-0">
-              <button
-                onClick={() => setActiveTab('transcript')}
-                className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200",
-                  activeTab === 'transcript'
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground hover:bg-background/40"
-                )}
-              >
-                <Search className="h-4 w-4" />
-                Transcript
-              </button>
-              <button
-                onClick={() => setActiveTab('ask')}
-                className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200",
-                  activeTab === 'ask'
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground hover:bg-background/40"
-                )}
-              >
-                <MagicWandIcon size={16} />
-                Ask AI
-              </button>
-            </div>
-
+            {/* Tab Navigation + Actions */}
             <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="flex items-center gap-1 md:gap-2 p-1 bg-card/40 backdrop-blur border border-border/40 rounded-full shadow-sm">
+                <button
+                  onClick={() => setActiveTab('transcript')}
+                  className={cn(
+                    "flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 rounded-full text-xs md:text-sm font-medium transition-all duration-200",
+                    activeTab === 'transcript'
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground hover:bg-background/40"
+                  )}
+                >
+                  <Search className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                  <span className="hidden sm:inline">Transcript</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('ask')}
+                  className={cn(
+                    "flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 rounded-full text-xs md:text-sm font-medium transition-all duration-200",
+                    activeTab === 'ask'
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground hover:bg-background/40"
+                  )}
+                >
+                  <MagicWandIcon size={14} />
+                  <span className="hidden sm:inline">Ask AI</span>
+                </button>
+              </div>
+
               <ConversationsSidebar
                 interviewId={interview.id}
                 currentConversationId={currentConversationId}
@@ -566,22 +566,22 @@ export default function InterviewDetailPage() {
 
             {/* Transcript with Search */}
             <Card className="p-6 bg-card/30 border-border/60">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
                 <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Full Transcript</h3>
-                <div className="flex items-center gap-3">
-                  <div className="relative">
+                <div className="flex items-center gap-2 md:gap-3 w-full sm:w-auto">
+                  <div className="relative flex-1 sm:flex-none">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <input
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="Search transcript..."
-                      className="pl-9 pr-4 py-2 text-sm bg-background/50 border border-border/60 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/30 w-64 transition-all"
+                      className="pl-9 pr-4 py-2 text-sm bg-background/50 border border-border/60 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/30 w-full sm:w-64 transition-all"
                     />
                   </div>
-                  <Button variant="ghost" size="sm" onClick={copyTranscript} className="hover:bg-muted/50">
+                  <Button variant="ghost" size="sm" onClick={copyTranscript} className="hover:bg-muted/50 shrink-0">
                     {copied ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
-                    {copied ? 'Copied!' : 'Copy'}
+                    <span className="hidden sm:inline">{copied ? 'Copied!' : 'Copy'}</span>
                   </Button>
                 </div>
               </div>
@@ -754,7 +754,7 @@ export default function InterviewDetailPage() {
             </div>
 
             {/* Input Area */}
-            <div className="fixed bottom-0 left-0 right-0 z-40 px-4 pt-8" style={{ background: 'linear-gradient(to top, hsl(var(--background)) 70%, transparent)' }}>
+            <div className="fixed bottom-0 left-0 md:left-[260px] right-0 z-40 px-4 pt-8" style={{ background: 'linear-gradient(to top, hsl(var(--background)) 70%, transparent)' }}>
               <div className="max-w-2xl mx-auto">
                 <div className="relative group">
                   <div className="relative bg-card/60 backdrop-blur-md border border-border/30 rounded-xl shadow-lg transition-all duration-300 group-focus-within:border-primary/30 group-focus-within:shadow-xl overflow-hidden min-h-[54px] flex flex-col justify-end">

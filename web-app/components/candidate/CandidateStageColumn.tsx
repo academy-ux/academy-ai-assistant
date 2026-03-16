@@ -15,16 +15,16 @@ export function CandidateStageColumn({
     emptyMessage = "No candidates in this stage."
 }: CandidateStageColumnProps) {
     return (
-        <div className={cn("space-y-6", className)}>
-            <div className="flex items-center justify-between border-b pb-4">
-                <h2 className="text-2xl font-semibold tracking-tight">{title}</h2>
+        <div className={cn("space-y-4 md:space-y-6", className)}>
+            <div className="flex items-center justify-between border-b pb-3 md:pb-4">
+                <h2 className="text-xl md:text-2xl font-semibold tracking-tight">{title}</h2>
                 <span className="text-sm text-muted-foreground bg-secondary/50 px-2 py-0.5 rounded-md">
                     {candidates.length}
                 </span>
             </div>
 
             {candidates.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
                     {candidates.map((candidate) => (
                         <CandidateCard key={candidate.id} candidate={candidate} />
                     ))}

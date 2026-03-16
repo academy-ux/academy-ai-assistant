@@ -14,16 +14,17 @@ export async function POST(request: NextRequest) {
             postingId: string
         }
 
-        if (!candidates?.length) {
+        if (!candidates?.length || !postingId) {
             return NextResponse.json({ pitches: {} })
         }
 
-        // Check which candidates already have pitches
+        // Check which candidates already have a pitch for THIS posting
         const emails = candidates.map(c => c.email).filter(Boolean)
         const { data: existing } = await supabase
-            .from('candidate_profiles')
+            .from('candidate_pitches')
             .select('candidate_email, pitch')
             .in('candidate_email', emails)
+            .eq('posting_id', postingId)
 
         const existingMap = new Map(
             (existing || [])
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
                 .map(p => [p.candidate_email, p.pitch])
         )
 
-        // Filter to only candidates that need a pitch
+        // Filter to only candidates that need a pitch for this role
         const needsPitch = candidates.filter(c => c.email && !existingMap.has(c.email))
 
         const pitches: Record<string, string | null> = {}
@@ -59,15 +60,15 @@ export async function POST(request: NextRequest) {
 
                 if (pitch) {
                     pitches[candidate.email] = pitch
-                    // Persist immediately
+                    // Persist to role-specific pitches table
                     await supabase
-                        .from('candidate_profiles')
+                        .from('candidate_pitches')
                         .upsert({
                             candidate_email: candidate.email,
+                            posting_id: postingId,
                             pitch,
                             updated_at: new Date().toISOString(),
-                        }, { onConflict: 'candidate_email' })
-                        .select()
+                        }, { onConflict: 'candidate_email,posting_id' })
                 } else {
                     pitches[candidate.email] = null
                 }

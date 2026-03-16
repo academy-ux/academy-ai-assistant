@@ -20,14 +20,14 @@ export function Navbar() {
 
   return (
     <nav className="border-b border-border/50 bg-card/20 backdrop-blur-md supports-[backdrop-filter]:bg-card/60 sticky top-0 z-50">
-      <div className="flex h-16 max-w-[1600px] items-center justify-between px-6 mx-auto w-full">
-        <Link href="/" className="flex items-center gap-4 group">
-          <Image 
-            src="/academy-logo-2024-v1.svg" 
-            alt="Academy UX" 
+      <div className="flex h-14 sm:h-16 max-w-[1600px] items-center justify-between px-4 sm:px-6 mx-auto w-full">
+        <Link href="/" className="flex items-center gap-3 sm:gap-4 group shrink-0">
+          <Image
+            src="/academy-logo-2024-v1.svg"
+            alt="Academy UX"
             width={100}
             height={24}
-            className="h-5 w-auto transition-opacity group-hover:opacity-80"
+            className="h-4 sm:h-5 w-auto transition-opacity group-hover:opacity-80"
             priority
           />
           <span className="text-border font-light hidden sm:inline-block">|</span>
@@ -35,55 +35,45 @@ export function Navbar() {
             AI Assistant
           </span>
         </Link>
-        
-        <div className="flex items-center space-x-1">
+
+        <div className="flex items-center gap-1 sm:gap-2">
           {session ? (
             <>
-              <Link 
-                href="/history" 
-                className="text-xs font-medium px-3 py-2 rounded-lg transition-colors text-foreground/70 hover:text-foreground hover:bg-accent"
+              <Link
+                href="/history"
+                className="text-[11px] sm:text-xs font-medium px-2 sm:px-3 py-2 rounded-lg transition-colors text-foreground/70 hover:text-foreground hover:bg-accent"
               >
                 History
               </Link>
-              <Link 
-                href="/feedback" 
-                className="text-xs font-medium px-3 py-2 rounded-lg transition-colors text-foreground/70 hover:text-foreground hover:bg-accent"
+              <Link
+                href="/feedback"
+                className="text-[11px] sm:text-xs font-medium px-2 sm:px-3 py-2 rounded-lg transition-colors text-foreground/70 hover:text-foreground hover:bg-accent"
               >
                 Feedback
               </Link>
-              <div className="flex items-center gap-3 ml-4 pl-4 border-l border-border/50">
-                <div className="hidden md:flex items-center gap-2">
-                  <Avatar className="h-7 w-7 border border-border/40">
-                    <AvatarImage
-                      src={session.user?.image || undefined}
-                      alt={session.user?.name || 'User'}
-                    />
-                    <AvatarFallback className="text-[10px] font-semibold bg-muted/50 text-foreground/70">
-                      {initialsFrom(session.user?.name || session.user?.email || '')}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex flex-col leading-tight">
-                    <span className="text-xs font-medium text-foreground/80 max-w-[180px] truncate">
-                      {session.user?.name || 'Account'}
-                    </span>
-                    <span className="text-[11px] text-muted-foreground max-w-[220px] truncate">
-                      {session.user?.email}
-                    </span>
-                  </div>
-                </div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+              <div className="flex items-center gap-2 sm:gap-3 ml-2 sm:ml-4 pl-2 sm:pl-4 border-l border-border/50">
+                <Avatar className="h-7 w-7 border border-border/40 hidden sm:flex">
+                  <AvatarImage
+                    src={session.user?.image || undefined}
+                    alt={session.user?.name || 'User'}
+                  />
+                  <AvatarFallback className="text-[10px] font-semibold bg-muted/50 text-foreground/70">
+                    {initialsFrom(session.user?.name || session.user?.email || '')}
+                  </AvatarFallback>
+                </Avatar>
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => signOut()}
-                  className="text-xs"
+                  className="text-[11px] sm:text-xs h-8 px-2.5 sm:px-3"
                 >
                   Sign Out
                 </Button>
               </div>
             </>
           ) : (
-            <Link 
-              href="/" 
+            <Link
+              href="/"
               className="text-sm font-medium px-3 py-2 rounded-lg transition-colors text-foreground/70 hover:text-foreground hover:bg-accent"
             >
               Sign In

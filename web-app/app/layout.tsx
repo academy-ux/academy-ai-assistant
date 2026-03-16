@@ -33,15 +33,15 @@ export default function RootLayout({
       <body className="font-sans bg-background text-foreground antialiased">
         <Providers>
           <AppErrorBoundary>
-            <div className="flex h-screen bg-background overflow-hidden font-sans">
+            <div className="flex flex-col md:flex-row h-screen bg-background overflow-hidden font-sans">
               <Suspense fallback={<div className="w-[260px] hidden md:block bg-card/30 border-r border-border/40" />}>
                 <Sidebar />
               </Suspense>
 
-              <div className="md:hidden">
+              <div className="md:hidden shrink-0">
                 <Navbar />
               </div>
-              <main className="flex-1 overflow-auto relative flex flex-col w-full">
+              <main className="flex-1 overflow-auto relative flex flex-col w-full min-h-0">
                 {children}
               </main>
             </div>

@@ -1429,7 +1429,7 @@ function FeedbackContent() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-[1600px] mx-auto px-6 py-6 md:py-8">
+      <div className="max-w-[1600px] mx-auto px-4 md:px-6 py-6 md:py-8">
         {/* Header */}
         <div className="mb-6">
           <p className="text-xs font-medium tracking-[0.2em] text-muted-foreground uppercase mb-3">Feedback Assessment</p>
@@ -1443,7 +1443,7 @@ function FeedbackContent() {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left: Interview List */}
-          <div className="lg:col-span-4 h-[calc(100vh-12rem)] min-h-[600px]">
+          <div className="lg:col-span-4 h-[60vh] lg:h-[calc(100vh-12rem)] min-h-[400px] lg:min-h-[600px]">
             <div className="h-full flex flex-col border border-border/60 rounded-xl bg-card/30 overflow-hidden">
               {/* Search and Actions */}
               <div className="p-4 border-b border-border/40 bg-card/20 backdrop-blur-sm space-y-3">
@@ -1807,7 +1807,7 @@ function FeedbackContent() {
 
           {/* Right: Transcript & Evaluation Form */}
           {!selectedInterview ? (
-            <div className="lg:col-span-8 h-[calc(100vh-12rem)] min-h-[600px]">
+            <div className="lg:col-span-8 h-[50vh] lg:h-[calc(100vh-12rem)] min-h-[300px] lg:min-h-[600px]">
               <div className="h-full flex flex-col items-center justify-center border border-dashed border-border/60 rounded-xl bg-card/20">
                 <FileText className="h-16 w-16 text-muted-foreground/20 mb-4" />
                 <h3 className="text-lg font-medium text-muted-foreground mb-2">No Interview Selected</h3>

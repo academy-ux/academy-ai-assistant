@@ -20,6 +20,47 @@ export interface LeverCandidate {
   answers: any[]
 }
 
+/**
+ * Fix common candidate link mistakes:
+ * - linkedin.com/username → linkedin.com/in/username
+ * - Missing https://
+ */
+function normalizeLink(link: string | { url: string; type?: string }): { url: string; type?: string } {
+  if (typeof link === 'string') {
+    link = { url: link }
+  }
+  if (!link.url) return link
+  let url = link.url.trim()
+
+  // Ensure protocol
+  if (url && !url.startsWith('http://') && !url.startsWith('https://')) {
+    url = 'https://' + url
+  }
+
+  try {
+    const parsed = new URL(url)
+
+    // Fix LinkedIn URLs: linkedin.com/username → linkedin.com/in/username
+    if (parsed.hostname.includes('linkedin.com')) {
+      const path = parsed.pathname.replace(/\/+$/, '') // trim trailing slashes
+      const segments = path.split('/').filter(Boolean)
+
+      // If it's just linkedin.com/username (single segment, not a known prefix)
+      if (segments.length === 1) {
+        const knownPrefixes = ['in', 'pub', 'company', 'school', 'groups', 'jobs', 'feed', 'messaging', 'notifications']
+        if (!knownPrefixes.includes(segments[0])) {
+          parsed.pathname = `/in/${segments[0]}`
+          url = parsed.toString()
+        }
+      }
+    }
+  } catch {
+    // If URL is unparseable, return as-is
+  }
+
+  return { ...link, url }
+}
+
 function getLeverAuth(): string {
   const leverKey = process.env.LEVER_API_KEY
   if (!leverKey) throw new Error('Lever API key not configured')
@@ -96,7 +137,7 @@ export async function fetchCandidatesForPosting(postingId?: string): Promise<Lev
       headline: opp.headline || opp.contact?.headline || '',
       location: locationText,
       email: opp.contact?.emails?.[0] || '',
-      links: opp.links || [],
+      links: (opp.links || []).map(normalizeLink),
       position: matchedApp?.postingTitle || 'Uncategorized',
       postingId: matchedApp?.posting || null,
       stage: opp.stage?.text || 'Unknown Stage',

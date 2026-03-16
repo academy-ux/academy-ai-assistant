@@ -19,7 +19,7 @@ interface ReportTabsProps {
 
 export function ReportTabs({ options, onChange, ClassName, activeTab }: ReportTabsProps) {
     return (
-        <div className={cn("flex gap-1 overflow-x-auto scrollbar-hide", ClassName)}>
+        <div className={cn("flex gap-0.5 md:gap-1 overflow-x-auto scrollbar-hide -mx-1 px-1", ClassName)}>
             {options.map((option) => {
                 const isActive = activeTab === option.value
                 return (
@@ -28,7 +28,7 @@ export function ReportTabs({ options, onChange, ClassName, activeTab }: ReportTa
                         type="button"
                         onClick={() => onChange?.(option.value)}
                         className={cn(
-                            "relative px-4 py-3 text-[11px] font-bold tracking-wide whitespace-nowrap flex items-center gap-2 transition-colors duration-200",
+                            "relative px-3 md:px-4 py-3 text-[10px] md:text-[11px] font-bold tracking-wide whitespace-nowrap flex items-center gap-1.5 md:gap-2 transition-colors duration-200",
                             isActive
                                 ? "text-foreground"
                                 : "text-muted-foreground/50 hover:text-foreground/70"

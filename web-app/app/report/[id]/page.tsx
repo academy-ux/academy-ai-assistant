@@ -515,9 +515,9 @@ export default function CandidateReportPage() {
         <div className="min-h-screen bg-background">
             {/* Header */}
             <div className="sticky top-0 z-50 bg-background/90 backdrop-blur-xl border-b border-border/30">
-                <div className="max-w-[1200px] mx-auto px-6">
+                <div className="max-w-[1200px] mx-auto px-4 md:px-6">
                     {/* Back nav */}
-                    <div className="pt-5 pb-1">
+                    <div className="pt-4 md:pt-5 pb-1">
                         <button
                             onClick={() => router.back()}
                             className="flex items-center gap-2 -ml-1 px-2 py-1.5 rounded-lg text-muted-foreground/50 hover:text-foreground hover:bg-muted/30 transition-colors duration-200 group"
@@ -528,11 +528,11 @@ export default function CandidateReportPage() {
                     </div>
 
                     {/* Title area */}
-                    <div className="pt-3 pb-4">
-                        <h1 className="text-[22px] font-bold tracking-tight text-foreground leading-tight">
+                    <div className="pt-2 md:pt-3 pb-3 md:pb-4">
+                        <h1 className="text-lg md:text-[22px] font-bold tracking-tight text-foreground leading-tight">
                             {projectTitle}
                         </h1>
-                        <p className="text-xs text-muted-foreground/50 font-medium mt-1.5 tabular-nums">
+                        <p className="text-xs text-muted-foreground/50 font-medium mt-1 md:mt-1.5 tabular-nums">
                             {candidates.length} candidates in pipeline
                         </p>
                     </div>
@@ -550,12 +550,12 @@ export default function CandidateReportPage() {
             </div>
 
             {/* Content */}
-            <main className="max-w-[1200px] mx-auto px-6 py-8 pb-32">
+            <main className="max-w-[1200px] mx-auto px-4 md:px-6 py-6 md:py-8 pb-32">
                 {/* Search + Actions toolbar */}
-                <div className="flex items-center gap-2 mb-6">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-2 mb-6">
                     <div className={cn(
-                        "relative transition-[width] duration-300 ease-smooth",
-                        searchFocused ? "w-72" : "w-56"
+                        "relative transition-[width] duration-300 ease-smooth w-full sm:w-auto",
+                        searchFocused ? "sm:w-72" : "sm:w-56"
                     )}>
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/40" />
                         <Input
@@ -581,7 +581,7 @@ export default function CandidateReportPage() {
                         </AnimatePresence>
                     </div>
 
-                    <div className="flex items-center gap-2 ml-auto">
+                    <div className="flex items-center gap-2 sm:ml-auto flex-wrap">
                         <button
                             onClick={handleShare}
                             disabled={shareLoading}
@@ -661,10 +661,10 @@ export default function CandidateReportPage() {
             <Sheet open={!!selectedCandidateId} onOpenChange={(open) => !open && setSelectedCandidateId(null)}>
                 <SheetContent className="w-full sm:max-w-lg lg:max-w-xl overflow-y-auto border-l border-border/20 bg-background p-0">
                     <div className="h-full flex flex-col">
-                        <div className="px-8 pt-8 pb-4 border-b border-border/10">
+                        <div className="px-5 md:px-8 pt-6 md:pt-8 pb-4 border-b border-border/10">
                             <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Candidate Profile</span>
                         </div>
-                        <div className="px-8 py-6 flex-1 overflow-y-auto">
+                        <div className="px-5 md:px-8 py-5 md:py-6 flex-1 overflow-y-auto">
                             {selectedCandidate && (
                                 <CandidateDetails
                                     candidate={selectedCandidate}

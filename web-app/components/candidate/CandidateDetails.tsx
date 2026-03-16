@@ -117,11 +117,14 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
             if (candidate.email) query.append('email', candidate.email)
             if (candidate.name) query.append('name', candidate.name)
 
-            const [notesRes, meetingsRes, passwordRes, profileRes, resumeRes] = await Promise.all([
+            const [notesRes, meetingsRes, passwordRes, profileRes, pitchRes, resumeRes] = await Promise.all([
                 fetch(`/api/candidates/${candidate.email || 'unknown'}/notes`),
                 fetch(`/api/candidates/${candidate.email || 'unknown'}/meeting-info?${query.toString()}`),
                 fetch(`/api/candidates/${candidate.email || 'unknown'}/portfolio-password`),
                 fetch(`/api/candidates/${candidate.email || 'unknown'}/profile`),
+                postingId
+                    ? fetch(`/api/candidates/${candidate.email || 'unknown'}/pitch?postingId=${postingId}`)
+                    : Promise.resolve(null),
                 fetch(`/api/lever/candidates/${candidate.id}/resume-info?${new URLSearchParams({
                     ...(postingId ? { postingId } : {}),
                     ...(candidate.email ? { email: candidate.email } : {})
@@ -155,7 +158,6 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
             if (profileRes.ok) {
                 const data = await profileRes.json()
                 if (data.profile) {
-                    setProfilePitch(data.profile.pitch || "")
                     setProfileSalary(data.profile.salary_expectations || "")
                     setProfileExp(data.profile.years_of_experience || "")
                 } else if (candidate.answers) {
@@ -165,6 +167,11 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                     )?.value || ""
                     setProfileSalary(salaryAnswer)
                 }
+            }
+
+            if (pitchRes && pitchRes.ok) {
+                const data = await pitchRes.json()
+                if (data.pitch) setProfilePitch(data.pitch)
             }
 
             if (resumeRes.ok) {
@@ -207,16 +214,30 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
         if (!candidate.email) return
         setSavingProfile(true)
         try {
-            const res = await fetch(`/api/candidates/${candidate.email}/profile`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    pitch: profilePitch,
-                    salary_expectations: profileSalary,
-                    years_of_experience: profileExp
+            const promises: Promise<Response>[] = [
+                fetch(`/api/candidates/${candidate.email}/profile`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        salary_expectations: profileSalary,
+                        years_of_experience: profileExp
+                    })
                 })
-            })
-            if (res.ok) {
+            ]
+
+            // Save pitch to role-specific endpoint if we have a postingId
+            if (postingId && profilePitch) {
+                promises.push(
+                    fetch(`/api/candidates/${candidate.email}/pitch`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ postingId, pitch: profilePitch })
+                    })
+                )
+            }
+
+            const results = await Promise.all(promises)
+            if (results.every(r => r.ok)) {
                 toast.success("Profile saved")
                 setIsEditingPitch(false)
                 setIsEditingMetadata(false)
@@ -309,16 +330,12 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
             const data = await res.json()
             if (res.ok && data.pitch) {
                 setProfilePitch(data.pitch)
-                if (autoSave && candidate.email) {
-                    // Auto-save the pitch directly
-                    await fetch(`/api/candidates/${candidate.email}/profile`, {
+                if (autoSave && candidate.email && postingId) {
+                    // Auto-save the pitch to role-specific endpoint
+                    await fetch(`/api/candidates/${candidate.email}/pitch`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            pitch: data.pitch,
-                            salary_expectations: profileSalary,
-                            years_of_experience: profileExp
-                        })
+                        body: JSON.stringify({ postingId, pitch: data.pitch })
                     })
                     toast.success("Pitch auto-generated and saved")
                 } else {
@@ -343,25 +360,25 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
     const initials = candidate.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
 
     return (
-        <div className="flex flex-col h-full space-y-8">
+        <div className="flex flex-col h-full space-y-6 md:space-y-8">
             {/* Hero */}
-            <div className="space-y-5">
-                <div className="flex items-start gap-4">
-                    <div className={cn("w-14 h-14 rounded-2xl bg-gradient-to-br flex items-center justify-center text-foreground/70 font-bold text-base shrink-0", avatarGradient)}>
+            <div className="space-y-4 md:space-y-5">
+                <div className="flex items-start gap-3 md:gap-4">
+                    <div className={cn("w-11 h-11 md:w-14 md:h-14 rounded-2xl bg-gradient-to-br flex items-center justify-center text-foreground/70 font-bold text-sm md:text-base shrink-0", avatarGradient)}>
                         {initials}
                     </div>
                     <div className="min-w-0 flex-1">
-                        <h2 className="text-2xl font-bold tracking-tight text-foreground leading-tight">
+                        <h2 className="text-xl md:text-2xl font-bold tracking-tight text-foreground leading-tight">
                             {candidate.name}
                         </h2>
-                        <p className="text-sm text-muted-foreground mt-0.5 truncate">
+                        <p className="text-xs md:text-sm text-muted-foreground mt-0.5 truncate">
                             {candidate.headline || "No headline"}
                         </p>
                     </div>
                 </div>
 
                 {/* Quick links */}
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5 md:gap-2 flex-wrap">
                     {normalizedLinks.map((link, i) => {
                         const info = getLinkInfo(link.url)
                         const isPortfolio = !link.url.includes('linkedin.com')
@@ -383,7 +400,7 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
             </div>
 
             {/* Info Card */}
-            <div className="bg-muted/20 rounded-xl p-5 relative group/meta">
+            <div className="bg-muted/20 rounded-xl p-4 md:p-5 relative group/meta">
                 <div className="space-y-3 pr-8">
                     {[
                         { label: "Location", value: candidate.location || "Remote", editable: false },
@@ -391,23 +408,23 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                         { label: "Total Exp", value: profileTotalExp, editable: false },
                         { label: "Salary", value: profileSalary, editable: true, field: "salary" },
                     ].filter(item => item.value || item.editable).map((item) => (
-                        <div key={item.label} className="flex items-center justify-between">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50">{item.label}</span>
+                        <div key={item.label} className="flex items-center justify-between gap-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50 shrink-0">{item.label}</span>
                             {isEditingMetadata && item.editable ? (
                                 <Input
                                     value={item.field === "exp" ? profileExp : profileSalary}
                                     onChange={(e) => item.field === "exp" ? setProfileExp(e.target.value) : setProfileSalary(e.target.value)}
-                                    className="h-6 w-40 p-0 text-sm font-bold text-right bg-transparent border-none border-b border-primary/20 rounded-none focus:ring-0"
+                                    className="h-6 w-28 md:w-40 p-0 text-sm font-bold text-right bg-transparent border-none border-b border-primary/20 rounded-none focus:ring-0"
                                     autoFocus={item.field === "exp"}
                                 />
                             ) : (
-                                <span className="text-sm font-bold tracking-tight truncate max-w-[200px]">{item.value || "—"}</span>
+                                <span className="text-xs md:text-sm font-bold tracking-tight truncate max-w-[140px] md:max-w-[200px]">{item.value || "—"}</span>
                             )}
                         </div>
                     ))}
                 </div>
 
-                <div className="absolute top-4 right-4">
+                <div className="absolute top-3 right-3 md:top-4 md:right-4">
                     {isEditingMetadata ? (
                         <button onClick={handleSaveProfile} disabled={savingProfile}
                             className="p-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors duration-200">
@@ -429,13 +446,13 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
 
             {/* The Pitch */}
             <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 shrink-0">
                         <Sparkles className="w-3.5 h-3.5 text-peach" />
                         <span className="text-xs font-bold text-foreground/70">The Pitch</span>
                     </div>
                     {hasPitch && (
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1 md:gap-1.5 flex-wrap justify-end">
                             <button
                                 onClick={() => handleGeneratePitch()}
                                 disabled={generatingPitch}
@@ -505,7 +522,7 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
             <div className="space-y-4 pt-4 border-t border-border/15">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">Pipeline Controls</span>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3">
                     <div className="bg-muted/15 p-4 rounded-xl space-y-2">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/40">Stage</span>
                         <div onClick={(e) => e.stopPropagation()}>
