@@ -168,6 +168,33 @@ export type Database = {
         }
         Relationships: []
       }
+      candidate_pitches: {
+        Row: {
+          id: string
+          candidate_email: string
+          posting_id: string
+          pitch: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          candidate_email: string
+          posting_id: string
+          pitch: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          candidate_email?: string
+          posting_id?: string
+          pitch?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       candidate_passwords: {
         Row: {
           id: string
