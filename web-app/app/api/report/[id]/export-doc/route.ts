@@ -73,23 +73,99 @@ function groupCandidates(candidates: LeverCandidate[]): CandidateGroups {
     return groups
 }
 
-function getCandidateLinks(c: LeverCandidate): { linkedin: string | null; portfolio: string | null } {
+interface CandidateLinks {
+    linkedin: string | null
+    portfolio: string | null
+    otherLinks: { label: string; url: string }[]
+}
+
+function getCandidateLinks(c: LeverCandidate): CandidateLinks {
     let linkedin: string | null = null
     let portfolio: string | null = null
+    const otherLinks: { label: string; url: string }[] = []
+
     for (const link of c.links || []) {
         const url = typeof link === 'string' ? link : link.url
         if (!url) continue
-        if (url.includes('linkedin.com')) linkedin = url
-        else if (!portfolio) portfolio = url
+        const lower = url.toLowerCase()
+
+        if (lower.includes('linkedin.com')) {
+            if (!linkedin) linkedin = url
+        } else if (lower.includes('github.com')) {
+            otherLinks.push({ label: 'GitHub', url })
+        } else if (lower.includes('dribbble.com')) {
+            otherLinks.push({ label: 'Dribbble', url })
+        } else if (lower.includes('behance.net')) {
+            otherLinks.push({ label: 'Behance', url })
+        } else if (lower.includes('instagram.com')) {
+            otherLinks.push({ label: 'Instagram', url })
+        } else if (lower.includes('twitter.com') || lower.includes('x.com')) {
+            otherLinks.push({ label: 'X', url })
+        } else if (lower.includes('read.cv')) {
+            otherLinks.push({ label: 'Read.cv', url })
+        } else if (!portfolio) {
+            portfolio = url
+        } else {
+            // Try to derive a label from the domain
+            try {
+                const domain = new URL(url).hostname.replace('www.', '')
+                otherLinks.push({ label: domain, url })
+            } catch {
+                otherLinks.push({ label: 'Link', url })
+            }
+        }
     }
-    return { linkedin, portfolio }
+    return { linkedin, portfolio, otherLinks }
+}
+
+// ─── Fingerprinting ─────────────────────────────────────────────
+
+function simpleHash(str: string): string {
+    let hash = 0
+    for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i)
+        hash |= 0
+    }
+    return Math.abs(hash).toString(36)
+}
+
+function candidateFingerprint(c: LeverCandidate, opts: { pitch?: string; password?: string; experience?: string }): string {
+    return simpleHash([
+        c.name, c.headline || '', typeof c.location === 'string' ? c.location : '',
+        (c.links || []).map(l => l.url).join(','),
+        opts.pitch || '', opts.password || '', opts.experience || '',
+    ].join('|'))
 }
 
 // ─── Document Builder ────────────────────────────────────────────
 
 class DocBuilder {
     requests: any[] = []
-    idx = 1
+    idx: number
+    private _rangeStarts = new Map<string, number>()
+
+    constructor(startIdx = 1) {
+        this.idx = startIdx
+    }
+
+    startRange(name: string) {
+        this._rangeStarts.set(name, this.idx)
+        return this
+    }
+
+    endRange(name: string) {
+        const start = this._rangeStarts.get(name)
+        if (start !== undefined) {
+            this.requests.push({
+                createNamedRange: {
+                    name,
+                    range: { startIndex: start, endIndex: this.idx }
+                }
+            })
+            this._rangeStarts.delete(name)
+        }
+        return this
+    }
 
     text(content: string) {
         this.requests.push({ insertText: { location: { index: this.idx }, text: content } })
@@ -262,11 +338,36 @@ class DocBuilder {
         return this
     }
 
-    candidateEntry(c: LeverCandidate, opts?: { pitch?: string; password?: string }) {
-        const { linkedin, portfolio } = getCandidateLinks(c)
-        const location = typeof c.location === 'string' ? c.location : ''
+    linkInline(label: string, url: string) {
+        this.styledText(' | ', {
+            foregroundColor: { color: { rgbColor: COLORS.warmGray } },
+            fontSize: { magnitude: PT.bodyText, unit: 'PT' },
+            underline: false,
+        }, 'foregroundColor,fontSize,underline')
+        const start = this.idx
+        this.text(label)
+        this.requests.push({
+            updateTextStyle: {
+                range: { startIndex: start, endIndex: this.idx },
+                textStyle: {
+                    link: { url },
+                    foregroundColor: { color: { rgbColor: COLORS.link } },
+                    fontSize: { magnitude: PT.bodyText, unit: 'PT' },
+                    weightedFontFamily: { fontFamily: FONTS.body, weight: 400 },
+                    underline: true,
+                },
+                fields: 'link,foregroundColor,fontSize,weightedFontFamily,underline',
+            }
+        })
+        return this
+    }
 
-        // ── Single line: **Name** | LinkedIn | Portfolio | **Location:** X ──
+    candidateEntry(c: LeverCandidate, opts?: { pitch?: string; password?: string; experience?: string }) {
+        const { linkedin, portfolio, otherLinks } = getCandidateLinks(c)
+        const location = typeof c.location === 'string' ? c.location : ''
+        const headline = c.headline || ''
+
+        // ── Single line: **Name** — Headline | LinkedIn | Portfolio | ... ──
         const lineStart = this.idx
 
         // Bold name
@@ -286,51 +387,19 @@ class DocBuilder {
             }
         })
 
-        if (linkedin) {
-            this.styledText(' | ', {
+        if (headline) {
+            this.styledText(` — ${headline}`, {
                 foregroundColor: { color: { rgbColor: COLORS.warmGray } },
                 fontSize: { magnitude: PT.bodyText, unit: 'PT' },
+                weightedFontFamily: { fontFamily: FONTS.body, weight: 400 },
+                italic: true,
                 underline: false,
-            }, 'foregroundColor,fontSize,underline')
-            const ls = this.idx
-            this.text('LinkedIn')
-            this.requests.push({
-                updateTextStyle: {
-                    range: { startIndex: ls, endIndex: this.idx },
-                    textStyle: {
-                        link: { url: linkedin },
-                        foregroundColor: { color: { rgbColor: COLORS.link } },
-                        fontSize: { magnitude: PT.bodyText, unit: 'PT' },
-                        weightedFontFamily: { fontFamily: FONTS.body, weight: 400 },
-                        underline: true,
-                    },
-                    fields: 'link,foregroundColor,fontSize,weightedFontFamily,underline',
-                }
-            })
+            }, 'foregroundColor,fontSize,weightedFontFamily,italic,underline')
         }
 
-        if (portfolio) {
-            this.styledText(' | ', {
-                foregroundColor: { color: { rgbColor: COLORS.warmGray } },
-                fontSize: { magnitude: PT.bodyText, unit: 'PT' },
-                underline: false,
-            }, 'foregroundColor,fontSize,underline')
-            const ps = this.idx
-            this.text('Portfolio')
-            this.requests.push({
-                updateTextStyle: {
-                    range: { startIndex: ps, endIndex: this.idx },
-                    textStyle: {
-                        link: { url: portfolio },
-                        foregroundColor: { color: { rgbColor: COLORS.link } },
-                        fontSize: { magnitude: PT.bodyText, unit: 'PT' },
-                        weightedFontFamily: { fontFamily: FONTS.body, weight: 400 },
-                        underline: true,
-                    },
-                    fields: 'link,foregroundColor,fontSize,weightedFontFamily,underline',
-                }
-            })
-        }
+        if (linkedin) this.linkInline('LinkedIn', linkedin)
+        if (portfolio) this.linkInline('Portfolio', portfolio)
+        for (const link of otherLinks) this.linkInline(link.label, link.url)
 
         if (opts?.password) {
             this.styledText(' | ', {
@@ -367,6 +436,27 @@ class DocBuilder {
                 underline: false,
             }, 'bold,foregroundColor,fontSize,weightedFontFamily,underline')
             this.styledText(location, {
+                foregroundColor: { color: { rgbColor: COLORS.body } },
+                fontSize: { magnitude: PT.bodyText, unit: 'PT' },
+                weightedFontFamily: { fontFamily: FONTS.body, weight: 400 },
+                underline: false,
+            }, 'foregroundColor,fontSize,weightedFontFamily,underline')
+        }
+
+        if (opts?.experience) {
+            this.styledText(' | ', {
+                foregroundColor: { color: { rgbColor: COLORS.warmGray } },
+                fontSize: { magnitude: PT.bodyText, unit: 'PT' },
+                underline: false,
+            }, 'foregroundColor,fontSize,underline')
+            this.styledText('Experience: ', {
+                bold: true,
+                foregroundColor: { color: { rgbColor: COLORS.charcoal } },
+                fontSize: { magnitude: PT.bodyText, unit: 'PT' },
+                weightedFontFamily: { fontFamily: FONTS.body, weight: 700 },
+                underline: false,
+            }, 'bold,foregroundColor,fontSize,weightedFontFamily,underline')
+            this.styledText(opts.experience, {
                 foregroundColor: { color: { rgbColor: COLORS.body } },
                 fontSize: { magnitude: PT.bodyText, unit: 'PT' },
                 weightedFontFamily: { fontFamily: FONTS.body, weight: 400 },
@@ -442,7 +532,7 @@ class DocBuilder {
     }
 
     archivedEntry(c: LeverCandidate) {
-        const { linkedin, portfolio } = getCandidateLinks(c)
+        const { linkedin, portfolio, otherLinks } = getCandidateLinks(c)
         const location = typeof c.location === 'string' ? c.location : ''
         const reason = c.archivedReason || ''
         const lineStart = this.idx
@@ -464,18 +554,9 @@ class DocBuilder {
             }
         })
 
-        if (linkedin) {
-            this.styledText(' | ', { foregroundColor: { color: { rgbColor: COLORS.warmGray } }, fontSize: { magnitude: PT.bodyText, unit: 'PT' }, underline: false }, 'foregroundColor,fontSize,underline')
-            const ls = this.idx
-            this.text('LinkedIn')
-            this.requests.push({ updateTextStyle: { range: { startIndex: ls, endIndex: this.idx }, textStyle: { link: { url: linkedin }, foregroundColor: { color: { rgbColor: COLORS.link } }, fontSize: { magnitude: PT.bodyText, unit: 'PT' }, underline: true }, fields: 'link,foregroundColor,fontSize,underline' } })
-        }
-        if (portfolio) {
-            this.styledText(' | ', { foregroundColor: { color: { rgbColor: COLORS.warmGray } }, fontSize: { magnitude: PT.bodyText, unit: 'PT' }, underline: false }, 'foregroundColor,fontSize,underline')
-            const ps = this.idx
-            this.text('Portfolio')
-            this.requests.push({ updateTextStyle: { range: { startIndex: ps, endIndex: this.idx }, textStyle: { link: { url: portfolio }, foregroundColor: { color: { rgbColor: COLORS.link } }, fontSize: { magnitude: PT.bodyText, unit: 'PT' }, underline: true }, fields: 'link,foregroundColor,fontSize,underline' } })
-        }
+        if (linkedin) this.linkInline('LinkedIn', linkedin)
+        if (portfolio) this.linkInline('Portfolio', portfolio)
+        for (const link of otherLinks) this.linkInline(link.label, link.url)
         if (location) {
             this.styledText(' | ', { foregroundColor: { color: { rgbColor: COLORS.warmGray } }, fontSize: { magnitude: PT.bodyText, unit: 'PT' }, underline: false }, 'foregroundColor,fontSize,underline')
             this.styledText('Location: ', { bold: true, foregroundColor: { color: { rgbColor: COLORS.charcoal } }, fontSize: { magnitude: PT.bodyText, unit: 'PT' }, weightedFontFamily: { fontFamily: FONTS.body, weight: 700 }, underline: false }, 'bold,foregroundColor,fontSize,weightedFontFamily,underline')
@@ -606,7 +687,7 @@ async function ensureFolder(drive: any): Promise<string> {
 
 const LOGO_URL = 'https://academy-ai-assistant.vercel.app/academy-logo-horizontal-3-1024x235.png'
 
-function buildDocContent(b: DocBuilder, projectTitle: string, groups: CandidateGroups, pitchMap: Map<string, string>, passwordMap: Map<string, string>) {
+function buildDocContent(b: DocBuilder, projectTitle: string, groups: CandidateGroups, pitchMap: Map<string, string>, passwordMap: Map<string, string>, experienceMap: Map<string, string>) {
     const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
 
     b.documentMargins()
@@ -614,29 +695,297 @@ function buildDocContent(b: DocBuilder, projectTitle: string, groups: CandidateG
     b.title(projectTitle || 'Candidate Presentation')
     b.subtitle(`Updated: ${today}`)
 
-    const sections: { heading: string; candidates: LeverCandidate[]; type: 'presenting' | 'standard' | 'archived' }[] = [
-        { heading: 'Client Interview', candidates: groups.interviewing, type: 'standard' },
-        { heading: 'Presenting', candidates: groups.presenting, type: 'presenting' },
-        { heading: 'Portfolio Interview', candidates: groups.portfolio, type: 'standard' },
-        { heading: 'In Review', candidates: groups.applied, type: 'standard' },
-        { heading: 'Client Passed', candidates: groups.clientPassed, type: 'archived' },
-        { heading: 'Withdrew', candidates: groups.withdrew, type: 'archived' },
+    const sections: { key: string; heading: string; candidates: LeverCandidate[]; type: 'presenting' | 'standard' | 'archived' }[] = [
+        { key: 'interviewing', heading: 'Client Interview', candidates: groups.interviewing, type: 'standard' },
+        { key: 'presenting', heading: 'Presenting', candidates: groups.presenting, type: 'presenting' },
+        { key: 'portfolio', heading: 'Portfolio Interview', candidates: groups.portfolio, type: 'standard' },
+        { key: 'applied', heading: 'In Review', candidates: groups.applied, type: 'standard' },
+        { key: 'clientPassed', heading: 'Client Passed', candidates: groups.clientPassed, type: 'archived' },
+        { key: 'withdrew', heading: 'Withdrew', candidates: groups.withdrew, type: 'archived' },
     ]
 
-    for (let i = 0; i < sections.length; i++) {
-        const section = sections[i]
+    for (const section of sections) {
         b.sectionHeading(section.heading)
+        b.startRange(`section__${section.key}__body`)
+
         if (section.candidates.length === 0) {
             b.emptyState('No candidates in this stage.')
+        } else {
+            for (const c of section.candidates) {
+                const pw = c.email ? passwordMap.get(c.email) : undefined
+                const exp = c.email ? experienceMap.get(c.email) : undefined
+                const opts = {
+                    pitch: section.type === 'presenting' ? pitchMap.get(c.id) : undefined,
+                    password: pw,
+                    experience: exp,
+                }
+                const hash = candidateFingerprint(c, opts)
+
+                b.startRange(`candidate__${c.id}__${hash}`)
+                if (section.type === 'archived') b.archivedEntry(c)
+                else b.candidateEntry(c, opts)
+                b.endRange(`candidate__${c.id}__${hash}`)
+            }
+        }
+
+        b.endRange(`section__${section.key}__body`)
+    }
+}
+
+// ─── Surgical Sync (comment-preserving) ─────────────────────────
+
+interface ExistingCandidateRange {
+    rangeId: string
+    start: number
+    end: number
+    hash: string
+}
+
+interface CandidateSyncData {
+    c: LeverCandidate
+    sectionKey: string
+    type: 'presenting' | 'standard' | 'archived'
+    opts: { pitch?: string; password?: string; experience?: string }
+    hash: string
+}
+
+const SECTION_DEFS: { key: string; groupKey: keyof CandidateGroups }[] = [
+    { key: 'interviewing', groupKey: 'interviewing' },
+    { key: 'presenting', groupKey: 'presenting' },
+    { key: 'portfolio', groupKey: 'portfolio' },
+    { key: 'applied', groupKey: 'applied' },
+    { key: 'clientPassed', groupKey: 'clientPassed' },
+    { key: 'withdrew', groupKey: 'withdrew' },
+]
+
+const SECTION_TYPE: Record<string, 'presenting' | 'standard' | 'archived'> = {
+    interviewing: 'standard',
+    presenting: 'presenting',
+    portfolio: 'standard',
+    applied: 'standard',
+    clientPassed: 'archived',
+    withdrew: 'archived',
+}
+
+/**
+ * Attempt a surgical sync that preserves Google Doc comments on unchanged candidates.
+ * Returns true if successful, false if the doc lacks named ranges (old format → fall back).
+ */
+async function syncDocSurgical(
+    docsApi: any,
+    documentId: string,
+    groups: CandidateGroups,
+    pitchMap: Map<string, string>,
+    passwordMap: Map<string, string>,
+    experienceMap: Map<string, string>,
+): Promise<boolean> {
+    // 1. Read existing document and its named ranges
+    const doc = await docsApi.documents.get({ documentId })
+    const namedRangesMap: Record<string, any> = doc.data.namedRanges || {}
+
+    // Parse candidate ranges (candidate__{id}__{hash})
+    const existingCandidates = new Map<string, ExistingCandidateRange>()
+    // Parse section body ranges (section__{key}__body)
+    const sectionBodies = new Map<string, { rangeId: string; start: number; end: number }>()
+
+    for (const [name, data] of Object.entries(namedRangesMap)) {
+        const nrs = data.namedRanges || []
+        const nr = nrs[0]
+        const r = nr?.ranges?.[0]
+        if (!r) continue
+
+        const candidateMatch = name.match(/^candidate__(.+?)__(.+)$/)
+        if (candidateMatch) {
+            existingCandidates.set(candidateMatch[1], {
+                rangeId: nr.namedRangeId,
+                start: r.startIndex,
+                end: r.endIndex,
+                hash: candidateMatch[2],
+            })
             continue
         }
-        for (const c of section.candidates) {
-            const pw = c.email ? passwordMap.get(c.email) : undefined
-            if (section.type === 'presenting') b.candidateEntry(c, { pitch: pitchMap.get(c.id), password: pw })
-            else if (section.type === 'archived') b.archivedEntry(c)
-            else b.candidateEntry(c, { password: pw })
+
+        const sectionMatch = name.match(/^section__(.+?)__body$/)
+        if (sectionMatch) {
+            sectionBodies.set(sectionMatch[1], {
+                rangeId: nr.namedRangeId,
+                start: r.startIndex,
+                end: r.endIndex,
+            })
         }
     }
+
+    // No named ranges → old-format doc, caller should fall back to clear-and-rebuild
+    if (existingCandidates.size === 0 && sectionBodies.size === 0) return false
+
+    // 2. Build fingerprints for all current candidates
+    const currentCandidates: CandidateSyncData[] = []
+
+    for (const def of SECTION_DEFS) {
+        const type = SECTION_TYPE[def.key]
+        for (const c of groups[def.groupKey]) {
+            const pw = c.email ? passwordMap.get(c.email) : undefined
+            const exp = c.email ? experienceMap.get(c.email) : undefined
+            const pitch = type === 'presenting' ? pitchMap.get(c.id) : undefined
+            const opts = { pitch, password: pw, experience: exp }
+            const hash = candidateFingerprint(c, opts)
+            currentCandidates.push({ c, sectionKey: def.key, type, opts, hash })
+        }
+    }
+
+    const currentById = new Map(currentCandidates.map(cc => [cc.c.id, cc]))
+
+    // 3. Diff: unchanged / updated / added / removed
+    const toUpdate: CandidateSyncData[] = []
+    const toAdd: CandidateSyncData[] = []
+    const rangesToDelete: { rangeId: string; start: number; end: number }[] = []
+
+    for (const cc of currentCandidates) {
+        const existing = existingCandidates.get(cc.c.id)
+        if (!existing) {
+            toAdd.push(cc)
+        } else if (existing.hash !== cc.hash) {
+            toUpdate.push(cc)
+            rangesToDelete.push(existing) // old content will be removed
+        }
+        // else: unchanged → skip, comments preserved
+    }
+
+    for (const [id, range] of existingCandidates) {
+        if (!currentById.has(id)) {
+            rangesToDelete.push(range) // candidate removed entirely
+        }
+    }
+
+    // Nothing changed → done
+    if (toUpdate.length === 0 && toAdd.length === 0 && rangesToDelete.length === 0) {
+        return true
+    }
+
+    console.log(`[Sync] Surgical: ${toUpdate.length} updated, ${toAdd.length} added, ${rangesToDelete.length - toUpdate.length} removed, ${existingCandidates.size - toUpdate.length - (rangesToDelete.length - toUpdate.length)} unchanged`)
+
+    // 4. PASS 1 — Delete changed/removed candidate ranges (back-to-front so indices stay valid)
+    if (rangesToDelete.length > 0) {
+        const sorted = [...rangesToDelete].sort((a, b) => b.start - a.start)
+        const deleteRequests: any[] = []
+        for (const range of sorted) {
+            deleteRequests.push({ deleteNamedRange: { namedRangeId: range.rangeId } })
+            if (range.end > range.start) {
+                deleteRequests.push({
+                    deleteContentRange: {
+                        range: { startIndex: range.start, endIndex: range.end }
+                    }
+                })
+            }
+        }
+        await docsApi.documents.batchUpdate({
+            documentId,
+            requestBody: { requests: deleteRequests },
+        })
+    }
+
+    // 5. PASS 2 — Insert new/updated candidates
+    const toInsert = [...toUpdate, ...toAdd]
+    if (toInsert.length > 0) {
+        // Re-read doc to get updated indices after deletions
+        const updatedDoc = await docsApi.documents.get({ documentId })
+        const updatedRangesMap: Record<string, any> = updatedDoc.data.namedRanges || {}
+
+        // Re-parse section body ranges with fresh indices
+        const freshSectionBodies = new Map<string, { start: number; end: number }>()
+        for (const [name, data] of Object.entries(updatedRangesMap)) {
+            const match = name.match(/^section__(.+?)__body$/)
+            if (!match) continue
+            const nr = data.namedRanges?.[0]
+            const r = nr?.ranges?.[0]
+            if (r) freshSectionBodies.set(match[1], { start: r.startIndex, end: r.endIndex })
+        }
+
+        // Group insertions by section
+        const insertBySec = new Map<string, CandidateSyncData[]>()
+        for (const cc of toInsert) {
+            const list = insertBySec.get(cc.sectionKey) || []
+            list.push(cc)
+            insertBySec.set(cc.sectionKey, list)
+        }
+
+        // Build insertion requests per section, back-to-front by section position
+        const sectionEntries = [...insertBySec.entries()]
+            .map(([key, candidates]) => ({ key, candidates, body: freshSectionBodies.get(key) }))
+            .filter(s => s.body)
+            .sort((a, b) => b.body!.end - a.body!.end)
+
+        const allInsertRequests: any[] = []
+
+        for (const sec of sectionEntries) {
+            // Insert at end of section body — just before the body's end index
+            // The section body range includes existing candidates + any empty state text
+            const insertAt = sec.body!.end
+            const mini = new DocBuilder(insertAt)
+
+            for (const cc of sec.candidates) {
+                mini.startRange(`candidate__${cc.c.id}__${cc.hash}`)
+                if (cc.type === 'archived') mini.archivedEntry(cc.c)
+                else mini.candidateEntry(cc.c, cc.opts)
+                mini.endRange(`candidate__${cc.c.id}__${cc.hash}`)
+            }
+
+            allInsertRequests.push(...mini.requests)
+        }
+
+        if (allInsertRequests.length > 0) {
+            await docsApi.documents.batchUpdate({
+                documentId,
+                requestBody: { requests: allInsertRequests },
+            })
+        }
+    }
+
+    // 6. Handle sections that became empty (add empty state) or gained candidates (remove empty state)
+    // Re-read one more time to handle empty state transitions
+    const finalDoc = await docsApi.documents.get({ documentId })
+    const finalRangesMap: Record<string, any> = finalDoc.data.namedRanges || {}
+
+    const emptyStateRequests: any[] = []
+
+    for (const def of SECTION_DEFS) {
+        const sectionHasCandidates = groups[def.groupKey].length > 0
+        const bodyRange = (() => {
+            const data = finalRangesMap[`section__${def.key}__body`]
+            const nr = data?.namedRanges?.[0]
+            return nr?.ranges?.[0]
+        })()
+        if (!bodyRange) continue
+
+        // Check if any candidate named ranges exist within this section body
+        const hasCandidateRanges = [...Object.keys(finalRangesMap)].some(name => {
+            if (!name.startsWith('candidate__')) return false
+            const nr = finalRangesMap[name]?.namedRanges?.[0]
+            const r = nr?.ranges?.[0]
+            return r && r.startIndex >= bodyRange.startIndex && r.endIndex <= bodyRange.endIndex
+        })
+
+        // If section body has content but no candidates and no empty state → needs empty state
+        // We approximate by checking if the body range is "small" (just whitespace) and has no candidates
+        if (!sectionHasCandidates && !hasCandidateRanges) {
+            const bodyLength = bodyRange.endIndex - bodyRange.startIndex
+            // If body is very small (< 10 chars, likely just whitespace), inject empty state
+            if (bodyLength < 10) {
+                const mini = new DocBuilder(bodyRange.startIndex)
+                mini.emptyState('No candidates in this stage.')
+                emptyStateRequests.push(...mini.requests)
+            }
+        }
+    }
+
+    if (emptyStateRequests.length > 0) {
+        await docsApi.documents.batchUpdate({
+            documentId,
+            requestBody: { requests: emptyStateRequests },
+        })
+    }
+
+    return true
 }
 
 // ─── Route Handlers ─────────────────────────────────────────────
@@ -764,9 +1113,31 @@ export async function POST(
             }))
         }
 
-        // 4. Fetch portfolio passwords
-        const passwordMap = new Map<string, string>()
+        // Collect all emails once for subsequent lookups
         const allEmails = candidates.map(c => c.email).filter(Boolean) as string[]
+
+        // 4. Fetch cached years of experience from Supabase
+        const experienceMap = new Map<string, string>()
+        if (allEmails.length > 0) {
+            const { data: profiles } = await supabase
+                .from('candidate_profiles')
+                .select('candidate_email, years_of_experience')
+                .in('candidate_email', allEmails)
+            for (const p of profiles || []) {
+                if (p.years_of_experience) {
+                    try {
+                        const exp = JSON.parse(p.years_of_experience)
+                        if (exp.relevantYears !== undefined || exp.totalYears !== undefined) {
+                            const years = exp.relevantYears ?? exp.totalYears
+                            experienceMap.set(p.candidate_email, `${years} yrs${exp.summary ? ` — ${exp.summary}` : ''}`)
+                        }
+                    } catch { /* not JSON, skip */ }
+                }
+            }
+        }
+
+        // 5. Fetch portfolio passwords
+        const passwordMap = new Map<string, string>()
         if (allEmails.length > 0) {
             const { data: passwords } = await supabase
                 .from('candidate_passwords')
@@ -777,21 +1148,99 @@ export async function POST(
             }
         }
 
-        // 5. Set up Google APIs
+        // 6. Scan Lever notes & emails for passwords not yet in our DB
+        const leverKey = process.env.LEVER_API_KEY
+        if (leverKey) {
+            const leverAuth = `Basic ${Buffer.from(leverKey + ':').toString('base64')}`
+            const BATCH_SIZE = 5
+            for (let i = 0; i < candidates.length; i += BATCH_SIZE) {
+                const batch = candidates.slice(i, i + BATCH_SIZE)
+                await Promise.allSettled(batch.map(async (c) => {
+                    if (!c.email || passwordMap.has(c.email)) return
+
+                    // Fetch notes and emails in parallel for this candidate
+                    const [notesRes, emailsRes] = await Promise.allSettled([
+                        fetch(`https://api.lever.co/v1/opportunities/${c.id}/notes`, {
+                            headers: { 'Authorization': leverAuth, 'Content-Type': 'application/json' }
+                        }),
+                        fetch(`https://api.lever.co/v1/opportunities/${c.id}/emails`, {
+                            headers: { 'Authorization': leverAuth, 'Content-Type': 'application/json' }
+                        }),
+                    ])
+
+                    const textsToScan: string[] = []
+
+                    if (notesRes.status === 'fulfilled' && notesRes.value.ok) {
+                        const notesData = await notesRes.value.json()
+                        for (const note of notesData.data || []) {
+                            const text = (note.text || '').replace(/<[^>]*>/g, ' ')
+                            if (text.trim()) textsToScan.push(text)
+                        }
+                    }
+
+                    if (emailsRes.status === 'fulfilled' && emailsRes.value.ok) {
+                        const emailsData = await emailsRes.value.json()
+                        for (const email of emailsData.data || []) {
+                            const subject = email.subject || ''
+                            const body = (email.strippedText || email.text || '').replace(/<[^>]*>/g, ' ')
+                            if (subject.trim()) textsToScan.push(subject)
+                            if (body.trim()) textsToScan.push(body)
+                        }
+                    }
+
+                    // Scan for password patterns
+                    const pwPattern = /(?:password|passcode|pw|pass)\s*(?:is|:|=|–|-|—)\s*["']?([^\s"',;]{2,64})["']?/i
+                    for (const text of textsToScan) {
+                        const match = text.match(pwPattern)
+                        if (match?.[1]) {
+                            passwordMap.set(c.email, match[1])
+                            // Persist to Supabase for future exports
+                            await supabase
+                                .from('candidate_passwords')
+                                .upsert({
+                                    candidate_email: c.email,
+                                    password: match[1],
+                                    updated_at: new Date().toISOString(),
+                                }, { onConflict: 'candidate_email' })
+                            break
+                        }
+                    }
+                }))
+            }
+        }
+
+        // 7. Set up Google APIs
         const auth = new google.auth.OAuth2()
         auth.setCredentials({ access_token: token.accessToken as string })
         const docsApi = google.docs({ version: 'v1', auth })
         const drive = google.drive({ version: 'v3', auth })
 
-        // 5. Check for existing doc (sync mode)
+        // 8. Check for existing doc (sync mode)
         let documentId = await findExistingDoc(drive, postingId)
         let synced = false
 
         if (documentId) {
-            // Clear existing content and re-populate
-            await clearDocContent(docsApi, documentId)
-            synced = true
-            console.log(`[Export] Syncing existing doc ${documentId}`)
+            // Try surgical sync first (preserves comments on unchanged candidates)
+            const surgicalOk = await syncDocSurgical(
+                docsApi, documentId, groups, pitchMap, passwordMap, experienceMap,
+            )
+
+            if (surgicalOk) {
+                synced = true
+                console.log(`[Export] Surgical sync completed for doc ${documentId}`)
+            } else {
+                // Fallback: clear and rebuild (old doc without named ranges)
+                await clearDocContent(docsApi, documentId)
+                synced = true
+                console.log(`[Export] Fallback clear-and-rebuild for doc ${documentId}`)
+
+                const b = new DocBuilder()
+                buildDocContent(b, projectTitle, groups, pitchMap, passwordMap, experienceMap)
+                await docsApi.documents.batchUpdate({
+                    documentId,
+                    requestBody: { requests: b.requests },
+                })
+            }
         } else {
             // Create new doc
             const docTitle = `Academy Candidate Presentation — ${projectTitle || 'Report'}`
@@ -806,16 +1255,15 @@ export async function POST(
                 requestBody: { appProperties: { academyPostingId: postingId } },
             })
             console.log(`[Export] Created new doc ${documentId}`)
+
+            // Build and apply content with named ranges
+            const b = new DocBuilder()
+            buildDocContent(b, projectTitle, groups, pitchMap, passwordMap, experienceMap)
+            await docsApi.documents.batchUpdate({
+                documentId,
+                requestBody: { requests: b.requests },
+            })
         }
-
-        // 6. Build and apply content
-        const b = new DocBuilder()
-        buildDocContent(b, projectTitle, groups, pitchMap, passwordMap)
-
-        await docsApi.documents.batchUpdate({
-            documentId,
-            requestBody: { requests: b.requests },
-        })
 
         // 7. Move to folder (only for new docs)
         let folderId: string | null = null

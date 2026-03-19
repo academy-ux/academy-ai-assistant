@@ -61,6 +61,16 @@ function normalizeLink(link: string | { url: string; type?: string }): { url: st
   return { ...link, url }
 }
 
+function deduplicateLinks(links: { url: string; type?: string }[]): { url: string; type?: string }[] {
+  const seen = new Set<string>()
+  return links.filter(link => {
+    const normalized = link.url.replace(/\/+$/, '').toLowerCase()
+    if (seen.has(normalized)) return false
+    seen.add(normalized)
+    return true
+  })
+}
+
 function getLeverAuth(): string {
   const leverKey = process.env.LEVER_API_KEY
   if (!leverKey) throw new Error('Lever API key not configured')
@@ -137,7 +147,10 @@ export async function fetchCandidatesForPosting(postingId?: string): Promise<Lev
       headline: opp.headline || opp.contact?.headline || '',
       location: locationText,
       email: opp.contact?.emails?.[0] || '',
-      links: (opp.links || []).map(normalizeLink),
+      links: deduplicateLinks([
+        ...(opp.links || []),
+        ...(opp.contact?.links || []),
+      ].map(normalizeLink)),
       position: matchedApp?.postingTitle || 'Uncategorized',
       postingId: matchedApp?.posting || null,
       stage: opp.stage?.text || 'Unknown Stage',
