@@ -213,7 +213,7 @@ export default function CandidateReportPage() {
     const [projectTitle, setProjectTitle] = useState("Loading...")
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-    const [activeTab, setActiveTab] = useState("presenting")
+    const [activeTab, setActiveTab] = useState("interviewing")
     const [searchQuery, setSearchQuery] = useState("")
     const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null)
     const [searchFocused, setSearchFocused] = useState(false)
@@ -505,10 +505,10 @@ export default function CandidateReportPage() {
     }
 
     const tabs = [
-        { value: "presenting", label: "Presenting", count: filteredAndGrouped.presenting.length },
-        { value: "phoneScreen", label: "Phone Screen", count: filteredAndGrouped.phoneScreen.length },
         { value: "interviewing", label: "Client Interview", count: filteredAndGrouped.interviewing.length },
+        { value: "presenting", label: "Presenting", count: filteredAndGrouped.presenting.length },
         { value: "portfolio", label: "Portfolio Interview", count: filteredAndGrouped.portfolio.length },
+        { value: "phoneScreen", label: "Phone Screen", count: filteredAndGrouped.phoneScreen.length },
         { value: "applied", label: "Sourced", count: filteredAndGrouped.applied.length },
         { value: "rejected", label: "Archived", count: filteredAndGrouped.rejected.length },
         { value: "all", label: "All Applied", count: filteredAndGrouped.all.length },
@@ -545,7 +545,7 @@ export default function CandidateReportPage() {
                     {/* Tabs */}
                     <div className="-mb-px">
                         <ReportTabs
-                            defaultValue="presenting"
+                            defaultValue="interviewing"
                             options={tabs}
                             activeTab={activeTab}
                             onChange={setActiveTab}
