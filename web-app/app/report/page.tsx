@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, ArrowRight, Building2, Pencil, Check, X } from 'lucide-react'
+import { Loader2, ArrowRight, Building2, Pencil, Check, X, TrendingUp } from 'lucide-react'
 
 interface Posting {
     id: string
@@ -166,6 +166,21 @@ export default function ReportIndexPage() {
                     <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Active Projects</h1>
                     <p className="text-muted-foreground mt-2 text-sm md:text-base">Select a project to view the candidate report.</p>
                 </div>
+
+                {/* Talent Intelligence Report */}
+                <Link
+                    href="/report/talent-intelligence"
+                    className="flex items-center gap-4 px-5 py-4 rounded-xl border border-border bg-card/50 hover:bg-muted/50 transition-colors group"
+                >
+                    <div className="h-10 w-10 rounded-xl bg-peach/20 flex items-center justify-center shrink-0">
+                        <TrendingUp className="h-5 w-5 text-foreground/60" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <div className="font-medium group-hover:text-primary transition-colors">Talent Intelligence Report</div>
+                        <div className="text-sm text-muted-foreground mt-0.5">Market trends, compensation data, and hiring strategy</div>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+                </Link>
 
                 <div className="divide-y divide-border rounded-lg border">
                     {postings.map((posting) => (
