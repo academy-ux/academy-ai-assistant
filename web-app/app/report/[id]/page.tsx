@@ -339,9 +339,9 @@ export default function CandidateReportPage() {
         }
     }, [postingId])
 
-    const handleExport = useCallback(async () => {
+    const handleExport = useCallback(async (e?: React.MouseEvent) => {
         if (exporting) return
-        const isSync = !!exportResult
+        const forceNew = e?.shiftKey || false
         setExporting(true)
         setExportOverlayOpen(true)
         setExportOverlayResult(null)
@@ -355,7 +355,7 @@ export default function CandidateReportPage() {
             const res = await fetch(`/api/report/${postingId}/export-doc`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ projectTitle }),
+                body: JSON.stringify({ projectTitle, forceNew }),
             })
             const data = await res.json()
             if (!res.ok) throw new Error(data.error || 'Export failed')

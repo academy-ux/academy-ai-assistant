@@ -1071,7 +1071,7 @@ export async function POST(
 
         const postingId = params.id
         const body = await request.json()
-        const { projectTitle } = body
+        const { projectTitle, forceNew } = body
 
         // 1. Fetch candidates & group
         const candidates = await fetchCandidatesForPosting(postingId)
@@ -1246,7 +1246,7 @@ export async function POST(
         const drive = google.drive({ version: 'v3', auth })
 
         // 8. Check for existing doc (sync mode)
-        let documentId = await findExistingDoc(drive, postingId)
+        let documentId = forceNew ? null : await findExistingDoc(drive, postingId)
         let synced = false
 
         if (documentId) {
