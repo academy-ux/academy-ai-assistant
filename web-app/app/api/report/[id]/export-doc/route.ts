@@ -39,6 +39,7 @@ const PT = {
 
 interface CandidateGroups {
     presenting: LeverCandidate[]
+    phoneScreen: LeverCandidate[]
     interviewing: LeverCandidate[]
     portfolio: LeverCandidate[]
     applied: LeverCandidate[]
@@ -48,7 +49,7 @@ interface CandidateGroups {
 
 function groupCandidates(candidates: LeverCandidate[]): CandidateGroups {
     const groups: CandidateGroups = {
-        presenting: [], interviewing: [], portfolio: [],
+        presenting: [], phoneScreen: [], interviewing: [], portfolio: [],
         applied: [], clientPassed: [], withdrew: [],
     }
 
@@ -65,6 +66,7 @@ function groupCandidates(candidates: LeverCandidate[]): CandidateGroups {
         }
         if (stage === 'client interview') groups.interviewing.push(c)
         else if (stage === 'portfolio interview') groups.portfolio.push(c)
+        else if (stage.includes('phone screen') || stage.includes('phone_screen')) groups.phoneScreen.push(c)
         else if (stage.includes('present') || stage.includes('client') || stage.includes('offer')) groups.presenting.push(c)
         else if (stage.includes('new') || stage.includes('applicant') || stage.includes('applied') || stage.includes('lead')) return
         else groups.applied.push(c)
@@ -342,8 +344,9 @@ class DocBuilder {
         this.styledText(' | ', {
             foregroundColor: { color: { rgbColor: COLORS.warmGray } },
             fontSize: { magnitude: PT.bodyText, unit: 'PT' },
+            italic: false,
             underline: false,
-        }, 'foregroundColor,fontSize,underline')
+        }, 'foregroundColor,fontSize,italic,underline')
         const start = this.idx
         this.text(label)
         this.requests.push({
@@ -354,9 +357,10 @@ class DocBuilder {
                     foregroundColor: { color: { rgbColor: COLORS.link } },
                     fontSize: { magnitude: PT.bodyText, unit: 'PT' },
                     weightedFontFamily: { fontFamily: FONTS.body, weight: 400 },
+                    italic: false,
                     underline: true,
                 },
-                fields: 'link,foregroundColor,fontSize,weightedFontFamily,underline',
+                fields: 'link,foregroundColor,fontSize,weightedFontFamily,italic,underline',
             }
         })
         return this
@@ -405,63 +409,72 @@ class DocBuilder {
             this.styledText(' | ', {
                 foregroundColor: { color: { rgbColor: COLORS.warmGray } },
                 fontSize: { magnitude: PT.bodyText, unit: 'PT' },
+                italic: false,
                 underline: false,
-            }, 'foregroundColor,fontSize,underline')
+            }, 'foregroundColor,fontSize,italic,underline')
             this.styledText('PW: ', {
                 bold: true,
                 foregroundColor: { color: { rgbColor: COLORS.charcoal } },
                 fontSize: { magnitude: PT.bodyText, unit: 'PT' },
                 weightedFontFamily: { fontFamily: FONTS.body, weight: 700 },
+                italic: false,
                 underline: false,
-            }, 'bold,foregroundColor,fontSize,weightedFontFamily,underline')
+            }, 'bold,foregroundColor,fontSize,weightedFontFamily,italic,underline')
             this.styledText(opts.password, {
                 foregroundColor: { color: { rgbColor: COLORS.body } },
                 fontSize: { magnitude: PT.bodyText, unit: 'PT' },
                 weightedFontFamily: { fontFamily: FONTS.body, weight: 400 },
+                italic: false,
                 underline: false,
-            }, 'foregroundColor,fontSize,weightedFontFamily,underline')
+            }, 'foregroundColor,fontSize,weightedFontFamily,italic,underline')
         }
 
         if (location) {
             this.styledText(' | ', {
                 foregroundColor: { color: { rgbColor: COLORS.warmGray } },
                 fontSize: { magnitude: PT.bodyText, unit: 'PT' },
+                italic: false,
                 underline: false,
-            }, 'foregroundColor,fontSize,underline')
+            }, 'foregroundColor,fontSize,italic,underline')
             this.styledText('Location: ', {
                 bold: true,
                 foregroundColor: { color: { rgbColor: COLORS.charcoal } },
                 fontSize: { magnitude: PT.bodyText, unit: 'PT' },
                 weightedFontFamily: { fontFamily: FONTS.body, weight: 700 },
+                italic: false,
                 underline: false,
-            }, 'bold,foregroundColor,fontSize,weightedFontFamily,underline')
+            }, 'bold,foregroundColor,fontSize,weightedFontFamily,italic,underline')
             this.styledText(location, {
                 foregroundColor: { color: { rgbColor: COLORS.body } },
                 fontSize: { magnitude: PT.bodyText, unit: 'PT' },
                 weightedFontFamily: { fontFamily: FONTS.body, weight: 400 },
+                italic: false,
                 underline: false,
-            }, 'foregroundColor,fontSize,weightedFontFamily,underline')
+            }, 'foregroundColor,fontSize,weightedFontFamily,italic,underline')
         }
 
         if (opts?.experience) {
             this.styledText(' | ', {
                 foregroundColor: { color: { rgbColor: COLORS.warmGray } },
                 fontSize: { magnitude: PT.bodyText, unit: 'PT' },
+                italic: false,
                 underline: false,
-            }, 'foregroundColor,fontSize,underline')
+            }, 'foregroundColor,fontSize,italic,underline')
             this.styledText('Experience: ', {
                 bold: true,
                 foregroundColor: { color: { rgbColor: COLORS.charcoal } },
                 fontSize: { magnitude: PT.bodyText, unit: 'PT' },
                 weightedFontFamily: { fontFamily: FONTS.body, weight: 700 },
+                italic: false,
                 underline: false,
-            }, 'bold,foregroundColor,fontSize,weightedFontFamily,underline')
+            }, 'bold,foregroundColor,fontSize,weightedFontFamily,italic,underline')
             this.styledText(opts.experience, {
                 foregroundColor: { color: { rgbColor: COLORS.body } },
                 fontSize: { magnitude: PT.bodyText, unit: 'PT' },
                 weightedFontFamily: { fontFamily: FONTS.body, weight: 400 },
+                italic: false,
                 underline: false,
-            }, 'foregroundColor,fontSize,weightedFontFamily,underline')
+            }, 'foregroundColor,fontSize,weightedFontFamily,italic,underline')
         }
 
         this.newline()
@@ -469,8 +482,8 @@ class DocBuilder {
         // If no pitch, add bottom border to the name line itself
         if (!opts?.pitch) {
             this.paragraphStyle(lineStart, {
-                spaceAbove: { magnitude: 4, unit: 'PT' },
-                spaceBelow: { magnitude: 4, unit: 'PT' },
+                spaceAbove: { magnitude: 12, unit: 'PT' },
+                spaceBelow: { magnitude: 8, unit: 'PT' },
                 borderBottom: {
                     color: { color: { rgbColor: COLORS.divider } },
                     width: { magnitude: 0.5, unit: 'PT' },
@@ -480,7 +493,7 @@ class DocBuilder {
             }, 'spaceAbove,spaceBelow,borderBottom')
         } else {
             this.paragraphStyle(lineStart, {
-                spaceAbove: { magnitude: 4, unit: 'PT' },
+                spaceAbove: { magnitude: 12, unit: 'PT' },
                 spaceBelow: { magnitude: 4, unit: 'PT' },
             }, 'spaceAbove,spaceBelow')
         }
@@ -497,8 +510,8 @@ class DocBuilder {
             this.requests.push({
                 updateTextStyle: {
                     range: { startIndex: blankStart, endIndex: this.idx },
-                    textStyle: { fontSize: { magnitude: 4, unit: 'PT' }, underline: false },
-                    fields: 'fontSize,underline',
+                    textStyle: { fontSize: { magnitude: 4, unit: 'PT' }, italic: false, underline: false },
+                    fields: 'fontSize,italic,underline',
                 }
             })
             const pitchStart = this.idx
@@ -511,9 +524,10 @@ class DocBuilder {
                         fontSize: { magnitude: PT.pitchText, unit: 'PT' },
                         weightedFontFamily: { fontFamily: FONTS.body, weight: 400 },
                         foregroundColor: { color: { rgbColor: COLORS.body } },
+                        italic: true,
                         underline: false,
                     },
-                    fields: 'fontSize,weightedFontFamily,foregroundColor,underline',
+                    fields: 'fontSize,weightedFontFamily,foregroundColor,italic,underline',
                 }
             })
             this.paragraphStyle(pitchStart, {
@@ -699,6 +713,7 @@ function buildDocContent(b: DocBuilder, projectTitle: string, groups: CandidateG
         { key: 'interviewing', heading: 'Client Interview', candidates: groups.interviewing, type: 'standard' },
         { key: 'presenting', heading: 'Presenting', candidates: groups.presenting, type: 'presenting' },
         { key: 'portfolio', heading: 'Portfolio Interview', candidates: groups.portfolio, type: 'standard' },
+        { key: 'phoneScreen', heading: 'Phone Screen', candidates: groups.phoneScreen, type: 'standard' },
         { key: 'applied', heading: 'In Review', candidates: groups.applied, type: 'standard' },
         { key: 'clientPassed', heading: 'Client Passed', candidates: groups.clientPassed, type: 'archived' },
         { key: 'withdrew', heading: 'Withdrew', candidates: groups.withdrew, type: 'archived' },
@@ -753,6 +768,7 @@ const SECTION_DEFS: { key: string; groupKey: keyof CandidateGroups }[] = [
     { key: 'interviewing', groupKey: 'interviewing' },
     { key: 'presenting', groupKey: 'presenting' },
     { key: 'portfolio', groupKey: 'portfolio' },
+    { key: 'phoneScreen', groupKey: 'phoneScreen' },
     { key: 'applied', groupKey: 'applied' },
     { key: 'clientPassed', groupKey: 'clientPassed' },
     { key: 'withdrew', groupKey: 'withdrew' },
@@ -762,6 +778,7 @@ const SECTION_TYPE: Record<string, 'presenting' | 'standard' | 'archived'> = {
     interviewing: 'standard',
     presenting: 'presenting',
     portfolio: 'standard',
+    phoneScreen: 'standard',
     applied: 'standard',
     clientPassed: 'archived',
     withdrew: 'archived',

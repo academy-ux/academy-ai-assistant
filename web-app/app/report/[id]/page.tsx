@@ -282,6 +282,7 @@ export default function CandidateReportPage() {
             const stage = c.stage.toLowerCase()
             return stage === 'client interview'
                 || stage === 'portfolio interview'
+                || stage.includes('phone screen')
                 || stage.includes('present')
                 || stage.includes('client')
                 || stage.includes('offer')
