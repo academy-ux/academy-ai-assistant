@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, type RefObject } from 'react'
 import { slides, reportMeta } from '@/components/report/report-data'
 import { ShareDialog } from '@/components/report/ShareDialog'
 import { Share2, Download, Presentation, Menu, X, ArrowUp } from 'lucide-react'
@@ -449,6 +449,40 @@ function SlideRenderer({ slide }: { slide: typeof slides[0] }) {
   }
 }
 
+// ── SCROLL OPACITY HOOK ──
+
+function useSlideVisibility(
+  slideRefs: RefObject<(HTMLDivElement | null)[]>,
+  containerRef: RefObject<HTMLDivElement | null>,
+  isPresenting: boolean,
+) {
+  const [visibleSet, setVisibleSet] = useState<Set<number>>(new Set([0]))
+
+  useEffect(() => {
+    const root = isPresenting ? containerRef.current : null
+    const observer = new IntersectionObserver(
+      (entries) => {
+        setVisibleSet(prev => {
+          const next = new Set(prev)
+          entries.forEach(entry => {
+            const idx = slideRefs.current?.indexOf(entry.target as HTMLDivElement) ?? -1
+            if (idx === -1) return
+            if (entry.isIntersecting) next.add(idx)
+            else next.delete(idx)
+          })
+          return next
+        })
+      },
+      { threshold: 0.15, root }
+    )
+
+    slideRefs.current?.forEach(ref => { if (ref) observer.observe(ref) })
+    return () => observer.disconnect()
+  }, [isPresenting, containerRef, slideRefs])
+
+  return visibleSet
+}
+
 // ── MAIN PAGE ──
 
 export default function TalentIntelligenceReport() {
@@ -458,6 +492,7 @@ export default function TalentIntelligenceReport() {
   const [isPresenting, setIsPresenting] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const slideRefs = useRef<(HTMLDivElement | null)[]>([])
+  const visibleSlides = useSlideVisibility(slideRefs, containerRef, isPresenting)
 
   // Intersection observer for tracking active slide
   useEffect(() => {
@@ -533,7 +568,7 @@ export default function TalentIntelligenceReport() {
   const isDarkSlide = currentSlide?.dark
 
   return (
-    <div className="fixed inset-0 z-[60] bg-[#f0eeeb] overflow-hidden flex">
+    <div className="fixed inset-0 z-[60] bg-[#e4e2de] overflow-hidden flex">
       {/* ── LEFT NAV DOTS ── */}
       <div className={cn(
         "hidden md:flex flex-col items-center justify-center w-8 shrink-0 gap-1 z-20 print:hidden transition-colors duration-500",
@@ -621,28 +656,36 @@ export default function TalentIntelligenceReport() {
             isPresenting && "snap-y snap-mandatory"
           )}
         >
-          {slides.map((slide, i) => (
-            <div
-              key={slide.id}
-              ref={(el) => { slideRefs.current[i] = el }}
-              className={cn(
-                "relative",
-                isPresenting && "snap-start snap-always"
-              )}
-              data-slide-id={slide.id}
-            >
-              <div className={cn(
-                slide.dark ? "bg-[#111111]" : "bg-[#eceae6]",
-              )}>
+          {slides.map((slide, i) => {
+            const isVisible = visibleSlides.has(i)
+            return (
+              <div
+                key={slide.id}
+                ref={(el) => { slideRefs.current[i] = el }}
+                className={cn(
+                  "relative",
+                  isPresenting ? "snap-start snap-always" : "px-4 md:px-8 lg:px-12 py-4 md:py-6"
+                )}
+                data-slide-id={slide.id}
+                style={{
+                  opacity: isPresenting ? 1 : isVisible ? 1 : 0.55,
+                  transition: 'opacity 0.5s ease-out',
+                }}
+              >
                 <div className={cn(
-                  "mx-auto",
-                  slide.dark ? "max-w-full" : "max-w-[1400px]"
+                  slide.dark ? "bg-[#111111]" : "bg-[#eceae6]",
+                  !isPresenting && "rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.06)] ring-1 ring-black/[0.04] overflow-hidden"
                 )}>
-                  <SlideRenderer slide={slide} />
+                  <div className={cn(
+                    "mx-auto",
+                    slide.dark ? "max-w-full" : "max-w-[1400px]"
+                  )}>
+                    <SlideRenderer slide={slide} />
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
 
