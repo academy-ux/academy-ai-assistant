@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils'
 
 function CoverSlide({ slide }: { slide: typeof slides[0] }) {
   return (
-    <div className="report-slide min-h-screen flex flex-col justify-end px-8 md:px-16 lg:px-24 pb-16 md:pb-24 relative">
+    <div className="report-slide slide-height flex flex-col justify-end px-8 md:px-16 lg:px-24 pb-16 md:pb-24 relative">
       <div className="absolute top-8 left-8 md:left-16 lg:left-24 text-[13px] text-foreground/30 font-normal italic tracking-wide">
         {reportMeta.confidential}
       </div>
@@ -38,7 +38,7 @@ function CoverSlide({ slide }: { slide: typeof slides[0] }) {
 
 function SectionDividerSlide({ slide }: { slide: typeof slides[0] }) {
   return (
-    <div className="report-slide min-h-screen flex flex-col justify-between px-8 md:px-16 lg:px-24 py-10 bg-[#111111] text-white relative overflow-hidden">
+    <div className="report-slide slide-height flex flex-col justify-between px-8 md:px-16 lg:px-24 py-10 bg-[#111111] text-white relative overflow-hidden">
       {/* Main title */}
       <div className="flex-1 flex items-start pt-8">
         <h2 className="text-[clamp(3rem,8vw,6.5rem)] font-bold leading-[0.95] tracking-[-0.03em] text-white whitespace-pre-line">
@@ -64,7 +64,7 @@ function SectionDividerSlide({ slide }: { slide: typeof slides[0] }) {
 function TwoColumnSlide({ slide }: { slide: typeof slides[0] }) {
   const { content } = slide
   return (
-    <div className="report-slide min-h-screen flex flex-col justify-center px-8 md:px-16 lg:px-24 py-20">
+    <div className="report-slide slide-height flex flex-col justify-center px-8 md:px-16 lg:px-24 py-20">
       {slide.subtitle && (
         <p className="text-[13px] font-normal text-foreground/35 tracking-wide mb-3">{slide.subtitle}</p>
       )}
@@ -153,7 +153,7 @@ function TwoColumnSlide({ slide }: { slide: typeof slides[0] }) {
 function MarketStatsSlide({ slide }: { slide: typeof slides[0] }) {
   const { content } = slide
   return (
-    <div className="report-slide min-h-screen flex flex-col justify-center px-8 md:px-16 lg:px-24 py-20">
+    <div className="report-slide slide-height flex flex-col justify-center px-8 md:px-16 lg:px-24 py-20">
       {slide.subtitle && (
         <p className="text-[13px] font-normal text-foreground/35 tracking-wide mb-3">{slide.subtitle}</p>
       )}
@@ -186,7 +186,7 @@ function MarketStatsSlide({ slide }: { slide: typeof slides[0] }) {
 
 function StatsGridSlide({ slide }: { slide: typeof slides[0] }) {
   return (
-    <div className="report-slide min-h-screen flex flex-col justify-center px-8 md:px-16 lg:px-24 py-20">
+    <div className="report-slide slide-height flex flex-col justify-center px-8 md:px-16 lg:px-24 py-20">
       <h2 className="text-[clamp(2.5rem,5vw,4rem)] font-bold leading-[1.05] tracking-[-0.02em] text-black whitespace-pre-line">
         {slide.title}
       </h2>
@@ -209,7 +209,7 @@ function StatsGridSlide({ slide }: { slide: typeof slides[0] }) {
 
 function TableSlide({ slide }: { slide: typeof slides[0] }) {
   return (
-    <div className="report-slide min-h-screen flex flex-col justify-center px-8 md:px-16 lg:px-24 py-20">
+    <div className="report-slide slide-height flex flex-col justify-center px-8 md:px-16 lg:px-24 py-20">
       <div className="flex flex-col md:flex-row gap-12 md:gap-20">
         {/* Left: title + footnote */}
         <div className="md:w-[35%] shrink-0">
@@ -251,7 +251,7 @@ function TableSlide({ slide }: { slide: typeof slides[0] }) {
 function QuoteSlide({ slide }: { slide: typeof slides[0] }) {
   const { content } = slide
   return (
-    <div className="report-slide min-h-screen flex flex-col justify-center px-8 md:px-16 lg:px-24 py-20">
+    <div className="report-slide slide-height flex flex-col justify-center px-8 md:px-16 lg:px-24 py-20">
       <h2 className="text-[clamp(2rem,4.5vw,3.5rem)] font-bold leading-[1.05] tracking-[-0.02em] text-black whitespace-pre-line mb-4">
         {slide.title}
       </h2>
@@ -293,7 +293,7 @@ function QuoteSlide({ slide }: { slide: typeof slides[0] }) {
 
 function CardsGridSlide({ slide }: { slide: typeof slides[0] }) {
   return (
-    <div className="report-slide min-h-screen flex flex-col justify-center px-8 md:px-16 lg:px-24 py-20">
+    <div className="report-slide slide-height flex flex-col justify-center px-8 md:px-16 lg:px-24 py-20">
       <h2 className="text-[clamp(2rem,4.5vw,3rem)] font-bold leading-[1.05] tracking-[-0.02em] text-black whitespace-pre-line">
         {slide.title}
       </h2>
@@ -320,7 +320,7 @@ function CardsGridSlide({ slide }: { slide: typeof slides[0] }) {
 
 function ThreeTierSlide({ slide }: { slide: typeof slides[0] }) {
   return (
-    <div className="report-slide min-h-screen flex flex-col justify-center px-8 md:px-16 lg:px-24 py-20">
+    <div className="report-slide slide-height flex flex-col justify-center px-8 md:px-16 lg:px-24 py-20">
       {slide.subtitle && (
         <p className="text-[13px] text-foreground/35 font-normal mb-3 max-w-2xl">{slide.subtitle}</p>
       )}
@@ -348,7 +348,7 @@ function ThreeTierSlide({ slide }: { slide: typeof slides[0] }) {
 
 function CompanyProfilesSlide({ slide }: { slide: typeof slides[0] }) {
   return (
-    <div className="report-slide min-h-screen flex flex-col justify-center px-8 md:px-16 lg:px-24 py-20">
+    <div className="report-slide slide-height flex flex-col justify-center px-8 md:px-16 lg:px-24 py-20">
       <h2 className="text-[clamp(2rem,4.5vw,3rem)] font-bold leading-[1.05] tracking-[-0.02em] text-black whitespace-pre-line mb-3">
         {slide.title}
       </h2>
@@ -377,7 +377,7 @@ function CompanyProfilesSlide({ slide }: { slide: typeof slides[0] }) {
 
 function RecommendationsSlide({ slide }: { slide: typeof slides[0] }) {
   return (
-    <div className="report-slide min-h-screen flex flex-col justify-center px-8 md:px-16 lg:px-24 py-20">
+    <div className="report-slide slide-height flex flex-col justify-center px-8 md:px-16 lg:px-24 py-20">
       <h2 className="text-[clamp(2.5rem,5vw,4rem)] font-bold leading-[1.05] tracking-[-0.02em] text-foreground/30 whitespace-pre-line mb-10">
         {slide.title}
       </h2>
@@ -400,7 +400,7 @@ function RecommendationsSlide({ slide }: { slide: typeof slides[0] }) {
 
 function ClosingSlide({ slide }: { slide: typeof slides[0] }) {
   return (
-    <div className="report-slide min-h-screen flex flex-col justify-center px-8 md:px-16 lg:px-24 py-20">
+    <div className="report-slide slide-height flex flex-col justify-center px-8 md:px-16 lg:px-24 py-20">
       {slide.subtitle && (
         <p className="text-[13px] text-foreground/30 font-normal mb-3">{slide.subtitle}</p>
       )}
@@ -568,6 +568,10 @@ export default function TalentIntelligenceReport() {
   const isDarkSlide = currentSlide?.dark
 
   return (
+    <>
+    <style>{`
+      .slide-height { min-height: ${isPresenting ? '100vh' : '75vh'}; }
+    `}</style>
     <div className="fixed inset-0 z-[60] bg-[#e4e2de] overflow-hidden flex">
       {/* ── LEFT NAV DOTS ── */}
       <div className={cn(
@@ -668,7 +672,7 @@ export default function TalentIntelligenceReport() {
                 )}
                 data-slide-id={slide.id}
                 style={{
-                  opacity: isPresenting ? 1 : isVisible ? 1 : 0.55,
+                  opacity: isPresenting ? 1 : isVisible ? 1 : 0.75,
                   transition: 'opacity 0.5s ease-out',
                 }}
               >
@@ -732,5 +736,6 @@ export default function TalentIntelligenceReport() {
         </button>
       )}
     </div>
+    </>
   )
 }
