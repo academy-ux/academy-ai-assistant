@@ -396,7 +396,7 @@ class DocBuilder {
                 foregroundColor: { color: { rgbColor: COLORS.warmGray } },
                 fontSize: { magnitude: PT.bodyText, unit: 'PT' },
                 weightedFontFamily: { fontFamily: FONTS.body, weight: 400 },
-                italic: true,
+                italic: false,
                 underline: false,
             }, 'foregroundColor,fontSize,weightedFontFamily,italic,underline')
         }
@@ -524,7 +524,7 @@ class DocBuilder {
                         fontSize: { magnitude: PT.pitchText, unit: 'PT' },
                         weightedFontFamily: { fontFamily: FONTS.body, weight: 400 },
                         foregroundColor: { color: { rgbColor: COLORS.body } },
-                        italic: true,
+                        italic: false,
                         underline: false,
                     },
                     fields: 'fontSize,weightedFontFamily,foregroundColor,italic,underline',
@@ -580,7 +580,7 @@ class DocBuilder {
             this.styledText(` (${reason})`, {
                 foregroundColor: { color: { rgbColor: COLORS.warmGray } },
                 fontSize: { magnitude: PT.bodyText, unit: 'PT' },
-                italic: true,
+                italic: false,
                 weightedFontFamily: { fontFamily: FONTS.body, weight: 400 },
                 underline: false,
             }, 'foregroundColor,fontSize,italic,weightedFontFamily,underline')
@@ -608,7 +608,7 @@ class DocBuilder {
             updateTextStyle: {
                 range: { startIndex: start, endIndex: start + message.length },
                 textStyle: {
-                    italic: true,
+                    italic: false,
                     fontSize: { magnitude: PT.bodyText, unit: 'PT' },
                     foregroundColor: { color: { rgbColor: COLORS.warmGray } },
                     weightedFontFamily: { fontFamily: FONTS.body, weight: 400 },
