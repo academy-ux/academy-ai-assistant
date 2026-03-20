@@ -132,7 +132,7 @@ function simpleHash(str: string): string {
 }
 
 // Bump STYLE_VERSION to force re-render of all candidates on next sync
-const STYLE_VERSION = 2
+const STYLE_VERSION = 3
 
 function candidateFingerprint(c: LeverCandidate, opts: { pitch?: string; password?: string; experience?: string }): string {
     return simpleHash([
@@ -405,41 +405,80 @@ class DocBuilder {
             }, 'foregroundColor,fontSize,weightedFontFamily,italic,underline')
         }
 
-        if (linkedin) this.linkInline('LinkedIn', linkedin)
-        if (portfolio) this.linkInline('Portfolio', portfolio)
-        for (const link of otherLinks) this.linkInline(link.label, link.url)
+        this.newline()
+        this.paragraphStyle(lineStart, {
+            spaceAbove: { magnitude: 12, unit: 'PT' },
+            spaceBelow: { magnitude: 0, unit: 'PT' },
+        }, 'spaceAbove,spaceBelow')
 
-        if (opts?.password) {
-            this.styledText(' | ', {
-                foregroundColor: { color: { rgbColor: COLORS.warmGray } },
-                fontSize: { magnitude: PT.bodyText, unit: 'PT' },
-                italic: false,
-                underline: false,
-            }, 'foregroundColor,fontSize,italic,underline')
-            this.styledText('PW: ', {
-                bold: true,
-                foregroundColor: { color: { rgbColor: COLORS.charcoal } },
-                fontSize: { magnitude: PT.bodyText, unit: 'PT' },
-                weightedFontFamily: { fontFamily: FONTS.body, weight: 700 },
-                italic: false,
-                underline: false,
-            }, 'bold,foregroundColor,fontSize,weightedFontFamily,italic,underline')
-            this.styledText(opts.password, {
-                foregroundColor: { color: { rgbColor: COLORS.body } },
-                fontSize: { magnitude: PT.bodyText, unit: 'PT' },
-                weightedFontFamily: { fontFamily: FONTS.body, weight: 400 },
-                italic: false,
-                underline: false,
-            }, 'foregroundColor,fontSize,weightedFontFamily,italic,underline')
+        // ── Line 2: Links ──
+        const allLinks: { label: string; url: string }[] = []
+        if (linkedin) allLinks.push({ label: 'LinkedIn', url: linkedin })
+        if (portfolio) allLinks.push({ label: 'Portfolio', url: portfolio })
+        for (const link of otherLinks) allLinks.push(link)
+
+        if (allLinks.length > 0) {
+            const linksLineStart = this.idx
+            for (let i = 0; i < allLinks.length; i++) {
+                if (i > 0) {
+                    this.styledText(' | ', {
+                        foregroundColor: { color: { rgbColor: COLORS.warmGray } },
+                        fontSize: { magnitude: PT.bodyText, unit: 'PT' },
+                        italic: false,
+                        underline: false,
+                    }, 'foregroundColor,fontSize,italic,underline')
+                }
+                const lnk = allLinks[i]
+                const linkStart = this.idx
+                this.text(lnk.label)
+                this.requests.push({
+                    updateTextStyle: {
+                        range: { startIndex: linkStart, endIndex: this.idx },
+                        textStyle: {
+                            link: { url: lnk.url },
+                            foregroundColor: { color: { rgbColor: COLORS.link } },
+                            fontSize: { magnitude: PT.bodyText, unit: 'PT' },
+                            weightedFontFamily: { fontFamily: FONTS.body, weight: 400 },
+                            italic: false,
+                            underline: true,
+                        },
+                        fields: 'link,foregroundColor,fontSize,weightedFontFamily,italic,underline',
+                    }
+                })
+            }
+            if (opts?.password) {
+                this.styledText(' | ', {
+                    foregroundColor: { color: { rgbColor: COLORS.warmGray } },
+                    fontSize: { magnitude: PT.bodyText, unit: 'PT' },
+                    italic: false,
+                    underline: false,
+                }, 'foregroundColor,fontSize,italic,underline')
+                this.styledText('PW: ', {
+                    bold: true,
+                    foregroundColor: { color: { rgbColor: COLORS.charcoal } },
+                    fontSize: { magnitude: PT.bodyText, unit: 'PT' },
+                    weightedFontFamily: { fontFamily: FONTS.body, weight: 700 },
+                    italic: false,
+                    underline: false,
+                }, 'bold,foregroundColor,fontSize,weightedFontFamily,italic,underline')
+                this.styledText(opts.password, {
+                    foregroundColor: { color: { rgbColor: COLORS.body } },
+                    fontSize: { magnitude: PT.bodyText, unit: 'PT' },
+                    weightedFontFamily: { fontFamily: FONTS.body, weight: 400 },
+                    italic: false,
+                    underline: false,
+                }, 'foregroundColor,fontSize,weightedFontFamily,italic,underline')
+            }
+            this.newline()
+            this.paragraphStyle(linksLineStart, {
+                spaceAbove: { magnitude: 2, unit: 'PT' },
+                spaceBelow: { magnitude: 0, unit: 'PT' },
+            }, 'spaceAbove,spaceBelow')
         }
 
+        // ── Line 3: Location ──
         if (location) {
-            this.styledText(' | ', {
-                foregroundColor: { color: { rgbColor: COLORS.warmGray } },
-                fontSize: { magnitude: PT.bodyText, unit: 'PT' },
-                italic: false,
-                underline: false,
-            }, 'foregroundColor,fontSize,italic,underline')
+            const locLineStart = this.idx
             this.styledText('Location: ', {
                 bold: true,
                 foregroundColor: { color: { rgbColor: COLORS.charcoal } },
@@ -455,15 +494,16 @@ class DocBuilder {
                 italic: false,
                 underline: false,
             }, 'foregroundColor,fontSize,weightedFontFamily,italic,underline')
+            this.newline()
+            this.paragraphStyle(locLineStart, {
+                spaceAbove: { magnitude: 1, unit: 'PT' },
+                spaceBelow: { magnitude: 0, unit: 'PT' },
+            }, 'spaceAbove,spaceBelow')
         }
 
+        // ── Line 4: Experience ──
         if (opts?.experience) {
-            this.styledText(' | ', {
-                foregroundColor: { color: { rgbColor: COLORS.warmGray } },
-                fontSize: { magnitude: PT.bodyText, unit: 'PT' },
-                italic: false,
-                underline: false,
-            }, 'foregroundColor,fontSize,italic,underline')
+            const expLineStart = this.idx
             this.styledText('Experience: ', {
                 bold: true,
                 foregroundColor: { color: { rgbColor: COLORS.charcoal } },
@@ -479,15 +519,31 @@ class DocBuilder {
                 italic: false,
                 underline: false,
             }, 'foregroundColor,fontSize,weightedFontFamily,italic,underline')
+            this.newline()
+            this.paragraphStyle(expLineStart, {
+                spaceAbove: { magnitude: 1, unit: 'PT' },
+                spaceBelow: { magnitude: 0, unit: 'PT' },
+            }, 'spaceAbove,spaceBelow')
         }
 
-        this.newline()
-
-        // If no pitch, add bottom border to the name line itself
+        // Add bottom border on the last detail line (or name line if no details)
+        // Find the start of the last paragraph to apply the border
+        const lastParaStart = this.idx  // current position is right after the last newline
         if (!opts?.pitch) {
-            this.paragraphStyle(lineStart, {
-                spaceAbove: { magnitude: 12, unit: 'PT' },
-                spaceBelow: { magnitude: 8, unit: 'PT' },
+            // No pitch — add a thin divider after the last line
+            const borderStart = this.idx
+            this.text(' ')  // need content for the border paragraph
+            this.newline()
+            this.requests.push({
+                updateTextStyle: {
+                    range: { startIndex: borderStart, endIndex: borderStart + 1 },
+                    textStyle: { fontSize: { magnitude: 1, unit: 'PT' }, italic: false, underline: false },
+                    fields: 'fontSize,italic,underline',
+                }
+            })
+            this.paragraphStyle(borderStart, {
+                spaceAbove: { magnitude: 4, unit: 'PT' },
+                spaceBelow: { magnitude: 4, unit: 'PT' },
                 borderBottom: {
                     color: { color: { rgbColor: COLORS.divider } },
                     width: { magnitude: 0.5, unit: 'PT' },
@@ -495,11 +551,6 @@ class DocBuilder {
                     dashStyle: 'SOLID',
                 },
             }, 'spaceAbove,spaceBelow,borderBottom')
-        } else {
-            this.paragraphStyle(lineStart, {
-                spaceAbove: { magnitude: 12, unit: 'PT' },
-                spaceBelow: { magnitude: 4, unit: 'PT' },
-            }, 'spaceAbove,spaceBelow')
         }
 
         // ── Pitch paragraph (only for presenting) — with blank line separator ──
