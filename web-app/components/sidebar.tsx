@@ -104,7 +104,7 @@ export function Sidebar() {
                     variant="outline"
                     className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
                     size="sm"
-                    onClick={() => signOut()}
+                    onClick={() => signOut({ callbackUrl: '/' })}
                 >
                     <LogOut size={14} />
                     Sign Out

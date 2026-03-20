@@ -64,7 +64,7 @@ export function Navbar() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => signOut()}
+                  onClick={() => signOut({ callbackUrl: '/' })}
                   className="text-[11px] sm:text-xs h-8 px-2.5 sm:px-3"
                 >
                   Sign Out

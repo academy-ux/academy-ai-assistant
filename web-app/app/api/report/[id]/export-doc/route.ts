@@ -1307,8 +1307,17 @@ export async function POST(
                 pitchesGenerated: pitchMap.size,
             }
         })
-    } catch (error) {
+    } catch (error: any) {
         console.error('[Export Doc] Error:', error)
+        // Detect expired / revoked Google OAuth tokens
+        const status = error?.code || error?.response?.status
+        const errMsg = error?.message || error?.response?.data?.error_description || ''
+        if (status === 401 || /invalid.credentials|token.*expired|token.*revoked/i.test(errMsg)) {
+            return NextResponse.json(
+                { error: 'Your Google session has expired. Please sign out and sign back in.', code: 'TOKEN_EXPIRED' },
+                { status: 401 }
+            )
+        }
         const message = error instanceof Error ? error.message : 'Failed to export document'
         return NextResponse.json({ error: message }, { status: 500 })
     }

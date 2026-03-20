@@ -364,11 +364,19 @@ export default function CandidateReportPage() {
 
             setExportResult({ url: data.url, folderUrl: data.folderUrl, synced: data.synced, stats: data.stats })
             setExportOverlayResult({ url: data.url, folderUrl: data.folderUrl, stats: data.stats })
-        } catch (err) {
+        } catch (err: any) {
             clearTimeout(pitchTimer)
             clearTimeout(docTimer)
             console.error('Export failed:', err)
-            toast.error(err instanceof Error ? err.message : 'Failed to export report')
+            const msg = err instanceof Error ? err.message : 'Failed to export report'
+            if (msg.includes('expired') || msg.includes('sign out')) {
+                toast.error(msg, {
+                    action: { label: 'Sign Out', onClick: () => { window.location.href = '/api/auth/signout?callbackUrl=/' } },
+                    duration: 10000,
+                })
+            } else {
+                toast.error(msg)
+            }
             setExportOverlayOpen(false)
         } finally {
             setExporting(false)
