@@ -445,6 +445,7 @@ export default function CandidateReportPage() {
 
         const groups = {
             presenting: [] as Candidate[],
+            phoneScreen: [] as Candidate[],
             interviewing: [] as Candidate[],
             portfolio: [] as Candidate[],
             applied: [] as Candidate[],
@@ -465,6 +466,9 @@ export default function CandidateReportPage() {
             }
             else if (stage === 'portfolio interview') {
                 groups.portfolio.push(c)
+            }
+            else if (stage.includes('phone screen') || stage.includes('phone_screen')) {
+                groups.phoneScreen.push(c)
             }
             else if (stage.includes('present') || stage.includes('client') || stage.includes('offer')) {
                 groups.presenting.push(c)
@@ -502,6 +506,7 @@ export default function CandidateReportPage() {
 
     const tabs = [
         { value: "presenting", label: "Presenting", count: filteredAndGrouped.presenting.length },
+        { value: "phoneScreen", label: "Phone Screen", count: filteredAndGrouped.phoneScreen.length },
         { value: "interviewing", label: "Client Interview", count: filteredAndGrouped.interviewing.length },
         { value: "portfolio", label: "Portfolio Interview", count: filteredAndGrouped.portfolio.length },
         { value: "applied", label: "Sourced", count: filteredAndGrouped.applied.length },

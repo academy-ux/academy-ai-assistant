@@ -1470,7 +1470,7 @@ function FeedbackContent() {
                     <button
                       type="button"
                       onClick={() => setInterviewSearch('')}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
