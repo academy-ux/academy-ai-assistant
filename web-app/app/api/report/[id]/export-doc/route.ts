@@ -883,7 +883,16 @@ async function syncDocSurgical(
         return true
     }
 
-    console.log(`[Sync] Surgical: ${toUpdate.length} updated, ${toAdd.length} added, ${rangesToDelete.length - toUpdate.length} removed, ${existingCandidates.size - toUpdate.length - (rangesToDelete.length - toUpdate.length)} unchanged`)
+    // If every candidate needs updating (e.g. style version bump), fall back to
+    // full clear-and-rebuild — surgical sync can corrupt the doc when it deletes
+    // all content and tries to re-insert into destroyed section ranges.
+    const unchangedCount = existingCandidates.size - toUpdate.length - (rangesToDelete.length - toUpdate.length)
+    if (unchangedCount === 0 && existingCandidates.size > 0) {
+        console.log(`[Sync] All ${existingCandidates.size} candidates changed — falling back to full rebuild`)
+        return false
+    }
+
+    console.log(`[Sync] Surgical: ${toUpdate.length} updated, ${toAdd.length} added, ${rangesToDelete.length - toUpdate.length} removed, ${unchangedCount} unchanged`)
 
     // 4. PASS 1 — Delete changed/removed candidate ranges (back-to-front so indices stay valid)
     if (rangesToDelete.length > 0) {
