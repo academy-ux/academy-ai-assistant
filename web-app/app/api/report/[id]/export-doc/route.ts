@@ -131,8 +131,12 @@ function simpleHash(str: string): string {
     return Math.abs(hash).toString(36)
 }
 
+// Bump STYLE_VERSION to force re-render of all candidates on next sync
+const STYLE_VERSION = 2
+
 function candidateFingerprint(c: LeverCandidate, opts: { pitch?: string; password?: string; experience?: string }): string {
     return simpleHash([
+        `v${STYLE_VERSION}`,
         c.name, c.headline || '', typeof c.location === 'string' ? c.location : '',
         (c.links || []).map(l => l.url).join(','),
         opts.pitch || '', opts.password || '', opts.experience || '',
