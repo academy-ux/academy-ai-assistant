@@ -1,6 +1,6 @@
 'use client'
 
-import { useSession, signIn } from 'next-auth/react'
+import { useSession, signIn, signOut } from 'next-auth/react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState, Suspense } from 'react'
@@ -381,6 +381,11 @@ function FeedbackContent() {
 
   useEffect(() => {
     if (session) {
+      // Detect expired Google OAuth token from NextAuth session
+      if ((session as any).error === 'RefreshAccessTokenError') {
+        setPollingError('SESSION_EXPIRED')
+      }
+
       loadInterviews()
       loadPostings()
       loadTemplates()
@@ -452,7 +457,12 @@ function FeedbackContent() {
         const errorMsg = errorData.error || 'Drive poll failed'
         console.log('[Feedback] Drive poll not configured or failed:', res.status, errorMsg)
         if (!silent) {
-          setPollingError(errorMsg)
+          // Surface token-expired errors with a specific flag so the UI can show re-auth
+          if (res.status === 401 && errorData.code === 'TOKEN_EXPIRED') {
+            setPollingError('SESSION_EXPIRED')
+          } else {
+            setPollingError(errorMsg)
+          }
         }
       }
     } catch (err: any) {
@@ -1492,7 +1502,7 @@ function FeedbackContent() {
                   {/* Polling status indicator */}
                   {pollingError && (
                     <div className="text-xs text-destructive px-1">
-                      ⚠️ {pollingError.includes('No Drive folder') ? 'No Drive folder configured' : 'Check failed'}
+                      ⚠️ {pollingError === 'SESSION_EXPIRED' ? 'Google session expired — sign in again' : pollingError.includes('No Drive folder') ? 'No Drive folder configured' : 'Check failed'}
                     </div>
                   )}
                 </div>
@@ -1546,7 +1556,21 @@ function FeedbackContent() {
                           </div>
                         </div>
 
-                        {pollingError.includes('No Drive folder configured') ? (
+                        {pollingError === 'SESSION_EXPIRED' ? (
+                          <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+                            <div className="text-sm font-medium mb-2">Google session expired</div>
+                            <p className="text-xs text-muted-foreground mb-3">
+                              Your Google connection has expired. Sign out and sign back in to reconnect Google Drive.
+                            </p>
+                            <Button
+                              size="sm"
+                              onClick={() => signOut({ callbackUrl: '/' })}
+                              className="w-full"
+                            >
+                              Sign out &amp; reconnect
+                            </Button>
+                          </div>
+                        ) : pollingError.includes('No Drive folder configured') ? (
                           <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
                             <div className="text-sm font-medium mb-2">First-time setup required</div>
                             <ol className="text-xs text-muted-foreground space-y-1.5 list-decimal list-inside">
@@ -1647,20 +1671,33 @@ function FeedbackContent() {
                               Latest transcript not found
                             </div>
                             <p className="text-xs text-muted-foreground">
-                              {pollingError.includes('No Drive folder configured')
+                              {pollingError === 'SESSION_EXPIRED'
+                                ? 'Your Google session has expired — sign out and sign back in'
+                                : pollingError.includes('No Drive folder configured')
                                 ? 'Import your Drive folder on the History page to auto-load transcripts'
                                 : 'Transcript may take 1-2 minutes after meeting ends'}
                             </p>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 px-2 text-xs"
-                            onClick={() => pollForNewTranscript()}
-                            disabled={pollingForTranscript}
-                          >
-                            <RefreshCw className="h-3 w-3" />
-                          </Button>
+                          {pollingError === 'SESSION_EXPIRED' ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 px-2 text-xs text-amber-600"
+                              onClick={() => signOut({ callbackUrl: '/' })}
+                            >
+                              Sign out
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 px-2 text-xs"
+                              onClick={() => pollForNewTranscript()}
+                              disabled={pollingForTranscript}
+                            >
+                              <RefreshCw className="h-3 w-3" />
+                            </Button>
+                          )}
                         </div>
                       </div>
                     )}

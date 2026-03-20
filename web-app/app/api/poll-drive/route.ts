@@ -12,6 +12,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Detect expired/revoked OAuth token — stale accessToken may still be present
+    if (token.error === 'RefreshAccessTokenError') {
+      return NextResponse.json({
+        error: 'Your Google session has expired. Please sign out and sign back in.',
+        code: 'TOKEN_EXPIRED'
+      }, { status: 401 })
+    }
+
     // Get user's settings
     const { data: settings, error: settingsError } = await supabase
       .from('user_settings')
