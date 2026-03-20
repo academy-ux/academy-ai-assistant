@@ -1246,7 +1246,13 @@ export async function POST(
         const drive = google.drive({ version: 'v3', auth })
 
         // 8. Check for existing doc (sync mode)
-        let documentId = forceNew ? null : await findExistingDoc(drive, postingId)
+        // Force new doc creation to recover from corrupted sync
+        let documentId: string | null = null
+        if (!forceNew) {
+            documentId = await findExistingDoc(drive, postingId)
+        }
+        // TEMP: Always create fresh to fix corrupted docs
+        documentId = null
         let synced = false
 
         if (documentId) {
