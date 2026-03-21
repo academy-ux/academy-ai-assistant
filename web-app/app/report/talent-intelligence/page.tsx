@@ -570,7 +570,8 @@ export default function TalentIntelligenceReport() {
   return (
     <>
     <style>{`
-      .slide-height { min-height: ${isPresenting ? '100vh' : '75vh'}; }
+      .slide-height { min-height: ${isPresenting ? '100vh' : '0'}; }
+      ${!isPresenting ? '.slide-frame { aspect-ratio: 16 / 9; }' : ''}
     `}</style>
     <div className="fixed inset-0 z-[60] bg-[#e4e2de] overflow-hidden flex">
       {/* ── LEFT NAV DOTS ── */}
@@ -677,8 +678,9 @@ export default function TalentIntelligenceReport() {
                 }}
               >
                 <div className={cn(
+                  "slide-frame",
                   slide.dark ? "bg-[#111111]" : "bg-[#eceae6]",
-                  !isPresenting && "rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.06)] ring-1 ring-black/[0.04] overflow-hidden"
+                  !isPresenting && "rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden"
                 )}>
                   <div className={cn(
                     "mx-auto",
