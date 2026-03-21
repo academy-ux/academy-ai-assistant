@@ -459,7 +459,8 @@ function useSlideVisibility(
   const [visibleSet, setVisibleSet] = useState<Set<number>>(new Set([0]))
 
   useEffect(() => {
-    const root = isPresenting ? containerRef.current : null
+    const root = containerRef.current
+    if (!root) return
     const observer = new IntersectionObserver(
       (entries) => {
         setVisibleSet(prev => {
@@ -467,13 +468,13 @@ function useSlideVisibility(
           entries.forEach(entry => {
             const idx = slideRefs.current?.indexOf(entry.target as HTMLDivElement) ?? -1
             if (idx === -1) return
-            if (entry.isIntersecting) next.add(idx)
+            if (entry.intersectionRatio >= 0.4) next.add(idx)
             else next.delete(idx)
           })
           return next
         })
       },
-      { threshold: 0.15, root }
+      { threshold: [0, 0.4], root }
     )
 
     slideRefs.current?.forEach(ref => { if (ref) observer.observe(ref) })
@@ -673,8 +674,9 @@ export default function TalentIntelligenceReport() {
                 )}
                 data-slide-id={slide.id}
                 style={{
-                  opacity: isPresenting ? 1 : isVisible ? 1 : 0.75,
-                  transition: 'opacity 0.5s ease-out',
+                  opacity: isPresenting ? 1 : isVisible ? 1 : 0.4,
+                  transform: isPresenting ? 'none' : isVisible ? 'scale(1)' : 'scale(0.97)',
+                  transition: 'opacity 0.6s ease-out, transform 0.6s ease-out',
                 }}
               >
                 <div className={cn(
