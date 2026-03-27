@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { uuidSchema, errorResponse } from '@/lib/validation'
 
 // Allowed meeting types for non-admins
-const ALLOWED_TYPES = ['Status Update', 'Client Call', 'Interview']
+const ALLOWED_TYPES = ['Status Update', 'Client Call', 'Interview', 'Client Debrief']
 
 export async function GET(
   request: NextRequest,

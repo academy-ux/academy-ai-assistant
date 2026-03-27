@@ -429,7 +429,7 @@ function FeedbackContent() {
         }
 
         // Always reload interviews after polling to get latest
-        const interviewsRes = await fetch(`/api/interviews?limit=${PAGE_SIZE}&offset=0`)
+        const interviewsRes = await fetch(`/api/interviews?view=all&limit=${PAGE_SIZE}&offset=0`)
         const interviewsData = await interviewsRes.json()
 
         if (interviewsData.interviews && interviewsData.interviews.length > 0) {
@@ -484,20 +484,21 @@ function FeedbackContent() {
     setSubmitAttempted(false)
   }, [selectedInterview?.id, selectedTemplate])
 
-  // #region agent log (hypothesis B/C/E)
+  // Tracking selected template changes
   useEffect(() => {
     if (!templates || templates.length === 0) return
     const selected = templates.find(t => t.id === selectedTemplate)
-    fetch('http://127.0.0.1:7244/ingest/e9fe012d-75cb-4528-8bd7-ab7d06b4d4db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: 'debug-session', runId: 'run2', hypothesisId: 'B', location: 'web-app/app/feedback/page.tsx:selectedTemplateEffect', message: 'Selected template changed / observed', data: { selectedTemplateId: selectedTemplate || null, selectedTemplateName: selected?.name || null, selectedTemplateIsOld: /\\bold\\b/i.test(String(selected?.name || '')), templateCount: templates.length, firstTemplates: templates.slice(0, 6).map(t => ({ id: t.id, name: t.name })) }, timestamp: Date.now() }) }).catch(() => { });
+    console.log('[Feedback] Selected template changed:', { 
+      id: selectedTemplate, 
+      name: selected?.name,
+      isOld: /\\bold\\b/i.test(String(selected?.name || ''))
+    })
   }, [selectedTemplate, templates])
-  // #endregion
 
-  // #region agent log (hypothesis A/B)
   useEffect(() => {
     if (templatesLoading) return
-    fetch('http://127.0.0.1:7244/ingest/e9fe012d-75cb-4528-8bd7-ab7d06b4d4db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: 'debug-session', runId: 'run2', hypothesisId: 'A', location: 'web-app/app/feedback/page.tsx:templatesLoadingEffect', message: 'Templates loading finished', data: { templatesLoading, templateCount: templates.length, selectedTemplateId: selectedTemplate || null, selectedTemplateName: templates.find(t => t.id === selectedTemplate)?.name || null }, timestamp: Date.now() }) }).catch(() => { });
-  }, [templatesLoading])
-  // #endregion
+    console.log('[Feedback] Templates loaded:', templates.length)
+  }, [templatesLoading, templates.length])
 
   useEffect(() => {
     if (!session) return
@@ -547,7 +548,7 @@ function FeedbackContent() {
   async function loadInterviews() {
     setInterviewsLoading(true)
     try {
-      const res = await fetch(`/api/interviews?limit=${PAGE_SIZE}&offset=0`)
+      const res = await fetch(`/api/interviews?view=all&limit=${PAGE_SIZE}&offset=0`)
       const data = await res.json()
       if (data.interviews) {
         const base = data.interviews as Interview[]
@@ -570,7 +571,7 @@ function FeedbackContent() {
     if (loadingMore || !hasMore) return
     setLoadingMore(true)
     try {
-      const res = await fetch(`/api/interviews?limit=${PAGE_SIZE}&offset=${interviews.length}`)
+      const res = await fetch(`/api/interviews?view=all&limit=${PAGE_SIZE}&offset=${interviews.length}`)
       const data = await res.json()
       if (data.interviews) {
         const more = data.interviews as Interview[]
@@ -668,9 +669,8 @@ function FeedbackContent() {
       activeAnalyzeAbortRef.current = null
       setAnalysisLoading(false)
 
-      // #region agent log (hypothesis F)
-      fetch('http://127.0.0.1:7244/ingest/e9fe012d-75cb-4528-8bd7-ab7d06b4d4db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: 'debug-session', runId: 'run3', hypothesisId: 'F', location: 'web-app/app/feedback/page.tsx:selectedTemplate->currentTemplateEffect', message: 'Set currentTemplate from selectedTemplate', data: { selectedTemplateId: selectedTemplate, selectedTemplateName: templates.find(t => t.id === selectedTemplate)?.name || null, foundTemplateId: template?.id || null, foundTemplateName: template?.name || null, foundIsOld: /\\bold\\b/i.test(String(template?.name || '').toLowerCase()), templatesCount: templates.length }, timestamp: Date.now() }) }).catch(() => { });
-      // #endregion
+      // Set currentTemplate from selectedTemplate
+      setCurrentTemplate(template)
     }
   }, [selectedTemplate, templates, selectedInterview])
 
@@ -881,9 +881,7 @@ function FeedbackContent() {
         }))
       } : null
 
-      // #region agent log (hypothesis G)
-      fetch('http://127.0.0.1:7244/ingest/e9fe012d-75cb-4528-8bd7-ab7d06b4d4db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: 'debug-session', runId: 'run3', hypothesisId: 'G', location: 'web-app/app/feedback/page.tsx:analyzeTranscript:beforeFetch', message: 'Calling /api/analyze', data: { interviewId: selectedInterview?.id || null, selectedTemplateId: selectedTemplate || null, selectedTemplateName: templates.find(t => t.id === selectedTemplate)?.name || null, currentTemplateId: currentTemplate?.id || null, currentTemplateName: currentTemplate?.name || null, currentTemplateIsOld: /\\bold\\b/i.test(String(currentTemplate?.name || '').toLowerCase()), templateFieldCount: currentTemplate?.fields?.length || 0, analysisTranscriptLength: analysisTranscript.length }, timestamp: Date.now() }) }).catch(() => { });
-      // #endregion
+      // Abort any previous in-flight analysis
 
       const res = await fetch('/api/analyze', {
         method: 'POST',
@@ -1056,10 +1054,6 @@ function FeedbackContent() {
         const isPhoneScreenTemplate = (name?: string) =>
           normalizeForMatch(name || '').includes('phone screen')
 
-        // #region agent log (hypothesis A/B/C)
-        fetch('http://127.0.0.1:7244/ingest/e9fe012d-75cb-4528-8bd7-ab7d06b4d4db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: 'debug-session', runId: 'run1', hypothesisId: 'A', location: 'web-app/app/feedback/page.tsx:loadTemplates', message: 'Templates loaded', data: { count: Array.isArray(data.templates) ? data.templates.length : null, phoneScreenLike: (Array.isArray(data.templates) ? data.templates.filter((t: any) => String(t?.name || '').toLowerCase().includes('phone screen')).slice(0, 6).map((t: any) => ({ id: t.id, name: t.name, normalized: normalizeForMatch(String(t?.name || '')), isOld: isOldTemplate(String(t?.name || '')) })) : null), selectedTemplateAtLoad: selectedTemplate }, timestamp: Date.now() }) }).catch(() => { });
-        // #endregion
-
         // Default: prefer "Phone Screen" but NEVER auto-select "(old)" templates.
         const phoneScreenTemplate = data.templates.find((t: Template) =>
           isPhoneScreenTemplate(t.name) && !isOldTemplate(t.name)
@@ -1084,9 +1078,6 @@ function FeedbackContent() {
             if (!prev) return defaultTemplateId
             const prevTemplate = data.templates.find((t: Template) => t.id === prev)
             const prevIsOld = prevTemplate ? isOldTemplate(prevTemplate.name) : false
-            // #region agent log (hypothesis A/C)
-            fetch('http://127.0.0.1:7244/ingest/e9fe012d-75cb-4528-8bd7-ab7d06b4d4db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: 'debug-session', runId: 'run1', hypothesisId: 'C', location: 'web-app/app/feedback/page.tsx:loadTemplates:setSelectedTemplate', message: 'Default template decision', data: { prevTemplateId: prev, prevTemplateName: prevTemplate?.name || null, prevNormalized: prevTemplate ? normalizeForMatch(prevTemplate.name) : null, prevIsOld, defaultTemplateId, defaultTemplateName: data.templates.find((t: Template) => t.id === defaultTemplateId)?.name || null, phoneScreenTemplateName: phoneScreenTemplate?.name || null, interviewTemplateName: interviewTemplate?.name || null, firstNonOldTemplateName: firstNonOldTemplate?.name || null }, timestamp: Date.now() }) }).catch(() => { });
-            // #endregion
             return prevIsOld ? defaultTemplateId : prev
           })
         }
@@ -1163,10 +1154,6 @@ function FeedbackContent() {
 
     const needleWords = new Set(needle.split(' ').filter(w => w.length > 2))
 
-    // #region agent log (hypothesis D)
-    fetch('http://127.0.0.1:7244/ingest/e9fe012d-75cb-4528-8bd7-ab7d06b4d4db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: 'debug-session', runId: 'run1', hypothesisId: 'D', location: 'web-app/app/feedback/page.tsx:pickTemplateFromInterview', message: 'Pick template for interview', data: { interviewId: interview?.id || null, needle, templateCount: templates.length }, timestamp: Date.now() }) }).catch(() => { });
-    // #endregion
-
     let best: { id: string; score: number } | null = null
     for (const t of templates) {
       const nameLower = (t.name || '').toLowerCase()
@@ -1210,10 +1197,6 @@ function FeedbackContent() {
     if (lastAutoTemplateKeyRef.current === key) return
 
     const templateId = pickTemplateFromInterview(selectedInterview)
-    // Only auto-select when we have a confident match. Do not default to phone screen.
-    // #region agent log (hypothesis C/D/E)
-    fetch('http://127.0.0.1:7244/ingest/e9fe012d-75cb-4528-8bd7-ab7d06b4d4db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: 'debug-session', runId: 'run1', hypothesisId: 'E', location: 'web-app/app/feedback/page.tsx:templateAutoSelectEffect', message: 'Template auto-select check', data: { interviewId: selectedInterview.id, key, manualTemplateInterviewIdRef: manualTemplateInterviewIdRef.current || null, selectedTemplateBefore: selectedTemplate, computedTemplateId: templateId || null, computedTemplateName: templateId ? (templates.find(t => t.id === templateId)?.name || null) : null }, timestamp: Date.now() }) }).catch(() => { });
-    // #endregion
     if (templateId) setSelectedTemplate(templateId)
     lastAutoTemplateKeyRef.current = key
   }, [selectedInterview, templatesLoading, templates])

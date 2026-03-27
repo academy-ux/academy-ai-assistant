@@ -8,7 +8,7 @@ import { paginationSchema, validateSearchParams, errorResponse } from '@/lib/val
 import { checkForAbuse } from '@/lib/abuse-detection'
 
 // Allowed meeting types for non-admins when viewing others' meetings
-const ALLOWED_TYPES = ['Status Update', 'Client Call', 'Interview']
+const ALLOWED_TYPES = ['Status Update', 'Client Call', 'Interview', 'Client Debrief']
 
 // GET: List recent interviews
 export async function GET(request: NextRequest) {

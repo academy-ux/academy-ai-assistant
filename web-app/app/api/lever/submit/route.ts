@@ -192,9 +192,6 @@ export async function POST(request: NextRequest) {
           ])
 
           const templateData = (templateRes as any)?.data
-          // #region agent log
-          fetch('http://127.0.0.1:7244/ingest/e9fe012d-75cb-4528-8bd7-ab7d06b4d4db',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'submit/route.ts:75',message:'templateRes structure',data:{hasData:!!templateData,dataKeys:templateData?Object.keys(templateData):null,hasNestedData:!!(templateData as any)?.data,nestedDataKeys:(templateData as any)?.data?Object.keys((templateData as any).data):null,fieldsAtRoot:Array.isArray(templateData?.fields),fieldsNested:Array.isArray((templateData as any)?.data?.fields)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-          // #endregion
           // Fix: Lever wraps response in { data: { ... } }, so fields are at data.data.fields
           const actualTemplateData = templateData?.data || templateData
           const templateFields = Array.isArray(actualTemplateData?.fields) ? actualTemplateData.fields : []
@@ -203,10 +200,6 @@ export async function POST(request: NextRequest) {
           const submittedIds = Array.isArray(fieldValues) ? fieldValues.map((fv: any) => fv?.id).filter(Boolean) : []
           const missingRequired = requiredFieldIds.filter((id: any) => !submittedIds.includes(id))
           const unknownSubmitted = submittedIds.filter((id: any) => templateFieldIds.length > 0 && !templateFieldIds.includes(id))
-          // #region agent log
-          fetch('http://127.0.0.1:7244/ingest/e9fe012d-75cb-4528-8bd7-ab7d06b4d4db',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'submit/route.ts:85',message:'template fields analysis',data:{templateFieldCount:templateFields.length,templateFieldIds,requiredFieldIds,submittedIds,missingRequired,unknownSubmitted,scoreFields:templateFields.filter((f:any)=>f?.type==='score-system').map((f:any)=>({id:f.id,text:f.text,options:f.options}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,C'})}).catch(()=>{});
-          // #endregion
-
           // Build field type map and check for invalid values
           const fieldTypeMap = templateFields.reduce((acc: any, f: any) => {
             acc[f.id] = { type: f.type, text: f.text, required: f.required, options: f.options };
