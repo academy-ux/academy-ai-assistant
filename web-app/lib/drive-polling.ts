@@ -300,27 +300,21 @@ export async function pollFolder(
           return 'skipped'
         }
 
-        // Upsert on drive_file_id so a concurrent poll can never create a duplicate row.
-        // ignoreDuplicates=true makes this effectively "insert if new" without overwriting
-        // owner_email or other fields on the existing row.
-        const { error } = await supabase.from('interviews').upsert(
-          {
-            meeting_title: generatedTitle,
-            meeting_type: metadata.meetingCategory,
-            meeting_date: file.createdTime || new Date().toISOString(),
-            transcript: text,
-            transcript_file_name: file.name,
-            drive_file_id: file.id,
-            embedding: embedding,
-            summary: metadata.summary,
-            rating: 'Not Analyzed',
-            candidate_name: metadata.candidateName,
-            interviewer: metadata.interviewer,
-            position: metadata.position || '',
-            owner_email: userEmail
-          },
-          { onConflict: 'drive_file_id', ignoreDuplicates: true }
-        )
+        const { error } = await supabase.from('interviews').insert({
+          meeting_title: generatedTitle,
+          meeting_type: metadata.meetingCategory,
+          meeting_date: file.createdTime || new Date().toISOString(),
+          transcript: text,
+          transcript_file_name: file.name,
+          drive_file_id: file.id,
+          embedding: embedding,
+          summary: metadata.summary,
+          rating: 'Not Analyzed',
+          candidate_name: metadata.candidateName,
+          interviewer: metadata.interviewer,
+          position: metadata.position || '',
+          owner_email: userEmail
+        })
 
         if (error) {
           console.error(`[Poll] ❌ Insert error for "${file.name}":`, error)

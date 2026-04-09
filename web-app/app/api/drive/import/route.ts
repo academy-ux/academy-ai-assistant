@@ -191,25 +191,21 @@ export async function POST(req: NextRequest) {
           generatedTitle = `${metadata.meetingCategory} ${meetingDate}`
         }
 
-        // Upsert on drive_file_id so concurrent imports can't race and create duplicates
-        const { error } = await supabase.from('interviews').upsert(
-          {
-            meeting_title: generatedTitle,
-            meeting_type: metadata.meetingCategory,
-            meeting_date: file.createdTime || new Date().toISOString(),
-            transcript: text,
-            transcript_file_name: file.name,
-            drive_file_id: file.id,
-            embedding: embedding,
-            summary: metadata.summary,
-            rating: 'Not Analyzed',
-            candidate_name: metadata.candidateName,
-            interviewer: metadata.interviewer,
-            position: metadata.position || '',
-            owner_email: userEmail
-          },
-          { onConflict: 'drive_file_id', ignoreDuplicates: true }
-        )
+        const { error } = await supabase.from('interviews').insert({
+          meeting_title: generatedTitle,
+          meeting_type: metadata.meetingCategory,
+          meeting_date: file.createdTime || new Date().toISOString(),
+          transcript: text,
+          transcript_file_name: file.name,
+          drive_file_id: file.id,
+          embedding: embedding,
+          summary: metadata.summary,
+          rating: 'Not Analyzed',
+          candidate_name: metadata.candidateName,
+          interviewer: metadata.interviewer,
+          position: metadata.position || '',
+          owner_email: userEmail
+        })
 
         if (error) {
           console.error('Supabase error:', error)
