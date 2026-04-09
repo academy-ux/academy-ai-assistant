@@ -18,13 +18,18 @@ export async function GET(req: NextRequest) {
   console.log('[Cron Poll] Starting scheduled poll')
   console.log('[Cron Poll] ========================================')
 
-  // Fetch all users who have auto-poll enabled with a configured folder and stored token
+  // Fetch all users who have a configured folder and a stored refresh token.
+  // We do NOT require auto_poll_enabled=true — the presence of a refresh token +
+  // folder is enough signal that the user wants background polling, and this
+  // ensures Drive scans happen for every connected user regardless of whether
+  // anyone is currently signed into the app. Users who explicitly opted out
+  // (auto_poll_enabled=false) are still respected.
   const { data: users, error } = await supabase
     .from('user_settings')
-    .select('user_email, drive_folder_id, encrypted_refresh_token')
-    .eq('auto_poll_enabled', true)
+    .select('user_email, drive_folder_id, encrypted_refresh_token, auto_poll_enabled')
     .not('drive_folder_id', 'is', null)
     .not('encrypted_refresh_token', 'is', null)
+    .or('auto_poll_enabled.is.null,auto_poll_enabled.eq.true')
 
   if (error) {
     console.error('[Cron Poll] Failed to fetch users:', error)

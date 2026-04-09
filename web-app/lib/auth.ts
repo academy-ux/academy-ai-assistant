@@ -99,17 +99,35 @@ export const authOptions: NextAuthOptions = {
           console.log('[nextauth] sign-in user image:', (user as any)?.image)
         }
 
-        // Persist encrypted refresh token for cron-based polling
+        // Persist encrypted refresh token for cron-based polling, and default
+        // new users into auto-polling so their Drive folder is scanned by the
+        // cron regardless of whether they're actively signed in. Existing users
+        // who have explicitly opted out keep their preference.
         const email = (token.email as string) ?? (user as any)?.email ?? (profile as any)?.email
         if (account.refresh_token && email) {
           try {
             const encrypted = encryptToken(account.refresh_token)
-            await supabase
+
+            const { data: existingSettings } = await supabase
               .from('user_settings')
-              .upsert(
-                { user_email: email, encrypted_refresh_token: encrypted },
-                { onConflict: 'user_email' }
-              )
+              .select('id')
+              .eq('user_email', email)
+              .maybeSingle()
+
+            if (existingSettings) {
+              await supabase
+                .from('user_settings')
+                .update({ encrypted_refresh_token: encrypted })
+                .eq('user_email', email)
+            } else {
+              await supabase
+                .from('user_settings')
+                .insert({
+                  user_email: email,
+                  encrypted_refresh_token: encrypted,
+                  auto_poll_enabled: true,
+                })
+            }
             console.log('[nextauth] Saved encrypted refresh token for', email)
           } catch (err) {
             console.error('[nextauth] Failed to save refresh token:', err)

@@ -24,9 +24,10 @@ export async function POST(req: NextRequest) {
     if (!success && rateLimitResponse) return rateLimitResponse
 
     const token = await getToken({ req })
-    if (!token?.accessToken) {
+    if (!token?.accessToken || !token?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    const userEmail = token.email as string
 
     const { data: body, error: validationError } = await validateBody(req, importSchema)
     if (validationError) return validationError
@@ -57,6 +58,17 @@ export async function POST(req: NextRequest) {
       hasMore = !!nextPageToken
     }
 
+    // Dedupe Drive files by id — the same file can appear in multiple parents (shortcuts/subfolders)
+    const seenFileIds = new Set<string>()
+    const uniqueFiles: DriveFile[] = []
+    for (const file of allFiles) {
+      if (!file.id || seenFileIds.has(file.id)) continue
+      seenFileIds.add(file.id)
+      uniqueFiles.push(file)
+    }
+    allFiles.length = 0
+    allFiles.push(...uniqueFiles)
+
     const results = []
     const totalFiles = allFiles.length
 
@@ -85,6 +97,47 @@ export async function POST(req: NextRequest) {
           .eq('transcript_file_name', file.name)
           .maybeSingle()
         existing = existingByName
+      }
+
+      // Cross-pathway check: match against Chrome extension uploads (meet-*) on the same day
+      // so we don't end up with one row from the extension + another from Drive for the same meeting.
+      if (!existing && file.createdTime) {
+        const fileDate = new Date(file.createdTime)
+        const startOfDay = new Date(fileDate); startOfDay.setHours(0, 0, 0, 0)
+        const endOfDay = new Date(fileDate); endOfDay.setHours(23, 59, 59, 999)
+
+        const { data: extensionCandidates } = await supabase
+          .from('interviews')
+          .select('id, transcript')
+          .eq('owner_email', userEmail)
+          .like('drive_file_id', 'meet-%')
+          .gte('meeting_date', startOfDay.toISOString())
+          .lte('meeting_date', endOfDay.toISOString())
+
+        if (extensionCandidates && extensionCandidates.length > 0) {
+          try {
+            const previewRes = await drive.files.export({ fileId: file.id!, mimeType: 'text/plain' })
+            const previewText = (previewRes.data as string)?.substring(0, 500) || ''
+            const previewWords = previewText.split(/\s+/).filter(Boolean)
+
+            for (const candidate of extensionCandidates) {
+              const existingSnippet = (candidate.transcript || '').substring(0, 500)
+              if (!existingSnippet || previewWords.length === 0) continue
+              const overlap = previewWords.filter((w: string) => existingSnippet.includes(w)).length
+              if (overlap / previewWords.length > 0.6) {
+                // Same transcript — re-link the existing extension row to this Drive file
+                await supabase
+                  .from('interviews')
+                  .update({ drive_file_id: file.id })
+                  .eq('id', candidate.id)
+                existing = { id: candidate.id }
+                break
+              }
+            }
+          } catch (previewError) {
+            console.error('[Import] Preview comparison failed:', previewError)
+          }
+        }
       }
 
       if (existing) {
@@ -138,21 +191,25 @@ export async function POST(req: NextRequest) {
           generatedTitle = `${metadata.meetingCategory} ${meetingDate}`
         }
 
-        // Save to Supabase
-        const { error } = await supabase.from('interviews').insert({
-          meeting_title: generatedTitle,
-          meeting_type: metadata.meetingCategory,
-          meeting_date: file.createdTime || new Date().toISOString(),
-          transcript: text,
-          transcript_file_name: file.name,
-          drive_file_id: file.id,
-          embedding: embedding,
-          summary: metadata.summary,
-          rating: 'Not Analyzed',
-          candidate_name: metadata.candidateName,
-          interviewer: metadata.interviewer,
-          position: metadata.position || ''
-        })
+        // Upsert on drive_file_id so concurrent imports can't race and create duplicates
+        const { error } = await supabase.from('interviews').upsert(
+          {
+            meeting_title: generatedTitle,
+            meeting_type: metadata.meetingCategory,
+            meeting_date: file.createdTime || new Date().toISOString(),
+            transcript: text,
+            transcript_file_name: file.name,
+            drive_file_id: file.id,
+            embedding: embedding,
+            summary: metadata.summary,
+            rating: 'Not Analyzed',
+            candidate_name: metadata.candidateName,
+            interviewer: metadata.interviewer,
+            position: metadata.position || '',
+            owner_email: userEmail
+          },
+          { onConflict: 'drive_file_id', ignoreDuplicates: true }
+        )
 
         if (error) {
           console.error('Supabase error:', error)

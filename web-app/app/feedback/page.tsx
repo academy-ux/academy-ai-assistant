@@ -145,6 +145,69 @@ interface Interview {
   // Optional: present for Lever-linked interviews
   candidate_id?: string | null
   submitted_at?: string | null
+  drive_file_id?: string | null
+  owner_email?: string | null
+}
+
+/**
+ * Dedupe interviews across ingestion pathways (Drive import, cron poll, Chrome extension, etc.)
+ * that can write multiple rows for the same underlying transcript. Collapses by:
+ *   1. drive_file_id (most reliable)
+ *   2. meeting_title + meeting_date (fallback for legacy rows without drive_file_id)
+ * When duplicates exist, prefer the row with an owner_email set, then the most recently created.
+ */
+function dedupeInterviews<T extends {
+  id: string
+  drive_file_id?: string | null
+  owner_email?: string | null
+  meeting_title?: string
+  meeting_date?: string
+  created_at?: string
+}>(rows: T[]): T[] {
+  const byKey = new Map<string, T>()
+  const isBetter = (candidate: T, existing: T) => {
+    const candOwner = candidate.owner_email ? 1 : 0
+    const existOwner = existing.owner_email ? 1 : 0
+    if (candOwner !== existOwner) return candOwner > existOwner
+    const candTime = candidate.created_at ? new Date(candidate.created_at).getTime() : 0
+    const existTime = existing.created_at ? new Date(existing.created_at).getTime() : 0
+    return candTime > existTime
+  }
+  for (const row of rows) {
+    const keys: string[] = []
+    if (row.drive_file_id) keys.push(`drive:${row.drive_file_id}`)
+    if (row.meeting_title) {
+      const dateKey = row.meeting_date ? new Date(row.meeting_date).toISOString().split('T')[0] : ''
+      keys.push(`title:${row.meeting_title}|${dateKey}`)
+    }
+    if (keys.length === 0) keys.push(`id:${row.id}`)
+
+    let existing: T | undefined
+    for (const k of keys) {
+      const found = byKey.get(k)
+      if (found) { existing = found; break }
+    }
+
+    if (!existing) {
+      for (const k of keys) byKey.set(k, row)
+      continue
+    }
+
+    if (isBetter(row, existing)) {
+      for (const [k, v] of byKey) {
+        if (v.id === existing.id) byKey.delete(k)
+      }
+      for (const k of keys) byKey.set(k, row)
+    }
+  }
+  const seenIds = new Set<string>()
+  const result: T[] = []
+  for (const row of byKey.values()) {
+    if (seenIds.has(row.id)) continue
+    seenIds.add(row.id)
+    result.push(row)
+  }
+  return result
 }
 
 function initialsFrom(label: string) {
@@ -433,7 +496,7 @@ function FeedbackContent() {
         const interviewsData = await interviewsRes.json()
 
         if (interviewsData.interviews && interviewsData.interviews.length > 0) {
-          const newInterviews = interviewsData.interviews as Interview[]
+          const newInterviews = dedupeInterviews(interviewsData.interviews as Interview[])
           setInterviews(newInterviews)
           setHasMore(newInterviews.length >= PAGE_SIZE)
 
@@ -551,7 +614,7 @@ function FeedbackContent() {
       const res = await fetch(`/api/interviews?view=all&limit=${PAGE_SIZE}&offset=0`)
       const data = await res.json()
       if (data.interviews) {
-        const base = data.interviews as Interview[]
+        const base = dedupeInterviews(data.interviews as Interview[])
         setInterviews(() => {
           if (selectedInterview && !base.some(i => i.id === selectedInterview.id)) {
             return [selectedInterview, ...base]
@@ -575,11 +638,7 @@ function FeedbackContent() {
       const data = await res.json()
       if (data.interviews) {
         const more = data.interviews as Interview[]
-        setInterviews(prev => {
-          const existingIds = new Set(prev.map(i => i.id))
-          const unique = more.filter(i => !existingIds.has(i.id))
-          return [...prev, ...unique]
-        })
+        setInterviews(prev => dedupeInterviews([...prev, ...more]))
         setHasMore(more.length >= PAGE_SIZE)
       }
     } catch (err) {

@@ -129,7 +129,23 @@ export async function pollFolder(
       break
     }
   }
-  
+
+  // Dedupe files by id — the same file can appear under multiple parents (shortcuts),
+  // and when we OR across subfolder queries a single file may be returned multiple times.
+  // Without this, parallel processing of the same file.id inside a BATCH races and inserts duplicates.
+  const seenFileIds = new Set<string>()
+  const uniqueFiles: DriveFile[] = []
+  for (const file of allFiles) {
+    if (!file.id || seenFileIds.has(file.id)) continue
+    seenFileIds.add(file.id)
+    uniqueFiles.push(file)
+  }
+  if (uniqueFiles.length !== allFiles.length) {
+    console.log(`[Poll] Deduped files: ${allFiles.length} -> ${uniqueFiles.length}`)
+  }
+  allFiles.length = 0
+  allFiles.push(...uniqueFiles)
+
   console.log(`[Poll] Total files to process: ${allFiles.length}`)
 
   let imported = 0
@@ -284,21 +300,27 @@ export async function pollFolder(
           return 'skipped'
         }
 
-        const { error } = await supabase.from('interviews').insert({
-          meeting_title: generatedTitle,
-          meeting_type: metadata.meetingCategory,
-          meeting_date: file.createdTime || new Date().toISOString(),
-          transcript: text,
-          transcript_file_name: file.name,
-          drive_file_id: file.id,
-          embedding: embedding,
-          summary: metadata.summary,
-          rating: 'Not Analyzed',
-          candidate_name: metadata.candidateName,
-          interviewer: metadata.interviewer,
-          position: metadata.position || '',
-          owner_email: userEmail
-        })
+        // Upsert on drive_file_id so a concurrent poll can never create a duplicate row.
+        // ignoreDuplicates=true makes this effectively "insert if new" without overwriting
+        // owner_email or other fields on the existing row.
+        const { error } = await supabase.from('interviews').upsert(
+          {
+            meeting_title: generatedTitle,
+            meeting_type: metadata.meetingCategory,
+            meeting_date: file.createdTime || new Date().toISOString(),
+            transcript: text,
+            transcript_file_name: file.name,
+            drive_file_id: file.id,
+            embedding: embedding,
+            summary: metadata.summary,
+            rating: 'Not Analyzed',
+            candidate_name: metadata.candidateName,
+            interviewer: metadata.interviewer,
+            position: metadata.position || '',
+            owner_email: userEmail
+          },
+          { onConflict: 'drive_file_id', ignoreDuplicates: true }
+        )
 
         if (error) {
           console.error(`[Poll] ❌ Insert error for "${file.name}":`, error)
