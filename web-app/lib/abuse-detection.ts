@@ -201,10 +201,12 @@ export function detectSuspiciousBehavior(
   }
 
   // Check 5: Systematic pagination — repeated list requests with incrementing offsets
+  // Threshold of 50 accounts for normal browsing patterns: paginating through lists
+  // (20 items/page in history), switching between views, and refreshing pages
   const listRequests = recentEntries.filter(e =>
     e.endpoint === '/api/interviews'
   )
-  if (listRequests.length > 20) {
+  if (listRequests.length > 50) {
     return {
       flagged: true,
       reason: `Excessive list pagination: ${listRequests.length} page loads in 10 minutes`,
