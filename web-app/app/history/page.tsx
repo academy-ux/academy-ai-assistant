@@ -556,7 +556,8 @@ function HistoryContent() {
 
     await saveSettings({
       driveFolderId: settingsSelectedFolder,
-      folderName: selectedFolderData.name
+      folderName: selectedFolderData.name,
+      autoPollEnabled: true,
     })
 
     setSettingsSelectedFolder('')
@@ -735,7 +736,8 @@ function HistoryContent() {
                 if (selectedFolderData) {
                   saveSettings({
                     driveFolderId: selectedFolder,
-                    folderName: selectedFolderData.name
+                    folderName: selectedFolderData.name,
+                    autoPollEnabled: true,
                   })
                 }
               }

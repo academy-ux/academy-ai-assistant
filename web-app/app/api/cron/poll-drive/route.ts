@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
   }
 
   if (!users || users.length === 0) {
-    console.log('[Cron Poll] No users with auto-poll enabled')
+    console.log('[Cron Poll] No users with a configured folder to poll')
     return NextResponse.json({ message: 'No users to poll', results: [] })
   }
 
