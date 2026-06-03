@@ -193,7 +193,9 @@ export const ScrollingWaveform = ({
   const barsRef = useRef<Array<{ x: number; height: number }>>([])
   const animationRef = useRef<number>(0)
   const lastTimeRef = useRef<number>(0)
-  const seedRef = useRef(Math.random())
+  // Lazy useState initializer computes the random seed once (not on every
+  // render), keeping the render pure while still varying per mount.
+  const [seed] = useState(() => Math.random())
   const dataIndexRef = useRef(0)
   const heightStyle = typeof height === "number" ? `${height}px` : height
 
@@ -221,7 +223,7 @@ export const ScrollingWaveform = ({
         let currentX = rect.width
         let index = 0
         const seededRandom = (i: number) => {
-          const x = Math.sin(seedRef.current * 10000 + i) * 10000
+          const x = Math.sin(seed * 10000 + i) * 10000
           return x - Math.floor(x)
         }
         while (currentX > -step) {
@@ -236,7 +238,7 @@ export const ScrollingWaveform = ({
 
     resizeObserver.observe(container)
     return () => resizeObserver.disconnect()
-  }, [barWidth, barGap])
+  }, [barWidth, barGap, seed])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -283,7 +285,7 @@ export const ScrollingWaveform = ({
           const time = Date.now() / 1000
           const uniqueIndex = barsRef.current.length + time * 0.01
           const seededRandom = (index: number) => {
-            const x = Math.sin(seedRef.current * 10000 + index * 137.5) * 10000
+            const x = Math.sin(seed * 10000 + index * 137.5) * 10000
             return x - Math.floor(x)
           }
           const wave1 = Math.sin(uniqueIndex * 0.1) * 0.2
@@ -362,6 +364,7 @@ export const ScrollingWaveform = ({
     fadeEdges,
     fadeWidth,
     data,
+    seed,
   ])
 
   return (
@@ -402,10 +405,18 @@ export const AudioScrubber = ({
   const [localProgress, setLocalProgress] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const waveformData =
-    data.length > 0
-      ? data
-      : Array.from({ length: 100 }, () => 0.2 + Math.random() * 0.6)
+  // Deterministic placeholder bars (a pure, stable pseudo-waveform) when no
+  // real data is provided — avoids impure Math.random() during render.
+  const waveformData = useMemo(
+    () =>
+      data.length > 0
+        ? data
+        : Array.from(
+            { length: 100 },
+            (_, i) => 0.3 + 0.3 * Math.abs(Math.sin(i * 0.7))
+          ),
+    [data]
+  )
 
   useEffect(() => {
     if (!isDragging && duration > 0) {
@@ -782,6 +793,21 @@ export const LiveMicrophoneWaveform = ({
   const sourceNodeRef = useRef<AudioBufferSourceNode | null>(null)
   const scrubSourceRef = useRef<AudioBufferSourceNode | null>(null)
 
+  // Declared before the effect that calls it (and memoized) so the effect's
+  // reference stays in sync — only touches refs, so deps are empty.
+  const processAudioBlob = useCallback(async (blob: Blob) => {
+    try {
+      const arrayBuffer = await blob.arrayBuffer()
+      if (audioContextRef.current) {
+        const audioBuffer =
+          await audioContextRef.current.decodeAudioData(arrayBuffer)
+        audioBufferRef.current = audioBuffer
+      }
+    } catch (error) {
+      console.error("Error processing audio:", error)
+    }
+  }, [])
+
   // Use external drag state if provided, otherwise use internal
   const dragOffset = externalDragOffset ?? internalDragOffset
   const setDragOffset = externalSetDragOffset ?? setInternalDragOffset
@@ -903,20 +929,8 @@ export const LiveMicrophoneWaveform = ({
     setDragOffset,
     enableAudioPlayback,
     historyRef,
+    processAudioBlob,
   ])
-
-  const processAudioBlob = async (blob: Blob) => {
-    try {
-      const arrayBuffer = await blob.arrayBuffer()
-      if (audioContextRef.current) {
-        const audioBuffer =
-          await audioContextRef.current.decodeAudioData(arrayBuffer)
-        audioBufferRef.current = audioBuffer
-      }
-    } catch (error) {
-      console.error("Error processing audio:", error)
-    }
-  }
 
   const playScrubSound = useCallback(
     (position: number, direction: number) => {

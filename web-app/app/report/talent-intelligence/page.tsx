@@ -543,17 +543,17 @@ export default function TalentIntelligenceReport() {
     setSidebarOpen(false)
   }, [])
 
-  const handleExportPDF = () => {
+  const handleExportPDF = useCallback(() => {
     window.print()
-  }
+  }, [])
 
-  const handlePresent = () => {
+  const handlePresent = useCallback(() => {
     setIsPresenting(true)
     slideRefs.current[0]?.scrollIntoView({ behavior: 'instant' })
     if (document.documentElement.requestFullscreen) {
       document.documentElement.requestFullscreen().catch(() => {})
     }
-  }
+  }, [])
 
   // Build chapter index for sidebar
   const chapterIndex: { chapter: string; slideIdx: number }[] = []
