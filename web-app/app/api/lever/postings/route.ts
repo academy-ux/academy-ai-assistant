@@ -1,6 +1,16 @@
 import { NextResponse } from 'next/server'
 import { errorResponse } from '@/lib/validation'
 
+// Always reflect the current Lever state — don't serve a build-time cached list.
+export const dynamic = 'force-dynamic'
+
+// Evergreen "catch-all" postings live in Lever as published roles but aren't
+// actual openings (e.g. "General Application", "Talent Network", "Invites").
+// Exclude them by title so the report only lists real, active roles.
+function isEvergreenBucket(text: string): boolean {
+  return /general application|talent network|\binvites?\b/i.test(text || '')
+}
+
 export async function GET() {
   try {
     const leverKey = process.env.LEVER_API_KEY
@@ -9,31 +19,32 @@ export async function GET() {
       return NextResponse.json({ error: 'Lever API key not configured' }, { status: 500 })
     }
 
-    // Fetch all active job postings (published + internal)
+    // Fetch only published (publicly live) job postings. Lever's `internal`
+    // state also holds parked/evergreen buckets (general applications, Academy
+    // internal hires), so it's excluded to keep this list to truly active roles.
     const headers = {
       'Authorization': `Basic ${Buffer.from(leverKey + ':').toString('base64')}`,
       'Content-Type': 'application/json',
     }
 
-    const [publishedRes, internalRes] = await Promise.all([
-      fetch('https://api.lever.co/v1/postings?state=published&limit=100', { headers }),
-      fetch('https://api.lever.co/v1/postings?state=internal&limit=100', { headers }),
-    ])
+    const publishedRes = await fetch(
+      'https://api.lever.co/v1/postings?state=published&limit=100',
+      { headers }
+    )
 
     const postings: any[] = []
 
-    for (const res of [publishedRes, internalRes]) {
-      if (res.ok) {
-        const data = await res.json()
-        for (const posting of data.data || []) {
-          postings.push({
-            id: posting.id,
-            text: posting.text,
-            team: posting.categories?.team || '',
-            location: posting.categories?.location || '',
-            state: posting.state,
-          })
-        }
+    if (publishedRes.ok) {
+      const data = await publishedRes.json()
+      for (const posting of data.data || []) {
+        if (isEvergreenBucket(posting.text)) continue
+        postings.push({
+          id: posting.id,
+          text: posting.text,
+          team: posting.categories?.team || '',
+          location: posting.categories?.location || '',
+          state: posting.state,
+        })
       }
     }
 

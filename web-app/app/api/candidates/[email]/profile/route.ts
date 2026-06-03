@@ -5,10 +5,8 @@ import { supabase } from '@/lib/supabase'
 import { errorResponse } from '@/lib/validation'
 import { checkForAbuse } from '@/lib/abuse-detection'
 
-export async function GET(
-    request: NextRequest,
-    { params }: { params: { email: string } }
-) {
+export async function GET(request: NextRequest, props: { params: Promise<{ email: string }> }) {
+    const params = await props.params;
     try {
         const email = params.email === 'unknown' ? null : params.email
 
@@ -47,10 +45,8 @@ export async function GET(
     }
 }
 
-export async function POST(
-    request: NextRequest,
-    { params }: { params: { email: string } }
-) {
+export async function POST(request: NextRequest, props: { params: Promise<{ email: string }> }) {
+    const params = await props.params;
     try {
         const email = params.email === 'unknown' ? null : params.email
         const body = await request.json()

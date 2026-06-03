@@ -10,10 +10,8 @@ interface ExperienceResult {
     summary: string
 }
 
-export async function GET(
-    request: NextRequest,
-    { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+    const params = await props.params;
     try {
         const leverKey = process.env.LEVER_API_KEY
         if (!leverKey) {

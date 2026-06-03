@@ -5,10 +5,8 @@ import { supabase } from '@/lib/supabase'
  * GET /api/candidates/[email]/pitch?postingId=xxx
  * Returns the role-specific pitch for this candidate + posting.
  */
-export async function GET(
-    request: NextRequest,
-    { params }: { params: { email: string } }
-) {
+export async function GET(request: NextRequest, props: { params: Promise<{ email: string }> }) {
+    const params = await props.params;
     const email = params.email === 'unknown' ? null : decodeURIComponent(params.email)
     const postingId = request.nextUrl.searchParams.get('postingId')
 
@@ -46,10 +44,8 @@ export async function GET(
  * Body: { postingId, pitch }
  * Upserts a role-specific pitch for this candidate + posting.
  */
-export async function POST(
-    request: NextRequest,
-    { params }: { params: { email: string } }
-) {
+export async function POST(request: NextRequest, props: { params: Promise<{ email: string }> }) {
+    const params = await props.params;
     const email = params.email === 'unknown' ? null : decodeURIComponent(params.email)
     const body = await request.json()
     const { postingId, pitch } = body

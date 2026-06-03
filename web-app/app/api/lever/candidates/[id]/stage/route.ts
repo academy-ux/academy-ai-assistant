@@ -6,10 +6,8 @@ const updateStageSchema = z.object({
     stageId: z.string().min(1)
 })
 
-export async function POST(
-    request: NextRequest,
-    { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+    const params = await props.params;
     try {
         const leverKey = process.env.LEVER_API_KEY
         if (!leverKey) {

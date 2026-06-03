@@ -2,10 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { generatePitch, fetchJobDescription } from '@/lib/pitch'
 
-export async function POST(
-    request: NextRequest,
-    { params }: { params: { email: string } }
-) {
+export async function POST(request: NextRequest, props: { params: Promise<{ email: string }> }) {
+    const params = await props.params;
     try {
         const { success, response: rateLimitResponse } = await checkRateLimit(request, 'ai')
         if (!success && rateLimitResponse) return rateLimitResponse

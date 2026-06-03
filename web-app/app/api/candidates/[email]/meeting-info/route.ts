@@ -2,10 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { errorResponse } from '@/lib/validation'
 
-export async function GET(
-    request: NextRequest,
-    { params }: { params: { email: string } }
-) {
+export async function GET(request: NextRequest, props: { params: Promise<{ email: string }> }) {
+    const params = await props.params;
     try {
         const email = params.email === 'unknown' ? null : params.email
         const name = request.nextUrl.searchParams.get('name')
