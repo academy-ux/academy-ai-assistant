@@ -41,3 +41,6 @@ next-env.d.ts
 # Project Specific
 mcps/
 terminals/
+
+# Claude Code ephemeral worktrees (should never be committed)
+.claude/worktrees/
