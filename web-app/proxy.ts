@@ -13,6 +13,12 @@ export default withAuth(
         if (req.nextUrl.pathname.startsWith('/api/auth')) {
           return true
         }
+
+        // Allow Vercel cron jobs — these have no user session and authenticate
+        // themselves via the CRON_SECRET bearer token inside the route handler.
+        if (req.nextUrl.pathname.startsWith('/api/cron')) {
+          return true
+        }
         
         // Allow Lever search endpoint for Chrome extension (CORS-enabled)
         if (req.nextUrl.pathname === '/api/lever/search') {
