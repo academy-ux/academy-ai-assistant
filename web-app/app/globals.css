@@ -265,6 +265,139 @@
   }
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+   Cinematic landing motion system (GSAP + ScrollTrigger + Lenis)
+   Used by the signed-out homepage. See components/landing/.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Hide motion elements before JS measures/animates them. Only when the motion
+   engine is active (.has-motion) AND motion is allowed — never hides content
+   for no-JS or reduced-motion users. */
+html.has-motion [data-motion-text],
+html.has-motion [data-hero-lines],
+html.has-motion [data-hero-step],
+html.has-motion [data-hero-media],
+html.has-motion [data-reveal],
+html.has-motion [data-reveal-item],
+html.has-motion [data-image-reveal] {
+  visibility: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.has-motion [data-motion-text],
+  html.has-motion [data-hero-lines],
+  html.has-motion [data-hero-step],
+  html.has-motion [data-hero-media],
+  html.has-motion [data-reveal],
+  html.has-motion [data-reveal-item],
+  html.has-motion [data-image-reveal] {
+    visibility: visible;
+  }
+}
+
+.motion-line-mask,
+.motion-word-mask {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: top;
+  padding-bottom: 0.04em; /* keep descenders from clipping */
+}
+
+.motion-line,
+.motion-word {
+  display: inline-block;
+  will-change: transform, opacity, filter;
+}
+
+[data-image-reveal] {
+  overflow: hidden;
+}
+
+[data-image-inner] {
+  will-change: transform, opacity;
+}
+
+/* Custom cursor follower */
+[data-cursor] {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 9999;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 9999px;
+  background: hsl(var(--foreground));
+  pointer-events: none;
+  mix-blend-mode: difference;
+  opacity: 0;
+  transform: translate3d(-100px, -100px, 0);
+  will-change: transform;
+  transition: width 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    height 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 0.35s ease;
+}
+
+[data-cursor].is-active {
+  width: 84px;
+  height: 84px;
+  margin: -42px 0 0 -42px;
+  background: hsl(var(--primary));
+}
+
+[data-cursor] [data-cursor-text] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: hsl(var(--primary-foreground));
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+[data-cursor].is-active [data-cursor-text] {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce), (pointer: coarse) {
+  [data-cursor] {
+    display: none;
+  }
+}
+
+/* Hide native cursor over the landing when the follower is live */
+html.has-motion .cinematic-cursor-area {
+  cursor: none;
+}
+@media (prefers-reduced-motion: reduce), (pointer: coarse) {
+  html.has-motion .cinematic-cursor-area {
+    cursor: auto;
+  }
+}
+
+/* Grain / noise texture overlay */
+.cine-grain {
+  background-image: radial-gradient(hsl(var(--foreground) / 0.5) 0.5px, transparent 0.5px);
+  background-size: 3px 3px;
+}
+
+/* Subtle slow drift for ambient gradient blobs */
+@keyframes cine-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(2%, -3%, 0) scale(1.06); }
+}
+.cine-drift { animation: cine-drift 18s cubic-bezier(0.37, 0, 0.63, 1) infinite; }
+.cine-drift-slow { animation: cine-drift 26s cubic-bezier(0.37, 0, 0.63, 1) infinite reverse; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cine-drift, .cine-drift-slow { animation: none; }
+}
+
 /* ── Print / PDF Export Styles ── */
 @media print {
   /* Hide app chrome */
