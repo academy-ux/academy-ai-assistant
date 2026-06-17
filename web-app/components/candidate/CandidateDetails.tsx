@@ -66,6 +66,9 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
     const [newNote, setNewNote] = useState("")
     const [savingNote, setSavingNote] = useState(false)
     const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null)
+    const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
+    const [editingNoteContent, setEditingNoteContent] = useState("")
+    const [savingNoteEdit, setSavingNoteEdit] = useState(false)
     const [loadingContext, setLoadingContext] = useState(false)
 
     const [portfolioPassword, setPortfolioPassword] = useState("")
@@ -323,6 +326,32 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
         }
     }
 
+    const handleEditNote = async (noteId: string) => {
+        if (!candidate.email || !editingNoteContent.trim() || savingNoteEdit) return
+        setSavingNoteEdit(true)
+        try {
+            const res = await fetch(`/api/candidates/${candidate.email}/notes`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ noteId, content: editingNoteContent.trim() })
+            })
+            if (res.ok) {
+                const data = await res.json().catch(() => ({}))
+                setNotes(prev => prev.map(n => n.id === noteId ? { ...n, content: data.note?.content ?? editingNoteContent.trim() } : n))
+                setEditingNoteId(null)
+                setEditingNoteContent("")
+                toast.success("Comment updated")
+            } else {
+                const data = await res.json().catch(() => ({}))
+                toast.error(data.error || "Failed to update comment")
+            }
+        } catch (e) {
+            toast.error("Failed to update comment")
+        } finally {
+            setSavingNoteEdit(false)
+        }
+    }
+
     const handleSavePassword = async () => {
         if (!candidate.email) return
         setSavingPassword(true)
@@ -386,9 +415,9 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
     const avatarGradient = nameToColor(candidate.name)
     const initials = candidate.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
 
-    // Staff can delete a comment if they authored it; admins can delete any.
+    // Staff can edit/delete a comment if they authored it; admins can modify any.
     const isAdminUser = (session?.user as any)?.isAdmin === true
-    const canDeleteNote = (note: Note) =>
+    const canModifyNote = (note: Note) =>
         isAdminUser || note.created_by === session?.user?.name || note.created_by === session?.user?.email
 
     return (
@@ -682,19 +711,54 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                                     </div>
                                     <div className="flex items-center gap-1.5 shrink-0">
                                         <span className="text-[10px] text-muted-foreground/30">{new Date(note.created_at).toLocaleDateString()}</span>
-                                        {canDeleteNote(note) && (
-                                            <button
-                                                onClick={() => handleDeleteNote(note.id)}
-                                                disabled={deletingNoteId === note.id}
-                                                className="p-1 rounded-md text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover/note:opacity-100 focus:opacity-100"
-                                                title="Delete comment"
-                                            >
-                                                {deletingNoteId === note.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-                                            </button>
+                                        {canModifyNote(note) && editingNoteId !== note.id && (
+                                            <div className="flex items-center gap-0.5 opacity-0 group-hover/note:opacity-100 focus-within:opacity-100 transition-opacity">
+                                                <button
+                                                    onClick={() => { setEditingNoteId(note.id); setEditingNoteContent(note.content) }}
+                                                    className="p-1 rounded-md text-muted-foreground/30 hover:text-foreground hover:bg-muted/40 transition-colors"
+                                                    title="Edit comment"
+                                                >
+                                                    <Pencil className="w-3 h-3" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteNote(note.id)}
+                                                    disabled={deletingNoteId === note.id}
+                                                    className="p-1 rounded-md text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                                    title="Delete comment"
+                                                >
+                                                    {deletingNoteId === note.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                                                </button>
+                                            </div>
                                         )}
                                     </div>
                                 </div>
-                                <p className="text-xs text-foreground/70 leading-relaxed">{note.content}</p>
+                                {editingNoteId === note.id ? (
+                                    <div className="space-y-2">
+                                        <Textarea
+                                            value={editingNoteContent}
+                                            onChange={(e) => setEditingNoteContent(e.target.value)}
+                                            className="min-h-[60px] bg-muted/15 border-border/15 rounded-lg p-2.5 text-xs font-medium resize-none"
+                                        />
+                                        <div className="flex items-center justify-end gap-1.5">
+                                            <button
+                                                onClick={() => { setEditingNoteId(null); setEditingNoteContent("") }}
+                                                className="px-2.5 h-7 rounded-lg text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50 hover:text-foreground hover:bg-muted/30 transition-colors"
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button
+                                                onClick={() => handleEditNote(note.id)}
+                                                disabled={!editingNoteContent.trim() || savingNoteEdit}
+                                                className="inline-flex items-center gap-1.5 px-2.5 h-7 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-wider hover:bg-primary/90 transition-colors disabled:opacity-50"
+                                            >
+                                                {savingNoteEdit ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                                                Save
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <p className="text-xs text-foreground/70 leading-relaxed">{note.content}</p>
+                                )}
                             </div>
                         ))}
                     </div>

@@ -70,6 +70,59 @@ export async function POST(request: NextRequest, props: { params: Promise<{ emai
 }
 
 /**
+ * PATCH /api/candidates/[email]/notes
+ * Body: { noteId, content }. A signed-in staff member can edit a note if they
+ * authored it; admins can edit any note on the candidate.
+ */
+export async function PATCH(request: NextRequest, props: { params: Promise<{ email: string }> }) {
+    const params = await props.params;
+    try {
+        const session = await getServerSession(authOptions)
+        const userEmail = session?.user?.email
+        if (!userEmail) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        }
+
+        const email = params.email
+        const { noteId, content } = await request.json().catch(() => ({}))
+
+        if (!email || !noteId || !content?.trim()) {
+            return NextResponse.json({ error: 'Email, noteId and content are required' }, { status: 400 })
+        }
+
+        const { data: note, error: fetchError } = await supabase
+            .from('candidate_notes')
+            .select('id, created_by')
+            .eq('id', noteId)
+            .eq('candidate_email', email)
+            .single()
+
+        if (fetchError || !note) {
+            return NextResponse.json({ error: 'Comment not found' }, { status: 404 })
+        }
+
+        const author = (note as any).created_by
+        const isAuthor = author === session?.user?.name || author === userEmail
+        if (!isAuthor && !isAdmin(userEmail)) {
+            return NextResponse.json({ error: 'You can only edit your own comments' }, { status: 403 })
+        }
+
+        const { data, error } = await supabase
+            .from('candidate_notes')
+            .update({ content: content.trim() } as any)
+            .eq('id', noteId)
+            .eq('candidate_email', email)
+            .select('id, content, created_at, created_by, source')
+
+        if (error) throw error
+
+        return NextResponse.json({ success: true, note: (data as any)?.[0] })
+    } catch (error) {
+        return errorResponse(error, 'Error editing candidate note')
+    }
+}
+
+/**
  * DELETE /api/candidates/[email]/notes
  * Body: { noteId }. A signed-in staff member can delete a note if they authored
  * it; admins can delete any note on the candidate.
