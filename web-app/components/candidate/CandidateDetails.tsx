@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react"
 import { Candidate } from "./CandidateCard"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Mail, Loader2, Plus, Globe, Lock, Save, Pencil, Sparkles, Briefcase, ExternalLink, Copy, Check, X } from "lucide-react"
+import { Mail, Loader2, Plus, Globe, Lock, Save, Pencil, Sparkles, Briefcase, ExternalLink, Copy, Check, X, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
     Select,
@@ -29,6 +29,7 @@ interface Note {
     content: string
     created_at: string
     created_by: string
+    source?: string
 }
 
 interface Meeting {
@@ -64,6 +65,7 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
     const [meetings, setMeetings] = useState<Meeting[]>([])
     const [newNote, setNewNote] = useState("")
     const [savingNote, setSavingNote] = useState(false)
+    const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null)
     const [loadingContext, setLoadingContext] = useState(false)
 
     const [portfolioPassword, setPortfolioPassword] = useState("")
@@ -295,6 +297,29 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
             toast.error("Failed to save note")
         } finally {
             setSavingNote(false)
+        }
+    }
+
+    const handleDeleteNote = async (noteId: string) => {
+        if (!candidate.email || deletingNoteId) return
+        setDeletingNoteId(noteId)
+        try {
+            const res = await fetch(`/api/candidates/${candidate.email}/notes`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ noteId })
+            })
+            if (res.ok) {
+                setNotes(prev => prev.filter(n => n.id !== noteId))
+                toast.success("Comment deleted")
+            } else {
+                const data = await res.json().catch(() => ({}))
+                toast.error(data.error || "Failed to delete comment")
+            }
+        } catch (e) {
+            toast.error("Failed to delete comment")
+        } finally {
+            setDeletingNoteId(null)
         }
     }
 
@@ -642,10 +667,25 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                 {notes.length > 0 && (
                     <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
                         {notes.map((note) => (
-                            <div key={note.id} className="p-3 rounded-xl bg-card/50 border border-border/10 hover:border-border/20 transition-colors duration-200">
-                                <div className="flex items-center justify-between mb-1.5">
-                                    <span className="text-[10px] font-bold text-primary/60">{note.created_by}</span>
-                                    <span className="text-[10px] text-muted-foreground/30">{new Date(note.created_at).toLocaleDateString()}</span>
+                            <div key={note.id} className="group/note p-3 rounded-xl bg-card/50 border border-border/10 hover:border-border/20 transition-colors duration-200">
+                                <div className="flex items-center justify-between mb-1.5 gap-2">
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                        <span className="text-[10px] font-bold text-primary/60 truncate">{note.created_by}</span>
+                                        {note.source === 'client' && (
+                                            <span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-peach/20 text-foreground/50 shrink-0">Client</span>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                        <span className="text-[10px] text-muted-foreground/30">{new Date(note.created_at).toLocaleDateString()}</span>
+                                        <button
+                                            onClick={() => handleDeleteNote(note.id)}
+                                            disabled={deletingNoteId === note.id}
+                                            className="p-1 rounded-md text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover/note:opacity-100 focus:opacity-100"
+                                            title="Delete comment"
+                                        >
+                                            {deletingNoteId === note.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                                        </button>
+                                    </div>
                                 </div>
                                 <p className="text-xs text-foreground/70 leading-relaxed">{note.content}</p>
                             </div>

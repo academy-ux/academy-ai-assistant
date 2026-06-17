@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { errorResponse } from '@/lib/validation'
 
@@ -64,5 +66,39 @@ export async function POST(request: NextRequest, props: { params: Promise<{ emai
         return NextResponse.json({ success: true, note: data[0] })
     } catch (error) {
         return errorResponse(error, 'Error saving candidate note')
+    }
+}
+
+/**
+ * DELETE /api/candidates/[email]/notes
+ * Body: { noteId }. Internal-side deletion — any signed-in staff member can
+ * remove any note on the candidate (internal or client-submitted).
+ */
+export async function DELETE(request: NextRequest, props: { params: Promise<{ email: string }> }) {
+    const params = await props.params;
+    try {
+        const session = await getServerSession(authOptions)
+        if (!session?.user?.email) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        }
+
+        const email = params.email
+        const { noteId } = await request.json().catch(() => ({}))
+
+        if (!email || !noteId) {
+            return NextResponse.json({ error: 'Email and noteId are required' }, { status: 400 })
+        }
+
+        const { error } = await supabase
+            .from('candidate_notes')
+            .delete()
+            .eq('id', noteId)
+            .eq('candidate_email', email)
+
+        if (error) throw error
+
+        return NextResponse.json({ success: true })
+    } catch (error) {
+        return errorResponse(error, 'Error deleting candidate note')
     }
 }
