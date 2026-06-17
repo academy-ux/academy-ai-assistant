@@ -7,6 +7,7 @@ import { CandidateTable } from '@/components/candidate/CandidateTable'
 import { CandidateDetails } from '@/components/candidate/CandidateDetails'
 import { ReportTabs } from '@/components/candidate/ReportTabs'
 import { ShareReportDialog } from '@/components/report/ShareReportDialog'
+import { ClientLogo } from '@/components/candidate/ClientLogo'
 import { Search, X, ChevronLeft, Users, FileText, Loader2, ExternalLink, Share2, Check, RefreshCw, FolderOpen, ArrowUpRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
@@ -212,6 +213,7 @@ export default function CandidateReportPage() {
     const [candidates, setCandidates] = useState<Candidate[]>([])
     const [stages, setStages] = useState<{ id: string, text: string }[]>([])
     const [projectTitle, setProjectTitle] = useState("Loading...")
+    const [team, setTeam] = useState("")
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [activeTab, setActiveTab] = useState("interviewing")
@@ -435,6 +437,17 @@ export default function CandidateReportPage() {
         checkExistingDoc()
     }, [fetchData, fetchStages, checkExistingDoc])
 
+    // Fetch the client/team name for the header logo.
+    useEffect(() => {
+        if (!postingId || postingId === '__uncategorized__') return
+        let active = true
+        fetch(`/api/lever/posting?postingId=${postingId}`)
+            .then(r => r.ok ? r.json() : null)
+            .then(d => { if (active && d?.posting?.team) setTeam(d.posting.team) })
+            .catch(() => {})
+        return () => { active = false }
+    }, [postingId])
+
     // Fetch experience + generate pitches after candidates are loaded
     useEffect(() => {
         if (candidates.length > 0) {
@@ -545,12 +558,17 @@ export default function CandidateReportPage() {
 
                     {/* Title area */}
                     <div className="pt-2 md:pt-3 pb-3 md:pb-4">
-                        <h1 className="text-lg md:text-[22px] font-bold tracking-tight text-foreground leading-tight">
-                            {projectTitle}
-                        </h1>
-                        <p className="text-xs text-muted-foreground/50 font-medium mt-1 md:mt-1.5 tabular-nums">
-                            {candidates.length} candidates in pipeline
-                        </p>
+                        <div className="flex items-center gap-3">
+                            {team && <ClientLogo team={team} size={40} />}
+                            <div className="min-w-0">
+                                <h1 className="text-lg md:text-[22px] font-bold tracking-tight text-foreground leading-tight truncate">
+                                    {projectTitle}
+                                </h1>
+                                <p className="text-xs text-muted-foreground/50 font-medium mt-0.5 tabular-nums">
+                                    {team ? `${team} · ` : ''}{candidates.length} candidates in pipeline
+                                </p>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Tabs */}

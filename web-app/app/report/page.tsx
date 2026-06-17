@@ -86,12 +86,18 @@ function LogoImg({ team }: { team: string }) {
 
     if (editing) {
         return (
-            <form onSubmit={save} onClick={e => e.preventDefault()} className="flex items-center gap-1 shrink-0">
+            <form
+                onSubmit={save}
+                onClick={e => { e.preventDefault(); e.stopPropagation() }}
+                onMouseDown={e => e.stopPropagation()}
+                className="flex items-center gap-1 shrink-0"
+            >
                 <input
                     ref={inputRef}
                     value={draft}
                     onChange={e => setDraft(e.target.value)}
                     onClick={e => e.stopPropagation()}
+                    onMouseDown={e => e.stopPropagation()}
                     onKeyDown={e => { if (e.key === 'Escape') cancel(e as any) }}
                     placeholder="company.com"
                     className="w-28 h-8 px-2 text-xs border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-primary"

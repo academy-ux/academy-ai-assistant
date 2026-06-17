@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import { Candidate } from '@/components/candidate/CandidateCard'
 import { CandidateTable } from '@/components/candidate/CandidateTable'
 import { SharedCandidateDetails } from '@/components/candidate/SharedCandidateDetails'
+import { ClientLogo } from '@/components/candidate/ClientLogo'
 import { ReportTabs } from '@/components/candidate/ReportTabs'
 import { Search, X, Users, AlertCircle, Lock, Loader2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
@@ -21,6 +22,7 @@ export default function SharedReportPage() {
 
     const [candidates, setCandidates] = useState<Candidate[]>([])
     const [reachedCI, setReachedCI] = useState(0)
+    const [team, setTeam] = useState("")
     const [stages, setStages] = useState<{ id: string, text: string }[]>([])
     const [projectTitle, setProjectTitle] = useState("Loading...")
     const [loading, setLoading] = useState(true)
@@ -59,6 +61,7 @@ export default function SharedReportPage() {
             setNeedsEmail(false)
             setCandidates(data.candidates || [])
             setReachedCI(data.reachedClientInterview || 0)
+            if (data.team) setTeam(data.team)
             if (data.postingTitle) {
                 setProjectTitle(data.postingTitle)
             } else if (data.candidates?.length > 0) {
@@ -315,12 +318,17 @@ export default function SharedReportPage() {
                 <div className="max-w-[1200px] mx-auto px-6">
                     {/* Title area */}
                     <div className="pt-5 pb-4">
-                        <h1 className="text-[22px] font-bold tracking-tight text-foreground leading-tight">
-                            {projectTitle}
-                        </h1>
-                        <p className="text-xs text-muted-foreground/50 font-medium mt-1.5 tabular-nums">
-                            {candidates.length} candidates in pipeline
-                        </p>
+                        <div className="flex items-center gap-3">
+                            {team && <ClientLogo team={team} size={40} />}
+                            <div className="min-w-0">
+                                <h1 className="text-[22px] font-bold tracking-tight text-foreground leading-tight truncate">
+                                    {projectTitle}
+                                </h1>
+                                <p className="text-xs text-muted-foreground/50 font-medium mt-0.5 tabular-nums">
+                                    {team ? `${team} · ` : ''}{candidates.length} candidates in pipeline
+                                </p>
+                            </div>
+                        </div>
 
                         {/* Funnel stats */}
                         {stats.total > 0 && (

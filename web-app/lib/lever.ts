@@ -171,6 +171,28 @@ export async function fetchCandidatesForPosting(postingId?: string): Promise<Lev
   return candidates
 }
 
+export async function fetchPosting(
+  postingId?: string
+): Promise<{ text: string; team: string; location: string } | null> {
+  if (!postingId || postingId === '__uncategorized__') return null
+  try {
+    const auth = getLeverAuth()
+    const response = await fetch(`https://api.lever.co/v1/postings/${postingId}`, {
+      headers: { 'Authorization': auth, 'Content-Type': 'application/json' },
+    })
+    if (!response.ok) return null
+    const data = await response.json()
+    const p = data.data
+    return {
+      text: p?.text || '',
+      team: p?.categories?.team || '',
+      location: p?.categories?.location || '',
+    }
+  } catch {
+    return null
+  }
+}
+
 export async function fetchStages(): Promise<{ id: string; text: string }[]> {
   const auth = getLeverAuth()
 

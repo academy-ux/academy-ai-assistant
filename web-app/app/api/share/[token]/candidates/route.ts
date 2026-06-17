@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
-import { fetchCandidatesForPosting } from '@/lib/lever'
+import { fetchCandidatesForPosting, fetchPosting } from '@/lib/lever'
 import { resolveShare, requestHasShareAccess } from '@/lib/share'
 import { observeAndCountClientInterview } from '@/lib/milestones'
 import { errorResponse } from '@/lib/validation'
@@ -26,7 +26,10 @@ export async function GET(
     }
 
     const postingId = share.postingId
-    const candidates = await fetchCandidatesForPosting(postingId)
+    const [candidates, postingMeta] = await Promise.all([
+      fetchCandidatesForPosting(postingId),
+      fetchPosting(postingId),
+    ])
 
     // Collect the keys we need to enrich against. The email is the join key for
     // pitch/profile/password but is NEVER returned to the client — we resolve
@@ -153,6 +156,7 @@ export async function GET(
       success: true,
       candidates: publicCandidates,
       postingTitle: share.postingTitle,
+      team: postingMeta?.team || null,
       reachedClientInterview,
     })
   } catch (error) {
