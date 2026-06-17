@@ -95,7 +95,9 @@ export function CandidateTable({ candidates, onSelect, selectedId, stages, onRef
         : "grid-cols-[minmax(0,280px)_200px_80px_130px_140px_minmax(0,1fr)]"
 
     return (
-        <div className="space-y-1">
+        <div className="relative">
+          <div className="overflow-x-auto">
+            <div className={cn("space-y-1", readOnly ? "md:min-w-[960px]" : "md:min-w-[1140px]")}>
             {/* Column headers — hidden on mobile */}
             <div className={cn("hidden md:grid gap-x-6 items-center px-5 pb-2 pt-1", gridCols)}>
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/40">Candidate</span>
@@ -343,6 +345,10 @@ export function CandidateTable({ candidates, onSelect, selectedId, stages, onRef
                     </div>
                 )
             })}
+            </div>
+          </div>
+          {/* Right-edge gradient teases the off-screen columns on narrow widths */}
+          <div className="hidden md:block xl:hidden pointer-events-none absolute top-0 right-0 h-full w-16 bg-gradient-to-l from-background to-transparent" />
         </div>
     )
 }

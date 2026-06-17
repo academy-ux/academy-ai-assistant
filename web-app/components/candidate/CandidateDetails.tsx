@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react"
 import { Candidate } from "./CandidateCard"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Mail, Loader2, Plus, Globe, Lock, Save, Pencil, Sparkles, Briefcase, ExternalLink, Copy, Check, X, Trash2 } from "lucide-react"
+import { Mail, Loader2, Globe, Lock, Save, Pencil, Sparkles, Briefcase, ExternalLink, Copy, Check, X, Trash2, Send } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
     Select,
@@ -517,9 +517,11 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                         )}>
                             Client {candidate.clientDecision === 'accepted' ? 'accepted' : 'rejected'} this candidate
                         </p>
-                        <p className="text-[11px] text-muted-foreground/60 mt-0.5">
-                            {candidate.clientDecisionBy ? `By ${candidate.clientDecisionBy} · ` : ''}Update the stage manually if needed.
-                        </p>
+                        {candidate.clientDecisionBy && (
+                            <p className="text-[11px] text-muted-foreground/60 mt-0.5">
+                                By {candidate.clientDecisionBy}
+                            </p>
+                        )}
                     </div>
                 </div>
             )}
@@ -694,7 +696,7 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                         onClick={handleAddNote}
                         className="absolute bottom-2.5 right-2.5 h-7 w-7 rounded-lg bg-peach text-foreground shadow-sm hover:bg-peach/80 transition-colors duration-200"
                     >
-                        {savingNote ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                        {savingNote ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
                     </Button>
                 </div>
 
@@ -712,7 +714,7 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                                     <div className="flex items-center gap-1.5 shrink-0">
                                         <span className="text-[10px] text-muted-foreground/30">{new Date(note.created_at).toLocaleDateString()}</span>
                                         {canModifyNote(note) && editingNoteId !== note.id && (
-                                            <div className="flex items-center gap-0.5 opacity-0 group-hover/note:opacity-100 focus-within:opacity-100 transition-opacity">
+                                            <div className="flex items-center gap-0.5">
                                                 <button
                                                     onClick={() => { setEditingNoteId(note.id); setEditingNoteContent(note.content) }}
                                                     className="p-1 rounded-md text-muted-foreground/30 hover:text-foreground hover:bg-muted/40 transition-colors"

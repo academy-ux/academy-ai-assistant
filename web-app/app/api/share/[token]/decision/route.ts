@@ -3,7 +3,35 @@ import { z } from 'zod'
 import { supabase } from '@/lib/supabase'
 import { resolveShareCandidate, requestHasShareAccess } from '@/lib/share'
 import { isPresentingStage } from '@/lib/stages'
+import { fetchStages } from '@/lib/lever'
 import { validateBody, errorResponse } from '@/lib/validation'
+
+// When a client accepts a candidate, advance them to the Client Interview stage.
+async function moveToClientInterview(candidateId: string): Promise<void> {
+  const leverKey = process.env.LEVER_API_KEY
+  if (!leverKey) return
+  try {
+    const stages = await fetchStages()
+    const target = stages.find(s => s.text.trim().toLowerCase() === 'client interview')
+    if (!target) {
+      console.error('[Decision] Client Interview stage not found in Lever')
+      return
+    }
+    const res = await fetch(`https://api.lever.co/v1/opportunities/${candidateId}/stage`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Basic ${Buffer.from(leverKey + ':').toString('base64')}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ stage: target.id }),
+    })
+    if (!res.ok) {
+      console.error('[Decision] Failed to move candidate to Client Interview:', res.status)
+    }
+  } catch (e) {
+    console.error('[Decision] moveToClientInterview error:', e)
+  }
+}
 
 /**
  * GET /api/share/[token]/decision?candidateId=xxx
@@ -106,6 +134,11 @@ export async function POST(
       }, { onConflict: 'candidate_id,posting_id' })
 
     if (error) throw error
+
+    // Accepting a candidate advances them to the Client Interview stage in Lever.
+    if (body.decision === 'accepted') {
+      await moveToClientInterview(body.candidateId)
+    }
 
     return NextResponse.json({ success: true, decision: body.decision })
   } catch (error) {
