@@ -6,7 +6,7 @@ import { Candidate } from '@/components/candidate/CandidateCard'
 import { CandidateTable } from '@/components/candidate/CandidateTable'
 import { SharedCandidateDetails } from '@/components/candidate/SharedCandidateDetails'
 import { ReportTabs } from '@/components/candidate/ReportTabs'
-import { Search, X, Users, AlertCircle } from 'lucide-react'
+import { Search, X, Users, AlertCircle, Lock, Loader2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence } from 'motion/react'
@@ -29,6 +29,12 @@ export default function SharedReportPage() {
     const [searchFocused, setSearchFocused] = useState(false)
     const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null)
 
+    // Email gate (soft access control)
+    const [needsEmail, setNeedsEmail] = useState(false)
+    const [gateEmail, setGateEmail] = useState("")
+    const [gateSubmitting, setGateSubmitting] = useState(false)
+    const [gateError, setGateError] = useState<string | null>(null)
+
     const fetchData = useCallback(async () => {
         if (!token) return
 
@@ -36,12 +42,20 @@ export default function SharedReportPage() {
             setLoading(true)
 
             const res = await fetch(`/api/share/${token}/candidates`)
+            if (res.status === 401) {
+                // Restricted share — prompt for an authorized email instead of erroring.
+                const data = await res.json().catch(() => ({}))
+                if (data.postingTitle) setProjectTitle(data.postingTitle)
+                setNeedsEmail(true)
+                return
+            }
             if (!res.ok) {
                 const data = await res.json()
                 throw new Error(data.error || 'This share link is not valid')
             }
 
             const data = await res.json()
+            setNeedsEmail(false)
             setCandidates(data.candidates || [])
             if (data.postingTitle) {
                 setProjectTitle(data.postingTitle)
@@ -54,6 +68,29 @@ export default function SharedReportPage() {
             setLoading(false)
         }
     }, [token])
+
+    const submitEmail = useCallback(async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (gateSubmitting) return
+        setGateSubmitting(true)
+        setGateError(null)
+        try {
+            const res = await fetch(`/api/share/${token}/access`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: gateEmail.trim() }),
+            })
+            const data = await res.json().catch(() => ({}))
+            if (!res.ok) throw new Error(data.error || 'Unable to verify this email')
+            // Access granted — load the report (and stages).
+            setNeedsEmail(false)
+            await Promise.all([fetchData(), fetchStages()])
+        } catch (err: any) {
+            setGateError(err.message || 'Unable to verify this email')
+        } finally {
+            setGateSubmitting(false)
+        }
+    }, [token, gateEmail, gateSubmitting])
 
     const fetchStages = useCallback(async () => {
         if (!token) return
@@ -72,6 +109,33 @@ export default function SharedReportPage() {
         fetchData()
         fetchStages()
     }, [fetchData, fetchStages])
+
+    // Patch a single candidate's decision locally so the table badge updates
+    // without re-fetching the whole pipeline from Lever.
+    const handleDecisionChange = useCallback((candidateId: string, decision: 'accepted' | 'rejected' | null) => {
+        setCandidates(prev => prev.map(c => c.id === candidateId ? { ...c, clientDecision: decision } : c))
+    }, [])
+
+    // High-level funnel stats (computed across the full pipeline, ignoring search).
+    const stats = useMemo(() => {
+        const total = candidates.length
+        let presenting = 0
+        let clientInterview = 0
+        candidates.forEach(c => {
+            if (c.archivedAt) return
+            const stage = c.stage.toLowerCase()
+            if (stage === 'client interview') clientInterview++
+            else if (stage.includes('present') || stage.includes('client') || stage.includes('offer')) presenting++
+        })
+        const pct = (n: number) => total > 0 ? Math.round((n / total) * 100) : 0
+        return {
+            total,
+            presenting,
+            clientInterview,
+            pctPresenting: pct(presenting),
+            pctClientInterview: pct(clientInterview),
+        }
+    }, [candidates])
 
     const filteredAndGrouped = useMemo(() => {
         const searched = candidates.filter(c => {
@@ -117,6 +181,54 @@ export default function SharedReportPage() {
 
         return groups
     }, [candidates, searchQuery])
+
+    if (needsEmail) {
+        return (
+            <div className="flex min-h-screen items-center justify-center bg-background px-6">
+                <motion.div
+                    initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                    className="w-full max-w-sm"
+                >
+                    <div className="flex flex-col items-center text-center mb-6">
+                        <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-peach/40 to-primary/20 flex items-center justify-center mb-4">
+                            <Lock className="h-5 w-5 text-foreground/50" />
+                        </div>
+                        <h1 className="text-lg font-bold tracking-tight text-foreground">
+                            {projectTitle !== 'Loading...' ? projectTitle : 'Private Report'}
+                        </h1>
+                        <p className="text-xs text-muted-foreground/60 mt-1.5 leading-relaxed max-w-[280px]">
+                            This report is private. Enter the email address it was shared with to continue.
+                        </p>
+                    </div>
+
+                    <form onSubmit={submitEmail} className="space-y-3">
+                        <Input
+                            type="email"
+                            required
+                            autoFocus
+                            placeholder="you@company.com"
+                            value={gateEmail}
+                            onChange={(e) => { setGateEmail(e.target.value); setGateError(null) }}
+                            className="h-11 bg-muted/30 border-border/30 rounded-xl text-sm text-center font-medium focus:bg-card focus:border-border/50"
+                        />
+                        {gateError && (
+                            <p className="text-[11px] text-destructive/70 text-center font-medium">{gateError}</p>
+                        )}
+                        <button
+                            type="submit"
+                            disabled={gateSubmitting || !gateEmail.trim()}
+                            className="w-full h-11 rounded-xl bg-foreground text-background text-xs font-bold tracking-wide hover:bg-foreground/90 transition-colors active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2"
+                        >
+                            {gateSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                            View Report
+                        </button>
+                    </form>
+                </motion.div>
+            </div>
+        )
+    }
 
     if (error) {
         return (
@@ -214,6 +326,24 @@ export default function SharedReportPage() {
                         <p className="text-xs text-muted-foreground/50 font-medium mt-1.5 tabular-nums">
                             {candidates.length} candidates in pipeline
                         </p>
+
+                        {/* Funnel stats */}
+                        {stats.total > 0 && (
+                            <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                                {[
+                                    { label: "Total Applied", value: stats.total.toString() },
+                                    { label: "Presenting", value: stats.presenting.toString(), sub: `${stats.pctPresenting}% of applied` },
+                                    { label: "Client Interview", value: stats.clientInterview.toString(), sub: `${stats.pctClientInterview}% of applied` },
+                                    { label: "Pres. Conversion", value: `${stats.pctPresenting}%` },
+                                ].map(stat => (
+                                    <div key={stat.label} className="rounded-xl bg-muted/20 px-3.5 py-3">
+                                        <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/50">{stat.label}</p>
+                                        <p className="text-xl font-bold tracking-tight text-foreground tabular-nums mt-1">{stat.value}</p>
+                                        {stat.sub && <p className="text-[10px] text-muted-foreground/40 font-medium mt-0.5">{stat.sub}</p>}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     {/* Tabs */}
@@ -256,7 +386,11 @@ export default function SharedReportPage() {
                         </div>
                         <div className="px-8 py-6 flex-1 overflow-y-auto">
                             {selectedCandidate && (
-                                <SharedCandidateDetails candidate={selectedCandidate} />
+                                <SharedCandidateDetails
+                                    candidate={selectedCandidate}
+                                    token={token}
+                                    onDecisionChange={handleDecisionChange}
+                                />
                             )}
                         </div>
                     </div>

@@ -6,6 +6,7 @@ import { Candidate } from '@/components/candidate/CandidateCard'
 import { CandidateTable } from '@/components/candidate/CandidateTable'
 import { CandidateDetails } from '@/components/candidate/CandidateDetails'
 import { ReportTabs } from '@/components/candidate/ReportTabs'
+import { ShareReportDialog } from '@/components/report/ShareReportDialog'
 import { Search, X, ChevronLeft, Users, FileText, Loader2, ExternalLink, Share2, Check, RefreshCw, FolderOpen, ArrowUpRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
@@ -228,6 +229,7 @@ export default function CandidateReportPage() {
     const [exportOverlayResult, setExportOverlayResult] = useState<{ url: string; folderUrl: string | null; stats: any } | null>(null)
     const [shareLoading, setShareLoading] = useState(false)
     const [shareCopied, setShareCopied] = useState(false)
+    const [shareDialogOpen, setShareDialogOpen] = useState(false)
 
     const fetchStages = useCallback(async () => {
         try {
@@ -597,18 +599,11 @@ export default function CandidateReportPage() {
 
                     <div className="flex items-center gap-2 sm:ml-auto flex-wrap">
                         <button
-                            onClick={handleShare}
-                            disabled={shareLoading}
+                            onClick={() => setShareDialogOpen(true)}
                             className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-[color,background-color,transform] duration-200 ease-smooth whitespace-nowrap border border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted/30 active:scale-[0.97]"
                         >
-                            {shareLoading ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : shareCopied ? (
-                                <Check className="h-3.5 w-3.5 text-green-500" />
-                            ) : (
-                                <Share2 className="h-3.5 w-3.5" />
-                            )}
-                            <span>{shareCopied ? "Copied!" : "Share"}</span>
+                            <Share2 className="h-3.5 w-3.5" />
+                            <span>Share</span>
                         </button>
 
                         {exportResult && (
@@ -690,6 +685,14 @@ export default function CandidateReportPage() {
                     </div>
                 </SheetContent>
             </Sheet>
+
+            {/* Share dialog */}
+            <ShareReportDialog
+                open={shareDialogOpen}
+                onClose={() => setShareDialogOpen(false)}
+                postingId={postingId}
+                postingTitle={projectTitle}
+            />
 
             {/* Export Progress Overlay */}
             <ExportOverlay

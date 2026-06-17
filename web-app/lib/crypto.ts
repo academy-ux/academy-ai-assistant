@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, randomBytes, createHash } from 'crypto'
+import { createCipheriv, createDecipheriv, randomBytes, createHash, createHmac, timingSafeEqual } from 'crypto'
 
 const ALGORITHM = 'aes-256-gcm'
 const IV_LENGTH = 12
@@ -42,4 +42,38 @@ export function decryptToken(ciphertext: string): string {
   decipher.setAuthTag(authTag)
 
   return decipher.update(encrypted) + decipher.final('utf8')
+}
+
+/**
+ * Sign an arbitrary payload with HMAC-SHA256 (keyed by NEXTAUTH_SECRET) and
+ * return a tamper-proof `payload.signature` string. Used for the soft share
+ * access cookie — it proves the server granted access to this exact value.
+ */
+export function signValue(payload: string): string {
+  const secret = process.env.NEXTAUTH_SECRET
+  if (!secret) throw new Error('NEXTAUTH_SECRET is required for signing')
+  const sig = createHmac('sha256', secret).update(payload).digest('base64url')
+  return `${Buffer.from(payload, 'utf8').toString('base64url')}.${sig}`
+}
+
+/**
+ * Verify a value produced by signValue(). Returns the original payload if the
+ * signature is valid, or null otherwise.
+ */
+export function verifySignedValue(signed: string): string | null {
+  const secret = process.env.NEXTAUTH_SECRET
+  if (!secret) return null
+  const [payloadB64, sig] = signed.split('.')
+  if (!payloadB64 || !sig) return null
+  let payload: string
+  try {
+    payload = Buffer.from(payloadB64, 'base64url').toString('utf8')
+  } catch {
+    return null
+  }
+  const expected = createHmac('sha256', secret).update(payload).digest('base64url')
+  const a = Buffer.from(sig)
+  const b = Buffer.from(expected)
+  if (a.length !== b.length || !timingSafeEqual(a, b)) return null
+  return payload
 }

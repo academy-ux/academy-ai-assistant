@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
 import { fetchStages } from '@/lib/lever'
+import { resolveShare, requestHasShareAccess } from '@/lib/share'
 import { errorResponse } from '@/lib/validation'
-
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export async function GET(
   request: NextRequest,
@@ -12,20 +10,13 @@ export async function GET(
   try {
     const { token } = await params
 
-    if (!UUID_REGEX.test(token)) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 400 })
+    const share = await resolveShare(token)
+    if (!share) {
+      return NextResponse.json({ error: 'Share link not found or has been deactivated' }, { status: 404 })
     }
 
-    // Validate the token exists and is active
-    const { data: share, error } = await supabase
-      .from('shared_reports' as any)
-      .select('id')
-      .eq('token', token)
-      .eq('is_active', true)
-      .single()
-
-    if (!share || error) {
-      return NextResponse.json({ error: 'Share link not found or has been deactivated' }, { status: 404 })
+    if (!requestHasShareAccess(request, token, share)) {
+      return NextResponse.json({ error: 'This report is restricted', requiresEmail: true }, { status: 401 })
     }
 
     const stages = await fetchStages()

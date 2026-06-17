@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react"
 import { Candidate } from "./CandidateCard"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Mail, Loader2, Plus, Globe, Lock, Save, Pencil, Sparkles, Briefcase, ExternalLink, Copy, Check } from "lucide-react"
+import { Mail, Loader2, Plus, Globe, Lock, Save, Pencil, Sparkles, Briefcase, ExternalLink, Copy, Check, ThumbsUp, ThumbsDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
     Select,
@@ -436,6 +436,34 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                     </div>
                 )}
             </div>
+
+            {/* Client decision banner — advisory signal from the shared report */}
+            {candidate.clientDecision && (
+                <div className={cn(
+                    "flex items-center gap-3 rounded-xl px-4 py-3 border",
+                    candidate.clientDecision === 'accepted'
+                        ? "bg-emerald-500/5 border-emerald-500/15"
+                        : "bg-destructive/5 border-destructive/15"
+                )}>
+                    <div className={cn(
+                        "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
+                        candidate.clientDecision === 'accepted' ? "bg-emerald-500/10 text-emerald-600" : "bg-destructive/10 text-destructive/70"
+                    )}>
+                        {candidate.clientDecision === 'accepted' ? <ThumbsUp className="w-4 h-4" /> : <ThumbsDown className="w-4 h-4" />}
+                    </div>
+                    <div className="min-w-0">
+                        <p className={cn(
+                            "text-xs font-bold",
+                            candidate.clientDecision === 'accepted' ? "text-emerald-700" : "text-destructive/80"
+                        )}>
+                            Client {candidate.clientDecision === 'accepted' ? 'accepted' : 'rejected'} this candidate
+                        </p>
+                        <p className="text-[11px] text-muted-foreground/60 mt-0.5">
+                            {candidate.clientDecisionBy ? `By ${candidate.clientDecisionBy} · ` : ''}Update the stage manually if needed.
+                        </p>
+                    </div>
+                </div>
+            )}
 
             {/* Info Card */}
             <div className="bg-muted/20 rounded-xl p-4 md:p-5 relative group/meta">

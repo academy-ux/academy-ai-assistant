@@ -16,6 +16,16 @@ export interface Candidate {
     description?: string
     archivedAt?: number | null
     archivedReason?: string | null
+    // Enriched fields surfaced on the shared/client report (resolved server-side from email)
+    pitch?: string | null
+    relevantYears?: number | null
+    totalYears?: number | null
+    experienceSummary?: string | null
+    salary?: string | null
+    portfolioPassword?: string | null
+    // Client accept/reject signal (advisory — does not change the Lever stage)
+    clientDecision?: 'accepted' | 'rejected' | null
+    clientDecisionBy?: string | null
 }
 
 interface CandidateCardProps {
