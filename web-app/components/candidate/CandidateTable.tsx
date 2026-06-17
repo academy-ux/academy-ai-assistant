@@ -12,7 +12,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { useState } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { toast } from "sonner"
 
 export interface ExperienceData {
@@ -53,6 +53,26 @@ function nameToColor(name: string): string {
 
 export function CandidateTable({ candidates, onSelect, selectedId, stages, onRefresh, experienceMap, experienceLoading, readOnly }: CandidateTableProps) {
     const [updatingId, setUpdatingId] = useState<string | null>(null)
+
+    // Show the right-edge fade only while there's more table to scroll to.
+    const scrollRef = useRef<HTMLDivElement>(null)
+    const [showRightFade, setShowRightFade] = useState(false)
+    const updateFade = useCallback(() => {
+        const el = scrollRef.current
+        if (!el) return
+        setShowRightFade(el.scrollWidth - el.clientWidth - el.scrollLeft > 1)
+    }, [])
+    useEffect(() => {
+        const el = scrollRef.current
+        if (!el) return
+        updateFade()
+        el.addEventListener('scroll', updateFade, { passive: true })
+        window.addEventListener('resize', updateFade)
+        return () => {
+            el.removeEventListener('scroll', updateFade)
+            window.removeEventListener('resize', updateFade)
+        }
+    }, [updateFade, candidates.length])
 
     const handleUpdateStage = async (candidateId: string, stageId: string) => {
         setUpdatingId(candidateId)
@@ -96,7 +116,7 @@ export function CandidateTable({ candidates, onSelect, selectedId, stages, onRef
 
     return (
         <div className="relative">
-          <div className="overflow-x-auto">
+          <div ref={scrollRef} className="overflow-x-auto">
             <div className={cn("space-y-1", readOnly ? "md:min-w-[960px]" : "md:min-w-[1140px]")}>
             {/* Column headers — hidden on mobile */}
             <div className={cn("hidden md:grid gap-x-6 items-center px-5 pb-2 pt-1", gridCols)}>
@@ -347,8 +367,11 @@ export function CandidateTable({ candidates, onSelect, selectedId, stages, onRef
             })}
             </div>
           </div>
-          {/* Right-edge gradient teases the off-screen columns on narrow widths */}
-          <div className="hidden md:block xl:hidden pointer-events-none absolute top-0 right-0 h-full w-16 bg-gradient-to-l from-background to-transparent" />
+          {/* Right-edge gradient teases off-screen columns — hides once fully scrolled */}
+          <div className={cn(
+            "pointer-events-none absolute top-0 right-0 h-full w-16 bg-gradient-to-l from-background to-transparent transition-opacity duration-200",
+            showRightFade ? "opacity-100" : "opacity-0"
+          )} />
         </div>
     )
 }
