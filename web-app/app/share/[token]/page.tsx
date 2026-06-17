@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import { Candidate } from '@/components/candidate/CandidateCard'
 import { CandidateTable } from '@/components/candidate/CandidateTable'
@@ -35,11 +35,11 @@ export default function SharedReportPage() {
     const [gateSubmitting, setGateSubmitting] = useState(false)
     const [gateError, setGateError] = useState<string | null>(null)
 
-    const fetchData = useCallback(async () => {
+    const fetchData = useCallback(async (opts?: { silent?: boolean }) => {
         if (!token) return
 
         try {
-            setLoading(true)
+            if (!opts?.silent) setLoading(true)
 
             const res = await fetch(`/api/share/${token}/candidates`)
             if (res.status === 401) {
@@ -65,7 +65,7 @@ export default function SharedReportPage() {
         } catch (err: any) {
             setError(err.message || 'Failed to load report')
         } finally {
-            setLoading(false)
+            if (!opts?.silent) setLoading(false)
         }
     }, [token])
 
@@ -109,6 +109,23 @@ export default function SharedReportPage() {
         fetchData()
         fetchStages()
     }, [fetchData, fetchStages])
+
+    // Once candidates are visible, make sure experience is computed (and cached)
+    // for the advanced-stage candidates, then silently refresh to show the numbers.
+    const experienceTriggeredRef = useRef(false)
+    useEffect(() => {
+        if (needsEmail || candidates.length === 0 || experienceTriggeredRef.current) return
+        experienceTriggeredRef.current = true
+        ;(async () => {
+            try {
+                const res = await fetch(`/api/share/${token}/experience`, { method: 'POST' })
+                if (res.ok) {
+                    const data = await res.json()
+                    if (data.analyzed > 0) fetchData({ silent: true })
+                }
+            } catch { /* best-effort */ }
+        })()
+    }, [needsEmail, candidates.length, token, fetchData])
 
     // Patch a single candidate's decision locally so the table badge updates
     // without re-fetching the whole pipeline from Lever.

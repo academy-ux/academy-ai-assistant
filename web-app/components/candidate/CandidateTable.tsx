@@ -1,7 +1,7 @@
 "use client"
 
 import { Badge } from "@/components/ui/badge"
-import { MapPin, ChevronRight, Globe, Loader2, Briefcase, ThumbsUp, ThumbsDown } from "lucide-react"
+import { MapPin, ChevronRight, Globe, Loader2, Briefcase, Check, X } from "lucide-react"
 import { Candidate } from "./CandidateCard"
 import { cn } from "@/lib/utils"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -158,12 +158,12 @@ export function CandidateTable({ candidates, onSelect, selectedId, stages, onRef
                                     )}
                                     {candidate.clientDecision === 'accepted' && (
                                         <Badge variant="outline" className="text-[9px] uppercase tracking-wider font-bold py-0 h-4 border-emerald-500/20 text-emerald-600 bg-emerald-500/5 rounded-md gap-1">
-                                            <ThumbsUp className="w-2.5 h-2.5" /> Client Accepted
+                                            <Check className="w-2.5 h-2.5" /> Client Accepted
                                         </Badge>
                                     )}
                                     {candidate.clientDecision === 'rejected' && (
                                         <Badge variant="outline" className="text-[9px] uppercase tracking-wider font-bold py-0 h-4 border-destructive/20 text-destructive/70 bg-destructive/5 rounded-md gap-1">
-                                            <ThumbsDown className="w-2.5 h-2.5" /> Client Rejected
+                                            <X className="w-2.5 h-2.5" /> Client Rejected
                                         </Badge>
                                     )}
                                 </div>

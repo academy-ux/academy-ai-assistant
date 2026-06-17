@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react"
 import { Candidate } from "./CandidateCard"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Mail, Loader2, Plus, Globe, Lock, Save, Pencil, Sparkles, Briefcase, ExternalLink, Copy, Check, ThumbsUp, ThumbsDown } from "lucide-react"
+import { Mail, Loader2, Plus, Globe, Lock, Save, Pencil, Sparkles, Briefcase, ExternalLink, Copy, Check, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
     Select,
@@ -449,7 +449,7 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                         "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
                         candidate.clientDecision === 'accepted' ? "bg-emerald-500/10 text-emerald-600" : "bg-destructive/10 text-destructive/70"
                     )}>
-                        {candidate.clientDecision === 'accepted' ? <ThumbsUp className="w-4 h-4" /> : <ThumbsDown className="w-4 h-4" />}
+                        {candidate.clientDecision === 'accepted' ? <Check className="w-4 h-4" /> : <X className="w-4 h-4" />}
                     </div>
                     <div className="min-w-0">
                         <p className={cn(
