@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { fetchCandidatesForPosting } from '@/lib/lever'
 import { resolveShare, requestHasShareAccess } from '@/lib/share'
 import { computeExperience } from '@/lib/experience'
+import { ensureCurrentRoles } from '@/lib/resume-role'
 import { errorResponse } from '@/lib/validation'
 
 // Stages worth analyzing — the advanced pipeline a client actually reviews.
@@ -46,7 +47,10 @@ export async function POST(
       return NextResponse.json({ success: true, analyzed: 0 })
     }
 
-    const experience = await computeExperience(qualifying, share.postingId)
+    const [experience] = await Promise.all([
+      computeExperience(qualifying, share.postingId),
+      ensureCurrentRoles(qualifying, share.postingId),
+    ])
     return NextResponse.json({ success: true, analyzed: Object.keys(experience).length })
   } catch (error) {
     return errorResponse(error, 'Share experience error')

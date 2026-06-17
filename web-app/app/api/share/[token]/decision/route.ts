@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { resolveShareCandidate, requestHasShareAccess } from '@/lib/share'
 import { isPresentingStage } from '@/lib/stages'
 import { fetchStages } from '@/lib/lever'
+import { recordClientInterviewReached } from '@/lib/milestones'
 import { validateBody, errorResponse } from '@/lib/validation'
 
 // When a client accepts a candidate, advance them to the Client Interview stage.
@@ -135,9 +136,11 @@ export async function POST(
 
     if (error) throw error
 
-    // Accepting a candidate advances them to the Client Interview stage in Lever.
+    // Accepting a candidate advances them to the Client Interview stage in Lever
+    // and durably records that they reached it.
     if (body.decision === 'accepted') {
       await moveToClientInterview(body.candidateId)
+      await recordClientInterviewReached(body.candidateId, resolved.postingId, resolved.candidate.email)
     }
 
     return NextResponse.json({ success: true, decision: body.decision })

@@ -26,6 +26,9 @@ export interface Candidate {
     // Client accept/reject signal (advisory — does not change the Lever stage)
     clientDecision?: 'accepted' | 'rejected' | null
     clientDecisionBy?: string | null
+    // Current role parsed from the candidate's resume
+    currentTitle?: string | null
+    currentCompany?: string | null
 }
 
 interface CandidateCardProps {

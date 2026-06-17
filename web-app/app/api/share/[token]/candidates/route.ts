@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { fetchCandidatesForPosting } from '@/lib/lever'
 import { resolveShare, requestHasShareAccess } from '@/lib/share'
+import { observeAndCountClientInterview } from '@/lib/milestones'
 import { errorResponse } from '@/lib/validation'
 
 export async function GET(
@@ -44,7 +45,7 @@ export async function GET(
         ? supabase.from('candidate_profiles').select('candidate_email, pitch').in('candidate_email', emails)
         : Promise.resolve({ data: [] as any[] }),
       emails.length
-        ? supabase.from('candidate_profiles').select('candidate_email, salary_expectations, years_of_experience').in('candidate_email', emails)
+        ? supabase.from('candidate_profiles').select('candidate_email, salary_expectations, years_of_experience, current_title, current_company').in('candidate_email', emails)
         : Promise.resolve({ data: [] as any[] }),
       emails.length
         ? supabase.from('candidate_passwords').select('candidate_email, password').in('candidate_email', emails)
@@ -65,7 +66,7 @@ export async function GET(
       }
     }
 
-    const profileByEmail = new Map<string, { salary: string | null; relevantYears: number | null; totalYears: number | null; summary: string | null }>()
+    const profileByEmail = new Map<string, { salary: string | null; relevantYears: number | null; totalYears: number | null; summary: string | null; currentTitle: string | null; currentCompany: string | null }>()
     for (const row of (profilesRes.data || []) as any[]) {
       let relevantYears: number | null = null
       let totalYears: number | null = null
@@ -87,6 +88,8 @@ export async function GET(
         relevantYears,
         totalYears,
         summary,
+        currentTitle: row.current_title || null,
+        currentCompany: row.current_company || null,
       })
     }
 
@@ -104,10 +107,19 @@ export async function GET(
     const publicCandidates = candidates.map(c => {
       const profile = c.email ? profileByEmail.get(c.email) : undefined
       const decision = decisionById.get(c.id)
+      // Prefer the candidate's current role parsed from their resume.
+      const currentTitle = profile?.currentTitle || null
+      const currentCompany = profile?.currentCompany || null
+      const resumeHeadline = currentTitle && currentCompany
+        ? `${currentTitle} at ${currentCompany}`
+        : (currentTitle || currentCompany || null)
+
       return {
         id: c.id,
         name: c.name,
-        headline: c.headline,
+        headline: resumeHeadline || c.headline,
+        currentTitle,
+        currentCompany,
         location: c.location,
         links: c.links,
         position: c.position,
@@ -130,10 +142,18 @@ export async function GET(
       }
     })
 
+    // Count everyone who ever reached Client Interview (durable — survives a
+    // later archive), recording milestones for anyone currently at/past it.
+    const reachedClientInterview = await observeAndCountClientInterview(
+      candidates.map(c => ({ id: c.id, stage: c.stage, email: c.email })),
+      postingId
+    )
+
     return NextResponse.json({
       success: true,
       candidates: publicCandidates,
       postingTitle: share.postingTitle,
+      reachedClientInterview,
     })
   } catch (error) {
     return errorResponse(error, 'Share candidates error')

@@ -20,6 +20,7 @@ export default function SharedReportPage() {
     const token = params.token as string
 
     const [candidates, setCandidates] = useState<Candidate[]>([])
+    const [reachedCI, setReachedCI] = useState(0)
     const [stages, setStages] = useState<{ id: string, text: string }[]>([])
     const [projectTitle, setProjectTitle] = useState("Loading...")
     const [loading, setLoading] = useState(true)
@@ -57,6 +58,7 @@ export default function SharedReportPage() {
             const data = await res.json()
             setNeedsEmail(false)
             setCandidates(data.candidates || [])
+            setReachedCI(data.reachedClientInterview || 0)
             if (data.postingTitle) {
                 setProjectTitle(data.postingTitle)
             } else if (data.candidates?.length > 0) {
@@ -149,14 +151,17 @@ export default function SharedReportPage() {
             else if (stage.includes('present') || stage.includes('client') || stage.includes('offer')) presenting++
         })
         const pct = (n: number) => total > 0 ? Math.round((n / total) * 100) : 0
+        // "Ever reached" Client Interview comes from the durable server count and
+        // includes candidates later archived after interviewing.
+        const everClientInterview = Math.max(reachedCI, clientInterview)
         return {
             total,
             presenting,
-            clientInterview,
+            clientInterview: everClientInterview,
             pctPresenting: pct(presenting),
-            pctClientInterview: pct(clientInterview),
+            pctClientInterview: pct(everClientInterview),
         }
-    }, [candidates])
+    }, [candidates, reachedCI])
 
     const filteredAndGrouped = useMemo(() => {
         const searched = candidates.filter(c => {
@@ -308,39 +313,8 @@ export default function SharedReportPage() {
             {/* Header */}
             <div className="sticky top-0 z-50 bg-background/90 backdrop-blur-xl border-b border-border/30">
                 <div className="max-w-[1200px] mx-auto px-6">
-                    {/* Utility bar — search only */}
-                    <div className="flex items-center justify-end pt-5 pb-1">
-                        <div className={cn(
-                            "relative transition-all duration-300",
-                            searchFocused ? "w-80" : "w-56"
-                        )}>
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/40" />
-                            <Input
-                                placeholder="Search candidates..."
-                                className="pl-9 h-9 bg-muted/30 border-transparent rounded-xl text-xs font-medium transition-all placeholder:text-muted-foreground/30 focus:bg-card focus:border-border/40 focus:shadow-sm"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                onFocus={() => setSearchFocused(true)}
-                                onBlur={() => setSearchFocused(false)}
-                            />
-                            <AnimatePresence>
-                                {searchQuery && (
-                                    <motion.button
-                                        initial={{ opacity: 0, scale: 0.8 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        exit={{ opacity: 0, scale: 0.8 }}
-                                        onClick={() => setSearchQuery("")}
-                                        className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-muted text-muted-foreground/40 hover:text-foreground transition-all"
-                                    >
-                                        <X className="h-3 w-3" />
-                                    </motion.button>
-                                )}
-                            </AnimatePresence>
-                        </div>
-                    </div>
-
                     {/* Title area */}
-                    <div className="pt-3 pb-4">
+                    <div className="pt-5 pb-4">
                         <h1 className="text-[22px] font-bold tracking-tight text-foreground leading-tight">
                             {projectTitle}
                         </h1>
@@ -354,8 +328,8 @@ export default function SharedReportPage() {
                                 {[
                                     { label: "Total Applied", value: stats.total.toString() },
                                     { label: "Presenting", value: stats.presenting.toString(), sub: `${stats.pctPresenting}% of applied` },
-                                    { label: "Client Interview", value: stats.clientInterview.toString(), sub: `${stats.pctClientInterview}% of applied` },
-                                    { label: "Pres. Conversion", value: `${stats.pctPresenting}%` },
+                                    { label: "Client Interview", value: stats.clientInterview.toString(), sub: `reached, incl. past` },
+                                    { label: "Presentation Conversion", value: `${stats.pctClientInterview}%`, sub: `applied → client interview` },
                                 ].map(stat => (
                                     <div key={stat.label} className="rounded-xl bg-muted/20 px-3.5 py-3">
                                         <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/50">{stat.label}</p>
@@ -367,13 +341,46 @@ export default function SharedReportPage() {
                         )}
                     </div>
 
-                    {/* Tabs */}
-                    <ReportTabs
-                        defaultValue="presenting"
-                        options={tabs}
-                        activeTab={activeTab}
-                        onChange={setActiveTab}
-                    />
+                    {/* Tabs + search.
+                        Desktop: tabs scroll on the left, search fixed on the right.
+                        Mobile: search always visible on top, tabs scroll below it. */}
+                    <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 pb-1">
+                        {/* Search */}
+                        <div className="order-1 md:order-2 md:shrink-0 w-full md:w-60 pb-2 md:pb-0">
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/40" />
+                                <Input
+                                    placeholder="Search candidates..."
+                                    className="pl-9 h-9 w-full bg-muted/30 border-transparent rounded-xl text-xs font-medium placeholder:text-muted-foreground/30 focus:bg-card focus:border-border/40 focus:shadow-sm"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
+                                <AnimatePresence>
+                                    {searchQuery && (
+                                        <motion.button
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            onClick={() => setSearchQuery("")}
+                                            className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-muted text-muted-foreground/40 hover:text-foreground transition-all"
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </motion.button>
+                                    )}
+                                </AnimatePresence>
+                            </div>
+                        </div>
+
+                        {/* Tabs */}
+                        <div className="order-2 md:order-1 min-w-0 md:flex-1">
+                            <ReportTabs
+                                defaultValue="presenting"
+                                options={tabs}
+                                activeTab={activeTab}
+                                onChange={setActiveTab}
+                            />
+                        </div>
+                    </div>
                 </div>
             </div>
 
