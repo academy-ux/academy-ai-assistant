@@ -56,7 +56,8 @@ function LogoImg({ team }: { team: string }) {
     const [domain, setDomain] = useState(() => resolvedDomain(team))
     const inputRef = useRef<HTMLInputElement>(null)
 
-    const src = `https://img.logo.dev/${domain}?token=pk_MYqNmj5NQQSYUFupTGVUjQ&size=64&format=png`
+    // Pull the logo from the client's website favicon (largest size available).
+    const src = `https://www.google.com/s2/favicons?sz=256&domain=${domain}`
 
     function startEditing(e: React.MouseEvent) {
         e.preventDefault()
@@ -96,7 +97,7 @@ function LogoImg({ team }: { team: string }) {
                     ref={inputRef}
                     value={draft}
                     onChange={e => setDraft(e.target.value)}
-                    onClick={e => e.stopPropagation()}
+                    onClick={e => { e.preventDefault(); e.stopPropagation() }}
                     onMouseDown={e => e.stopPropagation()}
                     onKeyDown={e => { if (e.key === 'Escape') cancel(e as any) }}
                     placeholder="company.com"

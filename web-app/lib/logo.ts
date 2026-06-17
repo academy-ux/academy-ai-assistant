@@ -34,7 +34,8 @@ export function resolveLogoDomain(team: string): string {
   return getLogoOverride(team) || teamToDomain(team)
 }
 
-// The client's website favicon.
-export function faviconUrl(domain: string, size = 128): string {
+// The client's website favicon. Default to the largest size Google serves (256)
+// so the logo stays crisp.
+export function faviconUrl(domain: string, size = 256): string {
   return `https://www.google.com/s2/favicons?sz=${size}&domain=${domain}`
 }

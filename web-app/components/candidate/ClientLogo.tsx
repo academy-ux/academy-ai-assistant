@@ -16,7 +16,7 @@ interface ClientLogoProps {
  * team/company name). Falls back to a building glyph when there's no team or
  * the favicon fails to load.
  */
-export function ClientLogo({ team, size = 40, className }: ClientLogoProps) {
+export function ClientLogo({ team, size = 28, className }: ClientLogoProps) {
     const [errored, setErrored] = useState(false)
     const [domain, setDomain] = useState(() => (team ? resolveLogoDomain(team) : ""))
 
@@ -38,7 +38,7 @@ export function ClientLogo({ team, size = 40, className }: ClientLogoProps) {
 
     return (
         <img
-            src={faviconUrl(domain, size * 2)}
+            src={faviconUrl(domain, 256)}
             alt={`${team} logo`}
             width={size}
             height={size}
