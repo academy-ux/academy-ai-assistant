@@ -2,9 +2,9 @@
 
 import { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import { Badge } from '@/components/ui/badge'
 import { Loader2, ArrowRight, Building2, Pencil, Check, X, TrendingUp } from 'lucide-react'
+import { logoSources } from '@/lib/logo'
 
 interface Posting {
     id: string
@@ -50,14 +50,16 @@ function resolvedDomain(team: string): string {
 }
 
 function LogoImg({ team }: { team: string }) {
-    const [errored, setErrored] = useState(false)
+    const [srcIndex, setSrcIndex] = useState(0)
     const [editing, setEditing] = useState(false)
     const [draft, setDraft] = useState('')
     const [domain, setDomain] = useState(() => resolvedDomain(team))
     const inputRef = useRef<HTMLInputElement>(null)
 
-    // Pull the logo from the client's website favicon (largest size available).
-    const src = `https://www.google.com/s2/favicons?sz=256&domain=${domain}`
+    // Crisp brand logo first, website favicon as a fallback.
+    const sources = logoSources(domain)
+    const current = sources[srcIndex]
+    useEffect(() => { setSrcIndex(0) }, [domain])
 
     function startEditing(e: React.MouseEvent) {
         e.preventDefault()
@@ -74,7 +76,7 @@ function LogoImg({ team }: { team: string }) {
         if (cleaned) {
             saveLogoOverride(team, cleaned)
             setDomain(cleaned)
-            setErrored(false)
+            setSrcIndex(0)
         }
         setEditing(false)
     }
@@ -115,19 +117,18 @@ function LogoImg({ team }: { team: string }) {
 
     return (
         <div className="relative shrink-0 group/logo" onClick={startEditing}>
-            {errored || !team ? (
+            {!current || !team ? (
                 <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
                     <Building2 className="w-5 h-5 text-muted-foreground" />
                 </div>
             ) : (
-                <Image
-                    src={src}
+                <img
+                    src={current}
                     alt={`${team} logo`}
                     width={40}
                     height={40}
-                    className="rounded-lg"
-                    onError={() => setErrored(true)}
-                    unoptimized
+                    className="w-10 h-10 rounded-lg object-contain bg-white/60"
+                    onError={() => setSrcIndex(i => i + 1)}
                 />
             )}
             <div className="absolute inset-0 rounded-lg bg-black/50 opacity-0 group-hover/logo:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">

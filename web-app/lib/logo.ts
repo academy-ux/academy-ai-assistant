@@ -34,8 +34,22 @@ export function resolveLogoDomain(team: string): string {
   return getLogoOverride(team) || teamToDomain(team)
 }
 
-// The client's website favicon. Default to the largest size Google serves (256)
-// so the logo stays crisp.
+// The client's website favicon. Default to the largest size Google serves (256).
+// Note: Google upscales to this size but returns whatever resolution the site
+// actually ships, so small favicons still look soft — prefer logoDevUrl first.
 export function faviconUrl(domain: string, size = 256): string {
   return `https://www.google.com/s2/favicons?sz=${size}&domain=${domain}`
+}
+
+// logo.dev serves crisp, high-resolution brand logos by domain (retina-doubled).
+const LOGO_DEV_TOKEN = 'pk_MYqNmj5NQQSYUFupTGVUjQ'
+export function logoDevUrl(domain: string, size = 128): string {
+  return `https://img.logo.dev/${domain}?token=${LOGO_DEV_TOKEN}&size=${size}&format=png&retina=true`
+}
+
+// Ordered logo sources to try for a domain: crisp brand logo first, then the
+// website favicon as a fallback.
+export function logoSources(domain: string): string[] {
+  if (!domain) return []
+  return [logoDevUrl(domain), faviconUrl(domain, 256)]
 }

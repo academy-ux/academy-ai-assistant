@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Building2 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { resolveLogoDomain, faviconUrl } from "@/lib/logo"
+import { resolveLogoDomain, logoSources } from "@/lib/logo"
 
 interface ClientLogoProps {
     team?: string | null
@@ -12,20 +12,18 @@ interface ClientLogoProps {
 }
 
 /**
- * Client logo pulled from the company website's favicon (resolved from the
- * team/company name). Falls back to a building glyph when there's no team or
- * the favicon fails to load.
+ * Client logo for a company/team name. Tries the crisp logo.dev brand logo
+ * first, falls back to the website favicon, then a building glyph.
  */
 export function ClientLogo({ team, size = 28, className }: ClientLogoProps) {
-    const [errored, setErrored] = useState(false)
-    const [domain, setDomain] = useState(() => (team ? resolveLogoDomain(team) : ""))
+    const sources = useMemo(() => (team ? logoSources(resolveLogoDomain(team)) : []), [team])
+    const [idx, setIdx] = useState(0)
 
-    useEffect(() => {
-        setErrored(false)
-        setDomain(team ? resolveLogoDomain(team) : "")
-    }, [team])
+    useEffect(() => { setIdx(0) }, [team])
 
-    if (!team || !domain || errored) {
+    const current = sources[idx]
+
+    if (!team || !current) {
         return (
             <div
                 className={cn("rounded-xl bg-muted flex items-center justify-center shrink-0", className)}
@@ -38,13 +36,13 @@ export function ClientLogo({ team, size = 28, className }: ClientLogoProps) {
 
     return (
         <img
-            src={faviconUrl(domain, 256)}
+            src={current}
             alt={`${team} logo`}
             width={size}
             height={size}
             className={cn("rounded-xl object-contain bg-white/60 shrink-0", className)}
             style={{ width: size, height: size }}
-            onError={() => setErrored(true)}
+            onError={() => setIdx(i => i + 1)}
         />
     )
 }
