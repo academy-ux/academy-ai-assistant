@@ -386,6 +386,11 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
     const avatarGradient = nameToColor(candidate.name)
     const initials = candidate.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
 
+    // Staff can delete a comment if they authored it; admins can delete any.
+    const isAdminUser = (session?.user as any)?.isAdmin === true
+    const canDeleteNote = (note: Note) =>
+        isAdminUser || note.created_by === session?.user?.name || note.created_by === session?.user?.email
+
     return (
         <div className="flex flex-col h-full space-y-6 md:space-y-8">
             {/* Hero */}
@@ -677,14 +682,16 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                                     </div>
                                     <div className="flex items-center gap-1.5 shrink-0">
                                         <span className="text-[10px] text-muted-foreground/30">{new Date(note.created_at).toLocaleDateString()}</span>
-                                        <button
-                                            onClick={() => handleDeleteNote(note.id)}
-                                            disabled={deletingNoteId === note.id}
-                                            className="p-1 rounded-md text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover/note:opacity-100 focus:opacity-100"
-                                            title="Delete comment"
-                                        >
-                                            {deletingNoteId === note.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-                                        </button>
+                                        {canDeleteNote(note) && (
+                                            <button
+                                                onClick={() => handleDeleteNote(note.id)}
+                                                disabled={deletingNoteId === note.id}
+                                                className="p-1 rounded-md text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover/note:opacity-100 focus:opacity-100"
+                                                title="Delete comment"
+                                            >
+                                                {deletingNoteId === note.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                                 <p className="text-xs text-foreground/70 leading-relaxed">{note.content}</p>

@@ -170,6 +170,7 @@ export const authOptions: NextAuthOptions = {
         session.user.email = (token.email as string) ?? session.user.email
         const picture = (token as any).picture ?? (token as any).image
         session.user.image = (picture as string) ?? session.user.image
+        ;(session.user as any).isAdmin = isAdmin(session.user.email)
       }
       if (!didLogSessionOnce) {
         didLogSessionOnce = true
