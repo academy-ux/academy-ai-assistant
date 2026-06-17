@@ -91,8 +91,8 @@ export function CandidateTable({ candidates, onSelect, selectedId, stages, onRef
     }
 
     const gridCols = readOnly
-        ? "grid-cols-[minmax(0,280px)_200px_140px_minmax(0,1fr)]"
-        : "grid-cols-[minmax(0,280px)_200px_80px_140px_minmax(0,1fr)]"
+        ? "grid-cols-[minmax(0,280px)_200px_130px_140px_minmax(0,1fr)]"
+        : "grid-cols-[minmax(0,280px)_200px_80px_130px_140px_minmax(0,1fr)]"
 
     return (
         <div className="space-y-1">
@@ -101,6 +101,7 @@ export function CandidateTable({ candidates, onSelect, selectedId, stages, onRef
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/40">Candidate</span>
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/40">Stage</span>
                 {!readOnly && <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/40">Experience</span>}
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/40">Decision</span>
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/40">Location</span>
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/40 text-right">Links</span>
             </div>
@@ -121,6 +122,20 @@ export function CandidateTable({ candidates, onSelect, selectedId, stages, onRef
                 const isUpdating = updatingId === candidate.id
                 const avatarGradient = nameToColor(candidate.name)
                 const exp = experienceMap?.[candidate.id]
+
+                const decisionPill = candidate.clientDecision ? (
+                    <div className={cn(
+                        "inline-flex items-center gap-1 h-6 px-2.5 rounded-md text-[9px] font-bold uppercase tracking-wide",
+                        candidate.clientDecision === 'accepted'
+                            ? "bg-emerald-500/10 text-emerald-600"
+                            : "bg-destructive/10 text-destructive/70"
+                    )}>
+                        {candidate.clientDecision === 'accepted' ? <Check className="w-2.5 h-2.5 shrink-0" /> : <X className="w-2.5 h-2.5 shrink-0" />}
+                        {candidate.clientDecision === 'accepted' ? 'Accepted' : 'Rejected'}
+                    </div>
+                ) : (
+                    <span className="text-xs text-muted-foreground/30">—</span>
+                )
 
                 return (
                     <div
@@ -154,16 +169,6 @@ export function CandidateTable({ candidates, onSelect, selectedId, stages, onRef
                                     {candidate.archivedAt && (
                                         <Badge variant="outline" className="text-[9px] uppercase tracking-wider font-bold py-0 h-4 border-destructive/20 text-destructive/70 bg-destructive/5 rounded-md">
                                             Archived
-                                        </Badge>
-                                    )}
-                                    {candidate.clientDecision === 'accepted' && (
-                                        <Badge variant="outline" className="text-[9px] uppercase tracking-wider font-bold py-0 h-4 border-emerald-500/20 text-emerald-600 bg-emerald-500/5 rounded-md gap-1">
-                                            <Check className="w-2.5 h-2.5" /> Client Accepted
-                                        </Badge>
-                                    )}
-                                    {candidate.clientDecision === 'rejected' && (
-                                        <Badge variant="outline" className="text-[9px] uppercase tracking-wider font-bold py-0 h-4 border-destructive/20 text-destructive/70 bg-destructive/5 rounded-md gap-1">
-                                            <X className="w-2.5 h-2.5" /> Client Rejected
                                         </Badge>
                                     )}
                                 </div>
@@ -201,6 +206,9 @@ export function CandidateTable({ candidates, onSelect, selectedId, stages, onRef
                                     )}
                                 </div>
                             )}
+
+                            {/* Client decision on mobile */}
+                            {candidate.clientDecision && decisionPill}
 
                             {/* Location on mobile */}
                             <div className="flex items-center gap-1 text-[11px] text-muted-foreground/60">
@@ -294,6 +302,11 @@ export function CandidateTable({ candidates, onSelect, selectedId, stages, onRef
                                 )}
                             </div>
                         )}
+
+                        {/* Desktop: Client decision */}
+                        <div className="hidden md:flex items-center min-w-0">
+                            {decisionPill}
+                        </div>
 
                         {/* Desktop: Location */}
                         <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground/60 min-w-0">

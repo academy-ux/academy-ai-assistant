@@ -5,7 +5,7 @@ import { Candidate } from "./CandidateCard"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Globe, Lock, Copy, Check, Sparkles, Briefcase, Send, Loader2, X, FileText } from "lucide-react"
+import { Globe, Lock, Copy, Check, Sparkles, Briefcase, Send, Loader2, X, FileText, Pencil, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { isPresentingStage } from "@/lib/stages"
 import { toast } from "sonner"
@@ -41,6 +41,9 @@ function nameToColor(name: string): string {
 
 // Remember the reviewer's name across candidates so they don't retype it.
 const NAME_KEY = 'shared-report-reviewer-name'
+// Track which comment ids were authored in this browser so we only offer
+// edit/delete on the visitor's own comments (the share has no real auth).
+const MY_NOTES_KEY = 'shared-report-my-notes'
 
 export function SharedCandidateDetails({ candidate, token, onDecisionChange }: SharedCandidateDetailsProps) {
     const normalizedLinks = candidate.links?.map(link => {
@@ -60,6 +63,12 @@ export function SharedCandidateDetails({ candidate, token, onDecisionChange }: S
     const [copiedPassword, setCopiedPassword] = useState(false)
     const [resume, setResume] = useState<{ available: boolean; filename?: string } | null>(null)
 
+    const [myNoteIds, setMyNoteIds] = useState<string[]>([])
+    const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
+    const [editingContent, setEditingContent] = useState("")
+    const [savingEdit, setSavingEdit] = useState(false)
+    const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null)
+
     const nameMissing = !reviewerName.trim()
 
     // Reset transient state when the selected candidate changes.
@@ -72,7 +81,17 @@ export function SharedCandidateDetails({ candidate, token, onDecisionChange }: S
         try {
             const saved = localStorage.getItem(NAME_KEY)
             if (saved) setReviewerName(saved)
+            const savedNotes = localStorage.getItem(MY_NOTES_KEY)
+            if (savedNotes) setMyNoteIds(JSON.parse(savedNotes))
         } catch { /* ignore */ }
+    }, [])
+
+    const markNoteMine = useCallback((id: string, mine: boolean) => {
+        setMyNoteIds(prev => {
+            const next = mine ? Array.from(new Set([...prev, id])) : prev.filter(x => x !== id)
+            try { localStorage.setItem(MY_NOTES_KEY, JSON.stringify(next)) } catch { /* ignore */ }
+            return next
+        })
     }, [])
 
     const persistName = useCallback((name: string) => {
@@ -160,10 +179,11 @@ export function SharedCandidateDetails({ candidate, token, onDecisionChange }: S
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ candidateId: candidate.id, content: newNote.trim(), author: reviewerName || undefined }),
             })
+            const data = await res.json().catch(() => ({}))
             if (!res.ok) {
-                const data = await res.json().catch(() => ({}))
                 throw new Error(data.error || 'Failed to save')
             }
+            if (data.note?.id) markNoteMine(data.note.id, true)
             setNewNote("")
             await fetchNotes()
             toast.success("Comment added")
@@ -171,6 +191,54 @@ export function SharedCandidateDetails({ candidate, token, onDecisionChange }: S
             toast.error(e instanceof Error ? e.message : 'Failed to add comment')
         } finally {
             setSavingNote(false)
+        }
+    }
+
+    const handleEditNote = async (noteId: string) => {
+        if (!editingContent.trim() || savingEdit) return
+        setSavingEdit(true)
+        try {
+            const res = await fetch(`/api/share/${token}/notes`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ candidateId: candidate.id, noteId, content: editingContent.trim() }),
+            })
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}))
+                throw new Error(data.error || 'Failed to save')
+            }
+            setEditingNoteId(null)
+            setEditingContent("")
+            await fetchNotes()
+            toast.success("Comment updated")
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : 'Failed to update comment')
+        } finally {
+            setSavingEdit(false)
+        }
+    }
+
+    const handleDeleteNote = async (noteId: string) => {
+        if (deletingNoteId) return
+        setDeletingNoteId(noteId)
+        try {
+            const res = await fetch(`/api/share/${token}/notes`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ candidateId: candidate.id, noteId }),
+            })
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}))
+                throw new Error(data.error || 'Failed to delete')
+            }
+            markNoteMine(noteId, false)
+            if (editingNoteId === noteId) setEditingNoteId(null)
+            await fetchNotes()
+            toast.success("Comment deleted")
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : 'Failed to delete comment')
+        } finally {
+            setDeletingNoteId(null)
         }
     }
 
@@ -400,16 +468,67 @@ export function SharedCandidateDetails({ candidate, token, onDecisionChange }: S
                     </div>
 
                     {notes.length > 0 && (
-                        <div className="space-y-2 max-h-[280px] overflow-y-auto pr-1">
-                            {notes.map((note) => (
-                                <div key={note.id} className="p-3 rounded-xl bg-card/70 border border-border/10">
-                                    <div className="flex items-center justify-between mb-1.5">
-                                        <span className="text-[10px] font-bold text-primary/60">{note.created_by}</span>
-                                        <span className="text-[10px] text-muted-foreground/30">{new Date(note.created_at).toLocaleDateString()}</span>
+                        <div className="space-y-2 max-h-[280px] overflow-y-auto">
+                            {notes.map((note) => {
+                                const isMine = myNoteIds.includes(note.id)
+                                const isEditing = editingNoteId === note.id
+                                return (
+                                    <div key={note.id} className="p-3 rounded-xl bg-card/70 border border-border/10">
+                                        <div className="flex items-center justify-between mb-1.5 gap-2">
+                                            <span className="text-[10px] font-bold text-primary/60">{note.created_by}</span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[10px] text-muted-foreground/30">{new Date(note.created_at).toLocaleDateString()}</span>
+                                                {isMine && !isEditing && (
+                                                    <div className="flex items-center gap-0.5">
+                                                        <button
+                                                            onClick={() => { setEditingNoteId(note.id); setEditingContent(note.content) }}
+                                                            className="p-1 rounded-md text-muted-foreground/40 hover:text-foreground hover:bg-muted/40 transition-colors"
+                                                            title="Edit comment"
+                                                        >
+                                                            <Pencil className="w-3 h-3" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteNote(note.id)}
+                                                            disabled={deletingNoteId === note.id}
+                                                            className="p-1 rounded-md text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                                            title="Delete comment"
+                                                        >
+                                                            {deletingNoteId === note.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        {isEditing ? (
+                                            <div className="space-y-2">
+                                                <Textarea
+                                                    value={editingContent}
+                                                    onChange={(e) => setEditingContent(e.target.value)}
+                                                    className="min-h-[60px] bg-card border-border/20 rounded-lg p-2.5 text-xs font-medium resize-none"
+                                                />
+                                                <div className="flex items-center justify-end gap-1.5">
+                                                    <button
+                                                        onClick={() => { setEditingNoteId(null); setEditingContent("") }}
+                                                        className="px-2.5 h-7 rounded-lg text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50 hover:text-foreground hover:bg-muted/40 transition-colors"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleEditNote(note.id)}
+                                                        disabled={!editingContent.trim() || savingEdit}
+                                                        className="inline-flex items-center gap-1.5 px-2.5 h-7 rounded-lg bg-foreground text-background text-[10px] font-bold uppercase tracking-wider hover:bg-foreground/90 transition-colors disabled:opacity-50"
+                                                    >
+                                                        {savingEdit ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                                                        Save
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <p className="text-xs text-foreground/70 leading-relaxed whitespace-pre-wrap">{note.content}</p>
+                                        )}
                                     </div>
-                                    <p className="text-xs text-foreground/70 leading-relaxed whitespace-pre-wrap">{note.content}</p>
-                                </div>
-                            ))}
+                                )
+                            })}
                         </div>
                     )}
                 </div>
