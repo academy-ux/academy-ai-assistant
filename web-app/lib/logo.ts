@@ -47,9 +47,9 @@ export function logoDevUrl(domain: string, size = 128): string {
   return `https://img.logo.dev/${domain}?token=${LOGO_DEV_TOKEN}&size=${size}&format=png&retina=true`
 }
 
-// Ordered logo sources to try for a domain: crisp brand logo first, then the
-// website favicon as a fallback.
+// Ordered logo sources to try for a domain: the website favicon first, then the
+// logo.dev brand logo as a fallback.
 export function logoSources(domain: string): string[] {
   if (!domain) return []
-  return [logoDevUrl(domain), faviconUrl(domain, 256)]
+  return [faviconUrl(domain, 256), logoDevUrl(domain)]
 }

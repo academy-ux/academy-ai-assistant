@@ -319,7 +319,7 @@ export default function SharedReportPage() {
                     {/* Title area */}
                     <div className="pt-5 pb-4">
                         <div className="flex items-center gap-3">
-                            {team && <ClientLogo team={team} size={28} />}
+                            {team && <ClientLogo team={team} size={44} />}
                             <div className="min-w-0">
                                 <h1 className="text-[22px] font-bold tracking-tight text-foreground leading-tight truncate">
                                     {projectTitle}
