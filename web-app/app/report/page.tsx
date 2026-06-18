@@ -118,21 +118,21 @@ function LogoImg({ team }: { team: string }) {
     return (
         <div className="relative shrink-0 group/logo" onClick={startEditing}>
             {!current || !team ? (
-                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                    <Building2 className="w-5 h-5 text-muted-foreground" />
+                <div className="w-5 h-5 rounded-md bg-muted flex items-center justify-center">
+                    <Building2 className="w-3 h-3 text-muted-foreground" />
                 </div>
             ) : (
                 <img
                     src={current}
                     alt={`${team} logo`}
-                    width={40}
-                    height={40}
-                    className="w-10 h-10 rounded-lg object-contain bg-white/60"
+                    width={20}
+                    height={20}
+                    className="w-5 h-5 rounded-md object-contain bg-white/60"
                     onError={() => setSrcIndex(i => i + 1)}
                 />
             )}
-            <div className="absolute inset-0 rounded-lg bg-black/50 opacity-0 group-hover/logo:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
-                <Pencil className="w-3.5 h-3.5 text-white" />
+            <div className="absolute inset-0 rounded-md bg-black/50 opacity-0 group-hover/logo:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
+                <Pencil className="w-2.5 h-2.5 text-white" />
             </div>
         </div>
     )

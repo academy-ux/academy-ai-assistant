@@ -559,7 +559,7 @@ export default function CandidateReportPage() {
                     {/* Title area */}
                     <div className="pt-2 md:pt-3 pb-3 md:pb-4">
                         <div className="flex items-center gap-3">
-                            {team && <ClientLogo team={team} size={44} />}
+                            {team && <ClientLogo team={team} size={22} />}
                             <div className="min-w-0">
                                 <h1 className="text-lg md:text-[22px] font-bold tracking-tight text-foreground leading-tight truncate">
                                     {projectTitle}
