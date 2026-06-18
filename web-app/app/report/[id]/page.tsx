@@ -558,8 +558,8 @@ export default function CandidateReportPage() {
 
                     {/* Title area */}
                     <div className="pt-2 md:pt-3 pb-3 md:pb-4">
-                        <div className="flex items-start gap-3">
-                            {team && <ClientLogo team={team} size={22} className="mt-0.5" />}
+                        <div className="flex items-center gap-3">
+                            {team && <ClientLogo team={team} size={44} />}
                             <div className="min-w-0">
                                 <h1 className="text-lg md:text-[22px] font-bold tracking-tight text-foreground leading-tight truncate">
                                     {projectTitle}
@@ -647,7 +647,7 @@ export default function CandidateReportPage() {
                         <button
                             onClick={handleExport}
                             disabled={exporting || candidates.length === 0}
-                            className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium transition-[color,background-color,transform] duration-200 ease-smooth whitespace-nowrap bg-foreground text-background hover:bg-foreground/90 active:scale-[0.97] disabled:opacity-40 disabled:pointer-events-none"
+                            className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium transition-[color,background-color,transform] duration-200 ease-smooth whitespace-nowrap border border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted/30 active:scale-[0.97] disabled:opacity-40 disabled:pointer-events-none"
                         >
                             {exportResult ? (
                                 <>
