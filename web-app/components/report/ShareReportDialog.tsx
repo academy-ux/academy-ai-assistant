@@ -125,27 +125,41 @@ export function ShareReportDialog({ open, onClose, postingId, postingTitle }: Sh
                             onClick={() => setMode('anyone')}
                             className={cn(
                                 "flex items-start gap-2.5 p-3 rounded-xl border text-left transition-colors",
-                                mode === 'anyone' ? "border-primary/40 bg-primary/5" : "border-border/40 hover:bg-muted/30"
+                                mode === 'anyone'
+                                    ? "border-foreground bg-foreground/[0.04] ring-1 ring-foreground/20 shadow-sm"
+                                    : "border-border/40 hover:border-border hover:bg-muted/20"
                             )}
                         >
-                            <Globe className={cn("h-4 w-4 mt-0.5 shrink-0", mode === 'anyone' ? "text-primary" : "text-muted-foreground/50")} />
+                            <Globe className={cn("h-4 w-4 mt-0.5 shrink-0", mode === 'anyone' ? "text-foreground" : "text-muted-foreground/50")} />
                             <div>
-                                <p className="text-xs font-semibold text-foreground">Anyone with the link</p>
+                                <p className={cn("text-xs font-semibold", mode === 'anyone' ? "text-foreground" : "text-foreground/70")}>Anyone with the link</p>
                                 <p className="text-[10px] text-muted-foreground/50 mt-0.5">No email required</p>
                             </div>
+                            {mode === 'anyone' && (
+                                <span className="ml-auto shrink-0 w-4 h-4 rounded-full bg-foreground flex items-center justify-center">
+                                    <Check className="w-2.5 h-2.5 text-background" />
+                                </span>
+                            )}
                         </button>
                         <button
                             onClick={() => setMode('restricted')}
                             className={cn(
                                 "flex items-start gap-2.5 p-3 rounded-xl border text-left transition-colors",
-                                mode === 'restricted' ? "border-primary/40 bg-primary/5" : "border-border/40 hover:bg-muted/30"
+                                mode === 'restricted'
+                                    ? "border-foreground bg-foreground/[0.04] ring-1 ring-foreground/20 shadow-sm"
+                                    : "border-border/40 hover:border-border hover:bg-muted/20"
                             )}
                         >
-                            <Lock className={cn("h-4 w-4 mt-0.5 shrink-0", mode === 'restricted' ? "text-primary" : "text-muted-foreground/50")} />
+                            <Lock className={cn("h-4 w-4 mt-0.5 shrink-0", mode === 'restricted' ? "text-foreground" : "text-muted-foreground/50")} />
                             <div>
-                                <p className="text-xs font-semibold text-foreground">Only specific people</p>
+                                <p className={cn("text-xs font-semibold", mode === 'restricted' ? "text-foreground" : "text-foreground/70")}>Only specific people</p>
                                 <p className="text-[10px] text-muted-foreground/50 mt-0.5">By email or domain</p>
                             </div>
+                            {mode === 'restricted' && (
+                                <span className="ml-auto shrink-0 w-4 h-4 rounded-full bg-foreground flex items-center justify-center">
+                                    <Check className="w-2.5 h-2.5 text-background" />
+                                </span>
+                            )}
                         </button>
                     </div>
 

@@ -26,7 +26,7 @@ export function ClientLogo({ team, size = 28, className }: ClientLogoProps) {
     if (!team || !current) {
         return (
             <div
-                className={cn("rounded-xl bg-muted flex items-center justify-center shrink-0", className)}
+                className={cn("rounded-full bg-muted flex items-center justify-center shrink-0", className)}
                 style={{ width: size, height: size }}
             >
                 <Building2 className="text-muted-foreground/60" style={{ width: size * 0.45, height: size * 0.45 }} />
@@ -40,7 +40,7 @@ export function ClientLogo({ team, size = 28, className }: ClientLogoProps) {
             alt={`${team} logo`}
             width={size}
             height={size}
-            className={cn("rounded-xl object-contain bg-white/60 shrink-0", className)}
+            className={cn("rounded-full object-contain bg-white/60 shrink-0", className)}
             style={{ width: size, height: size }}
             onError={() => setIdx(i => i + 1)}
         />

@@ -352,7 +352,7 @@ export default function SharedReportPage() {
                     {/* Tabs + search.
                         Desktop: tabs scroll on the left, search fixed on the right.
                         Mobile: search always visible on top, tabs scroll below it. */}
-                    <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 pb-1">
+                    <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
                         {/* Search */}
                         <div className="order-1 md:order-2 md:shrink-0 w-full md:w-60 pb-2 md:pb-0">
                             <div className="relative">
@@ -379,8 +379,8 @@ export default function SharedReportPage() {
                             </div>
                         </div>
 
-                        {/* Tabs */}
-                        <div className="order-2 md:order-1 min-w-0 md:flex-1">
+                        {/* Tabs — pulled down 1px so the active underline sits on the header's divider */}
+                        <div className="order-2 md:order-1 min-w-0 md:flex-1 -mb-px">
                             <ReportTabs
                                 defaultValue="presenting"
                                 options={tabs}

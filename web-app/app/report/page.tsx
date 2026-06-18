@@ -103,7 +103,7 @@ function LogoImg({ team }: { team: string }) {
                     onMouseDown={e => e.stopPropagation()}
                     onKeyDown={e => { if (e.key === 'Escape') cancel(e as any) }}
                     placeholder="company.com"
-                    className="w-28 h-8 px-2 text-xs border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="w-28 h-8 px-2 text-xs border rounded-full bg-background focus:outline-none focus:ring-1 focus:ring-primary"
                 />
                 <button type="submit" className="p-1 hover:bg-muted rounded" onClick={save}>
                     <Check className="w-3.5 h-3.5 text-green-600" />
@@ -118,7 +118,7 @@ function LogoImg({ team }: { team: string }) {
     return (
         <div className="relative shrink-0 group/logo" onClick={startEditing}>
             {!current || !team ? (
-                <div className="w-5 h-5 rounded-md bg-muted flex items-center justify-center">
+                <div className="w-5 h-5 rounded-full bg-muted flex items-center justify-center">
                     <Building2 className="w-3 h-3 text-muted-foreground" />
                 </div>
             ) : (
@@ -127,11 +127,11 @@ function LogoImg({ team }: { team: string }) {
                     alt={`${team} logo`}
                     width={20}
                     height={20}
-                    className="w-5 h-5 rounded-md object-contain bg-white/60"
+                    className="w-5 h-5 rounded-full object-contain bg-white/60"
                     onError={() => setSrcIndex(i => i + 1)}
                 />
             )}
-            <div className="absolute inset-0 rounded-md bg-black/50 opacity-0 group-hover/logo:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
+            <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover/logo:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
                 <Pencil className="w-2.5 h-2.5 text-white" />
             </div>
         </div>

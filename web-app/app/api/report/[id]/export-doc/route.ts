@@ -4,7 +4,27 @@ import { getToken } from 'next-auth/jwt'
 import { google } from 'googleapis'
 import { fetchCandidatesForPosting, LeverCandidate } from '@/lib/lever'
 import { generatePitch, fetchJobDescription } from '@/lib/pitch'
+import { ensureCurrentRoles } from '@/lib/resume-role'
 import { supabase } from '@/lib/supabase'
+
+// Shared shape for the extra per-candidate fields surfaced in the client view.
+interface CandidateExtras {
+    pitch?: string
+    password?: string
+    experience?: string
+    salary?: string
+    currentTitle?: string
+    currentCompany?: string
+}
+
+function appliedDateLabel(createdAt?: number): string {
+    if (!createdAt) return ''
+    try {
+        return new Date(createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    } catch {
+        return ''
+    }
+}
 
 const FOLDER_NAME = 'Academy Reports'
 
@@ -132,14 +152,16 @@ function simpleHash(str: string): string {
 }
 
 // Bump STYLE_VERSION to force re-render of all candidates on next sync
-const STYLE_VERSION = 3
+const STYLE_VERSION = 4
 
-function candidateFingerprint(c: LeverCandidate, opts: { pitch?: string; password?: string; experience?: string }): string {
+function candidateFingerprint(c: LeverCandidate, opts: CandidateExtras): string {
     return simpleHash([
         `v${STYLE_VERSION}`,
         c.name, c.headline || '', typeof c.location === 'string' ? c.location : '',
         (c.links || []).map(l => l.url).join(','),
         opts.pitch || '', opts.password || '', opts.experience || '',
+        opts.salary || '', opts.currentTitle || '', opts.currentCompany || '',
+        appliedDateLabel(c.createdAt),
     ].join('|'))
 }
 
@@ -370,10 +392,13 @@ class DocBuilder {
         return this
     }
 
-    candidateEntry(c: LeverCandidate, opts?: { pitch?: string; password?: string; experience?: string }) {
+    candidateEntry(c: LeverCandidate, opts?: CandidateExtras) {
         const { linkedin, portfolio, otherLinks } = getCandidateLinks(c)
         const location = typeof c.location === 'string' ? c.location : ''
-        const headline = c.headline || ''
+        // Prefer the candidate's current role parsed from their resume.
+        const headline = (opts?.currentTitle && opts?.currentCompany)
+            ? `${opts.currentTitle} at ${opts.currentCompany}`
+            : (opts?.currentTitle || opts?.currentCompany || c.headline || '')
 
         // ── Single line: **Name** — Headline | LinkedIn | Portfolio | ... ──
         const lineStart = this.idx
@@ -521,6 +546,57 @@ class DocBuilder {
             }, 'foregroundColor,fontSize,weightedFontFamily,italic,underline')
             this.newline()
             this.paragraphStyle(expLineStart, {
+                spaceAbove: { magnitude: 1, unit: 'PT' },
+                spaceBelow: { magnitude: 0, unit: 'PT' },
+            }, 'spaceAbove,spaceBelow')
+        }
+
+        // ── Line 5: Salary ──
+        if (opts?.salary) {
+            const salLineStart = this.idx
+            this.styledText('Salary: ', {
+                bold: true,
+                foregroundColor: { color: { rgbColor: COLORS.charcoal } },
+                fontSize: { magnitude: PT.bodyText, unit: 'PT' },
+                weightedFontFamily: { fontFamily: FONTS.body, weight: 700 },
+                italic: false,
+                underline: false,
+            }, 'bold,foregroundColor,fontSize,weightedFontFamily,italic,underline')
+            this.styledText(opts.salary, {
+                foregroundColor: { color: { rgbColor: COLORS.body } },
+                fontSize: { magnitude: PT.bodyText, unit: 'PT' },
+                weightedFontFamily: { fontFamily: FONTS.body, weight: 400 },
+                italic: false,
+                underline: false,
+            }, 'foregroundColor,fontSize,weightedFontFamily,italic,underline')
+            this.newline()
+            this.paragraphStyle(salLineStart, {
+                spaceAbove: { magnitude: 1, unit: 'PT' },
+                spaceBelow: { magnitude: 0, unit: 'PT' },
+            }, 'spaceAbove,spaceBelow')
+        }
+
+        // ── Line 6: Applied date ──
+        const appliedLabel = appliedDateLabel(c.createdAt)
+        if (appliedLabel) {
+            const appLineStart = this.idx
+            this.styledText('Applied: ', {
+                bold: true,
+                foregroundColor: { color: { rgbColor: COLORS.charcoal } },
+                fontSize: { magnitude: PT.bodyText, unit: 'PT' },
+                weightedFontFamily: { fontFamily: FONTS.body, weight: 700 },
+                italic: false,
+                underline: false,
+            }, 'bold,foregroundColor,fontSize,weightedFontFamily,italic,underline')
+            this.styledText(appliedLabel, {
+                foregroundColor: { color: { rgbColor: COLORS.body } },
+                fontSize: { magnitude: PT.bodyText, unit: 'PT' },
+                weightedFontFamily: { fontFamily: FONTS.body, weight: 400 },
+                italic: false,
+                underline: false,
+            }, 'foregroundColor,fontSize,weightedFontFamily,italic,underline')
+            this.newline()
+            this.paragraphStyle(appLineStart, {
                 spaceAbove: { magnitude: 1, unit: 'PT' },
                 spaceBelow: { magnitude: 0, unit: 'PT' },
             }, 'spaceAbove,spaceBelow')
@@ -756,7 +832,9 @@ async function ensureFolder(drive: any): Promise<string> {
 
 const LOGO_URL = 'https://academy-ai-assistant.vercel.app/academy-logo-horizontal-3-1024x235.png'
 
-function buildDocContent(b: DocBuilder, projectTitle: string, groups: CandidateGroups, pitchMap: Map<string, string>, passwordMap: Map<string, string>, experienceMap: Map<string, string>) {
+interface RoleInfo { title: string | null; company: string | null }
+
+function buildDocContent(b: DocBuilder, projectTitle: string, groups: CandidateGroups, pitchMap: Map<string, string>, passwordMap: Map<string, string>, experienceMap: Map<string, string>, salaryMap: Map<string, string>, roleMap: Map<string, RoleInfo>) {
     const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
 
     b.documentMargins()
@@ -784,10 +862,14 @@ function buildDocContent(b: DocBuilder, projectTitle: string, groups: CandidateG
             for (const c of section.candidates) {
                 const pw = c.email ? passwordMap.get(c.email) : undefined
                 const exp = c.email ? experienceMap.get(c.email) : undefined
-                const opts = {
+                const role = roleMap.get(c.id)
+                const opts: CandidateExtras = {
                     pitch: section.type === 'presenting' ? pitchMap.get(c.id) : undefined,
                     password: pw,
                     experience: exp,
+                    salary: c.email ? salaryMap.get(c.email) : undefined,
+                    currentTitle: role?.title || undefined,
+                    currentCompany: role?.company || undefined,
                 }
                 const hash = candidateFingerprint(c, opts)
 
@@ -815,7 +897,7 @@ interface CandidateSyncData {
     c: LeverCandidate
     sectionKey: string
     type: 'presenting' | 'standard' | 'archived'
-    opts: { pitch?: string; password?: string; experience?: string }
+    opts: CandidateExtras
     hash: string
 }
 
@@ -850,6 +932,8 @@ async function syncDocSurgical(
     pitchMap: Map<string, string>,
     passwordMap: Map<string, string>,
     experienceMap: Map<string, string>,
+    salaryMap: Map<string, string>,
+    roleMap: Map<string, RoleInfo>,
 ): Promise<boolean> {
     // 1. Read existing document and its named ranges
     const doc = await docsApi.documents.get({ documentId })
@@ -899,7 +983,13 @@ async function syncDocSurgical(
             const pw = c.email ? passwordMap.get(c.email) : undefined
             const exp = c.email ? experienceMap.get(c.email) : undefined
             const pitch = type === 'presenting' ? pitchMap.get(c.id) : undefined
-            const opts = { pitch, password: pw, experience: exp }
+            const role = roleMap.get(c.id)
+            const opts: CandidateExtras = {
+                pitch, password: pw, experience: exp,
+                salary: c.email ? salaryMap.get(c.email) : undefined,
+                currentTitle: role?.title || undefined,
+                currentCompany: role?.company || undefined,
+            }
             const hash = candidateFingerprint(c, opts)
             currentCandidates.push({ c, sectionKey: def.key, type, opts, hash })
         }
@@ -1193,24 +1283,44 @@ export async function POST(request: NextRequest, props: { params: Promise<{ id: 
         // Collect all emails once for subsequent lookups
         const allEmails = candidates.map(c => c.email).filter(Boolean) as string[]
 
-        // 4. Fetch cached years of experience from Supabase
+        // 4. Fetch cached experience + salary; resolve current roles from resumes.
         const experienceMap = new Map<string, string>()
+        const salaryMap = new Map<string, string>()
         if (allEmails.length > 0) {
             const { data: profiles } = await supabase
                 .from('candidate_profiles')
-                .select('candidate_email, years_of_experience')
+                .select('candidate_email, years_of_experience, salary_expectations')
                 .in('candidate_email', allEmails)
             for (const p of profiles || []) {
+                if ((p as any).salary_expectations) salaryMap.set(p.candidate_email, (p as any).salary_expectations)
                 if (p.years_of_experience) {
                     try {
                         const exp = JSON.parse(p.years_of_experience)
-                        if (exp.relevantYears !== undefined || exp.totalYears !== undefined) {
-                            const years = exp.relevantYears ?? exp.totalYears
-                            experienceMap.set(p.candidate_email, `${years} yrs${exp.summary ? ` — ${exp.summary}` : ''}`)
+                        const rel = exp.relevantYears
+                        const tot = exp.totalYears
+                        let label = ''
+                        if (rel != null && tot != null && tot !== rel) label = `${rel} yrs relevant · ${tot} yrs total`
+                        else if (rel != null) label = `${rel} yrs`
+                        else if (tot != null) label = `${tot} yrs`
+                        if (label) {
+                            if (exp.summary) label += ` — ${exp.summary}`
+                            experienceMap.set(p.candidate_email, label)
                         }
                     } catch { /* not JSON, skip */ }
                 }
             }
+        }
+
+        // Resolve current title/company from resumes (cached; only uncached hit Lever).
+        let roleMap = new Map<string, RoleInfo>()
+        try {
+            const roleResults = await ensureCurrentRoles(
+                candidates.map(c => ({ id: c.id, email: c.email || null })),
+                postingId,
+            )
+            roleMap = new Map<string, RoleInfo>(Object.entries(roleResults))
+        } catch (e) {
+            console.error('[Export] Failed to resolve current roles:', e)
         }
 
         // 5. Fetch portfolio passwords
@@ -1305,7 +1415,7 @@ export async function POST(request: NextRequest, props: { params: Promise<{ id: 
         if (documentId) {
             // Try surgical sync first (preserves comments on unchanged candidates)
             const surgicalOk = await syncDocSurgical(
-                docsApi, documentId, groups, pitchMap, passwordMap, experienceMap,
+                docsApi, documentId, groups, pitchMap, passwordMap, experienceMap, salaryMap, roleMap,
             )
 
             if (surgicalOk) {
@@ -1318,7 +1428,7 @@ export async function POST(request: NextRequest, props: { params: Promise<{ id: 
                 console.log(`[Export] Fallback clear-and-rebuild for doc ${documentId}`)
 
                 const b = new DocBuilder()
-                buildDocContent(b, projectTitle, groups, pitchMap, passwordMap, experienceMap)
+                buildDocContent(b, projectTitle, groups, pitchMap, passwordMap, experienceMap, salaryMap, roleMap)
                 await docsApi.documents.batchUpdate({
                     documentId,
                     requestBody: { requests: b.requests },
@@ -1341,7 +1451,7 @@ export async function POST(request: NextRequest, props: { params: Promise<{ id: 
 
             // Build and apply content with named ranges
             const b = new DocBuilder()
-            buildDocContent(b, projectTitle, groups, pitchMap, passwordMap, experienceMap)
+            buildDocContent(b, projectTitle, groups, pitchMap, passwordMap, experienceMap, salaryMap, roleMap)
             await docsApi.documents.batchUpdate({
                 documentId,
                 requestBody: { requests: b.requests },
