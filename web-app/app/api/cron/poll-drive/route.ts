@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { decryptToken } from '@/lib/crypto'
 import { exchangeRefreshToken } from '@/lib/auth'
 import { pollFolder } from '@/lib/drive-polling'
+import { sendSystemAlert } from '@/lib/alerts'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60 // Pro plan allows up to 60s
@@ -117,8 +118,42 @@ export async function GET(req: NextRequest) {
 
   console.log('[Cron Poll] ========== COMPLETE ==========')
 
+  // Surface unattended failures to Slack. Before this, a bad Gemini key (or any
+  // systemic ingestion failure) could zero out imports for weeks with the only
+  // trace being console logs nobody reads. We alert on three signals:
+  //   - embeddingFailures: transcripts imported but with no embedding (service down)
+  //   - errors: files that failed to import entirely
+  //   - reauthRequired: a user's Google grant died and was cleared
+  const totalEmbeddingFailures = results.reduce((sum, r) => sum + ('embeddingFailures' in r ? r.embeddingFailures : 0), 0)
+  const totalErrors = results.reduce((sum, r) => sum + ('errors' in r ? r.errors : 0), 0)
+  const reauthUsers = results.filter((r) => 'reauthRequired' in r && r.reauthRequired).map((r) => r.email)
+
+  if (totalEmbeddingFailures > 0 || totalErrors > 0 || reauthUsers.length > 0) {
+    // Embedding failures across the board almost always mean a dead GEMINI_API_KEY
+    // — treat that as critical since it silently degrades every import.
+    const severity = totalEmbeddingFailures > 0 ? 'critical' : 'warning'
+    await sendSystemAlert({
+      title: 'Drive poll cron degraded',
+      severity,
+      details: {
+        'Users polled': users.length,
+        'Imported without embedding': totalEmbeddingFailures,
+        'Failed imports (errors)': totalErrors,
+        ...(reauthUsers.length > 0 ? { 'Reconnect required': reauthUsers.join(', ') } : {}),
+        'Likely cause': totalEmbeddingFailures > 0
+          ? 'GEMINI_API_KEY invalid/expired — rotate it and redeploy'
+          : 'See runtime logs for per-file errors',
+      },
+    })
+  }
+
   return NextResponse.json({
     message: `Polled ${users.length} user(s)`,
     results,
+    summary: {
+      embeddingFailures: totalEmbeddingFailures,
+      errors: totalErrors,
+      reauthRequired: reauthUsers,
+    },
   })
 }

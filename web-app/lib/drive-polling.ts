@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { google, drive_v3 } from 'googleapis'
-import { generateEmbedding } from '@/lib/embeddings'
+import { generateEmbeddingSafe } from '@/lib/embeddings'
 import { parseTranscriptMetadata } from '@/lib/transcript-parser'
 
 /**
@@ -53,7 +53,7 @@ export async function pollFolder(
   userEmail: string,
   fastMode: boolean = true,
   includeSubfolders: boolean = true
-): Promise<{ imported: number; skipped: number; errors: number }> {
+): Promise<{ imported: number; skipped: number; errors: number; embeddingFailures: number }> {
   const auth = new google.auth.OAuth2()
   auth.setCredentials({ access_token: accessToken })
   const drive = google.drive({ version: 'v3', auth })
@@ -151,6 +151,7 @@ export async function pollFolder(
   let imported = 0
   let skipped = 0
   let errors = 0
+  let embeddingFailures = 0
   let consecutiveSkipped = 0
 
   // Process files in batches
@@ -268,7 +269,14 @@ export async function pollFolder(
         }
 
         const metadata = await parseTranscriptMetadata(text, file.name || '')
-        const embedding = await generateEmbedding(text)
+        // Fail-open: if the embedding service is down (bad key, quota, outage),
+        // import the transcript anyway with a null embedding rather than losing
+        // it entirely. Null-embedding rows are found and backfilled later via
+        // `where embedding is null`. We count these so the caller can alert.
+        const embedding = await generateEmbeddingSafe(text)
+        if (embedding === null) {
+          embeddingFailures++
+        }
 
         // Generate a descriptive meeting title
         const meetingDate = file.createdTime 
@@ -380,7 +388,8 @@ export async function pollFolder(
   console.log(`[Poll] ✅ Imported: ${imported}`)
   console.log(`[Poll] ⏭️  Skipped: ${skipped}`)
   console.log(`[Poll] ❌ Errors: ${errors}`)
+  console.log(`[Poll] ⚠️  Imported without embedding: ${embeddingFailures}`)
   console.log(`[Poll] ================================`)
 
-  return { imported, skipped, errors }
+  return { imported, skipped, errors, embeddingFailures }
 }
