@@ -17,6 +17,7 @@ export interface LeverCandidate {
   isUncategorized: boolean
   archivedAt: number | null
   archivedReason: string | null
+  archivedReasonText: string | null
   answers: any[]
 }
 
@@ -77,6 +78,26 @@ function getLeverAuth(): string {
   return `Basic ${Buffer.from(leverKey + ':').toString('base64')}`
 }
 
+// Archive reason id → text ("Withdrew", "Offer Declined", …), cached 1h.
+let archiveReasonsCache: { map: Record<string, string>; ts: number } | null = null
+export async function fetchArchiveReasons(): Promise<Record<string, string>> {
+  if (archiveReasonsCache && Date.now() - archiveReasonsCache.ts < 60 * 60 * 1000) {
+    return archiveReasonsCache.map
+  }
+  try {
+    const res = await fetch('https://api.lever.co/v1/archive_reasons', {
+      headers: { Authorization: getLeverAuth() },
+    })
+    if (!res.ok) return archiveReasonsCache?.map || {}
+    const data = await res.json()
+    const map = Object.fromEntries((data.data || []).map((r: any) => [r.id, r.text]))
+    archiveReasonsCache = { map, ts: Date.now() }
+    return map
+  } catch {
+    return archiveReasonsCache?.map || {}
+  }
+}
+
 export async function fetchCandidatesForPosting(postingId?: string): Promise<LeverCandidate[]> {
   const auth = getLeverAuth()
 
@@ -126,6 +147,8 @@ export async function fetchCandidatesForPosting(postingId?: string): Promise<Lev
     }
   }
 
+  const archiveReasons = await fetchArchiveReasons()
+
   let candidates: LeverCandidate[] = allOpportunities.map((opp: any) => {
     const app = opp.applications?.[0]
 
@@ -168,8 +191,10 @@ export async function fetchCandidatesForPosting(postingId?: string): Promise<Lev
       stage: opp.stage?.text || 'Unknown Stage',
       createdAt: opp.createdAt,
       isUncategorized: !hasPosting,
-      archivedAt: opp.archivedAt || null,
-      archivedReason: opp.archivedReason || null,
+      archivedAt: opp.archivedAt || opp.archived?.archivedAt || null,
+      archivedReason: opp.archivedReason || opp.archived?.reason || null,
+      archivedReasonText:
+        archiveReasons[opp.archivedReason || opp.archived?.reason || ''] || null,
       answers
     }
   })

@@ -205,6 +205,9 @@ function ExportOverlay({
     )
 }
 
+// Google Docs export is unreliable right now — hidden until fixed (flip to re-enable).
+const EXPORT_ENABLED = false
+
 export default function CandidateReportPage() {
     const params = useParams()
     const router = useRouter()
@@ -323,7 +326,8 @@ export default function CandidateReportPage() {
         const presentingCandidates = candidateList.filter(c => {
             if (c.archivedAt || !c.email) return false
             const stage = c.stage.toLowerCase()
-            return stage.includes('present') || stage.includes('offer')
+            // presenting + already-interviewing candidates all need pitches
+            return stage.includes('present') || stage.includes('offer') || stage === 'client interview'
         })
 
         if (!presentingCandidates.length) return
@@ -644,7 +648,7 @@ export default function CandidateReportPage() {
                             </>
                         )}
 
-                        <button
+                        {EXPORT_ENABLED && <button
                             onClick={handleExport}
                             disabled={exporting || candidates.length === 0}
                             className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium transition-[color,background-color,transform] duration-200 ease-smooth whitespace-nowrap border border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted/30 active:scale-[0.97] disabled:opacity-40 disabled:pointer-events-none"
@@ -660,7 +664,7 @@ export default function CandidateReportPage() {
                                     <span>Export to Google Doc</span>
                                 </>
                             )}
-                        </button>
+                        </button>}
                     </div>
                 </div>
                 <AnimatePresence mode="popLayout">

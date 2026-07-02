@@ -132,6 +132,7 @@ export async function GET(
         isUncategorized: c.isUncategorized,
         archivedAt: c.archivedAt,
         archivedReason: c.archivedReason,
+        archivedReasonText: c.archivedReasonText,
         // Enriched, client-facing fields:
         pitch: (c.email ? pitchByEmail.get(c.email) : null) || null,
         salary: profile?.salary || null,

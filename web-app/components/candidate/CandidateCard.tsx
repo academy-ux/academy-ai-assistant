@@ -16,6 +16,7 @@ export interface Candidate {
     description?: string
     archivedAt?: number | null
     archivedReason?: string | null
+    archivedReasonText?: string | null
     // Enriched fields surfaced on the shared/client report (resolved server-side from email)
     pitch?: string | null
     relevantYears?: number | null

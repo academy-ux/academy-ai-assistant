@@ -1,7 +1,7 @@
 "use client"
 
 import { Badge } from "@/components/ui/badge"
-import { MapPin, ChevronRight, Globe, Loader2, Briefcase, Check, X } from "lucide-react"
+import { MapPin, ChevronRight, Globe, Loader2, Briefcase, Check, X, ExternalLink } from "lucide-react"
 import { Candidate } from "./CandidateCard"
 import { cn } from "@/lib/utils"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -357,6 +357,18 @@ export function CandidateTable({ candidates, onSelect, selectedId, stages, onRef
                                     )
                                 })}
                             </div>
+                            {!readOnly && (
+                                <a
+                                    href={`https://hire.lever.co/candidates/${candidate.id}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="shrink-0 p-1.5 rounded-lg text-muted-foreground/25 hover:text-foreground hover:bg-primary/5 transition-colors duration-200"
+                                    title="Open in Lever"
+                                >
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                </a>
+                            )}
                             <ChevronRight className={cn(
                                 "h-4 w-4 transition-[color,transform] duration-300 ease-smooth",
                                 isSelected ? "text-primary" : "text-muted-foreground/15 group-hover:text-muted-foreground/40 group-hover:translate-x-0.5"

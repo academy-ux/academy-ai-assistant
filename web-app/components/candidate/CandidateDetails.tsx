@@ -65,6 +65,8 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
     const [meetings, setMeetings] = useState<Meeting[]>([])
     const [newNote, setNewNote] = useState("")
     const [savingNote, setSavingNote] = useState(false)
+    const [newInternalNote, setNewInternalNote] = useState("")
+    const [savingInternalNote, setSavingInternalNote] = useState(false)
     const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null)
     const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
     const [editingNoteContent, setEditingNoteContent] = useState("")
@@ -331,29 +333,32 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
         }
     }
 
-    const handleAddNote = async () => {
-        if (!newNote.trim() || !candidate.email) return
-        setSavingNote(true)
+    const postNote = async (content: string, source: 'internal' | null, clear: () => void, setSaving: (b: boolean) => void) => {
+        if (!content.trim() || !candidate.email) return
+        setSaving(true)
         try {
             const res = await fetch(`/api/candidates/${candidate.email}/notes`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    content: newNote,
-                    author: session?.user?.name || session?.user?.email || "Unknown"
+                    content,
+                    author: session?.user?.name || session?.user?.email || "Unknown",
+                    ...(source ? { source } : {}),
                 })
             })
             if (res.ok) {
-                setNewNote("")
+                clear()
                 fetchContext()
                 toast.success("Note added")
             }
         } catch (e) {
             toast.error("Failed to save note")
         } finally {
-            setSavingNote(false)
+            setSaving(false)
         }
     }
+    const handleAddNote = () => postNote(newNote, null, () => setNewNote(""), setSavingNote)
+    const handleAddInternalNote = () => postNote(newInternalNote, 'internal', () => setNewInternalNote(""), setSavingInternalNote)
 
     const handleDeleteNote = async (noteId: string) => {
         if (!candidate.email || deletingNoteId) return
@@ -433,6 +438,7 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                 body: JSON.stringify({
                     candidateName: candidate.name,
                     postingId: postingId,
+                    links: normalizedLinks,
                 })
             })
             const data = await res.json()
@@ -472,6 +478,68 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
     const canModifyNote = (note: Note) =>
         isAdminUser || note.created_by === session?.user?.name || note.created_by === session?.user?.email
 
+    const renderNote = (note: Note) => (
+        <div key={note.id} className="group/note p-3 rounded-xl bg-card/50 border border-border/10 hover:border-border/20 transition-colors duration-200">
+            <div className="flex items-center justify-between mb-1.5 gap-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="text-[10px] font-bold text-primary/60 truncate">{note.created_by}</span>
+                    {note.source === 'client' && (
+                        <span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-peach/20 text-foreground/50 shrink-0">Client</span>
+                    )}
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="text-[10px] text-muted-foreground/30">{new Date(note.created_at).toLocaleDateString()}</span>
+                    {canModifyNote(note) && editingNoteId !== note.id && (
+                        <div className="flex items-center gap-0.5">
+                            <button
+                                onClick={() => { setEditingNoteId(note.id); setEditingNoteContent(note.content) }}
+                                className="p-1 rounded-md text-muted-foreground/30 hover:text-foreground hover:bg-muted/40 transition-colors"
+                                title="Edit comment"
+                            >
+                                <Pencil className="w-3 h-3" />
+                            </button>
+                            <button
+                                onClick={() => handleDeleteNote(note.id)}
+                                disabled={deletingNoteId === note.id}
+                                className="p-1 rounded-md text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                title="Delete comment"
+                            >
+                                {deletingNoteId === note.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
+            {editingNoteId === note.id ? (
+                <div className="space-y-2">
+                    <Textarea
+                        value={editingNoteContent}
+                        onChange={(e) => setEditingNoteContent(e.target.value)}
+                        className="min-h-[60px] bg-muted/15 border-border/15 rounded-lg p-2.5 text-xs font-medium resize-none"
+                    />
+                    <div className="flex items-center justify-end gap-1.5">
+                        <button
+                            onClick={() => { setEditingNoteId(null); setEditingNoteContent("") }}
+                            className="px-2.5 h-7 rounded-lg text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50 hover:text-foreground hover:bg-muted/30 transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={() => handleEditNote(note.id)}
+                            disabled={!editingNoteContent.trim() || savingNoteEdit}
+                            className="inline-flex items-center gap-1.5 px-2.5 h-7 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-wider hover:bg-primary/90 transition-colors disabled:opacity-50"
+                        >
+                            {savingNoteEdit ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                            Save
+                        </button>
+                    </div>
+                </div>
+            ) : (
+                <p className="text-xs text-foreground/70 leading-relaxed">{note.content}</p>
+            )}
+        </div>
+    )
+
     return (
         <div className="flex flex-col h-full space-y-6 md:space-y-8">
             {/* Hero */}
@@ -488,6 +556,15 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                             {candidate.headline || "No headline"}
                         </p>
                     </div>
+                    <a
+                        href={`https://hire.lever.co/candidates/${candidate.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-muted/30 text-[11px] font-semibold text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors duration-200"
+                        title="Open in Lever (staff only — clients never see this)"
+                    >
+                        <ExternalLink className="w-3 h-3" /> Lever
+                    </a>
                 </div>
 
                 {/* Quick links */}
@@ -751,93 +828,44 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                 </div>
             </div>
 
-            {/* Notes */}
-            <div className="space-y-3 pt-4 border-t border-border/15">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">Team Feedback</span>
-
-                <div className="relative">
-                    <Textarea
-                        placeholder="Add a note..."
-                        value={newNote}
-                        onChange={(e) => setNewNote(e.target.value)}
-                        className="min-h-[80px] bg-muted/15 border-border/15 rounded-xl p-3 pr-12 text-xs font-medium focus:bg-muted/25 transition-[background-color,border-color] duration-200 resize-none"
-                    />
-                    <Button
-                        size="icon"
-                        disabled={!newNote.trim() || savingNote}
-                        onClick={handleAddNote}
-                        className="absolute bottom-2.5 right-2.5 h-7 w-7 rounded-lg bg-peach text-foreground shadow-sm hover:bg-peach/80 transition-colors duration-200"
-                    >
-                        {savingNote ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-                    </Button>
-                </div>
-
-                {notes.length > 0 && (
-                    <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
-                        {notes.map((note) => (
-                            <div key={note.id} className="group/note p-3 rounded-xl bg-card/50 border border-border/10 hover:border-border/20 transition-colors duration-200">
-                                <div className="flex items-center justify-between mb-1.5 gap-2">
-                                    <div className="flex items-center gap-1.5 min-w-0">
-                                        <span className="text-[10px] font-bold text-primary/60 truncate">{note.created_by}</span>
-                                        {note.source === 'client' && (
-                                            <span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-peach/20 text-foreground/50 shrink-0">Client</span>
-                                        )}
-                                    </div>
-                                    <div className="flex items-center gap-1.5 shrink-0">
-                                        <span className="text-[10px] text-muted-foreground/30">{new Date(note.created_at).toLocaleDateString()}</span>
-                                        {canModifyNote(note) && editingNoteId !== note.id && (
-                                            <div className="flex items-center gap-0.5">
-                                                <button
-                                                    onClick={() => { setEditingNoteId(note.id); setEditingNoteContent(note.content) }}
-                                                    className="p-1 rounded-md text-muted-foreground/30 hover:text-foreground hover:bg-muted/40 transition-colors"
-                                                    title="Edit comment"
-                                                >
-                                                    <Pencil className="w-3 h-3" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDeleteNote(note.id)}
-                                                    disabled={deletingNoteId === note.id}
-                                                    className="p-1 rounded-md text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-colors"
-                                                    title="Delete comment"
-                                                >
-                                                    {deletingNoteId === note.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                                {editingNoteId === note.id ? (
-                                    <div className="space-y-2">
-                                        <Textarea
-                                            value={editingNoteContent}
-                                            onChange={(e) => setEditingNoteContent(e.target.value)}
-                                            className="min-h-[60px] bg-muted/15 border-border/15 rounded-lg p-2.5 text-xs font-medium resize-none"
-                                        />
-                                        <div className="flex items-center justify-end gap-1.5">
-                                            <button
-                                                onClick={() => { setEditingNoteId(null); setEditingNoteContent("") }}
-                                                className="px-2.5 h-7 rounded-lg text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50 hover:text-foreground hover:bg-muted/30 transition-colors"
-                                            >
-                                                Cancel
-                                            </button>
-                                            <button
-                                                onClick={() => handleEditNote(note.id)}
-                                                disabled={!editingNoteContent.trim() || savingNoteEdit}
-                                                className="inline-flex items-center gap-1.5 px-2.5 h-7 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-wider hover:bg-primary/90 transition-colors disabled:opacity-50"
-                                            >
-                                                {savingNoteEdit ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                                                Save
-                                            </button>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <p className="text-xs text-foreground/70 leading-relaxed">{note.content}</p>
-                                )}
-                            </div>
-                        ))}
+            {/* Notes — Team Feedback is shared with the client; Internal Only never leaves the team */}
+            {([
+                { key: 'team', title: 'Team Feedback', hint: 'Visible to the client on the shared report', list: notes.filter(n => n.source !== 'internal'), value: newNote, setValue: setNewNote, saving: savingNote, submit: handleAddNote, placeholder: 'Add a note for the team & client...' },
+                { key: 'internal', title: 'Internal Only', hint: 'Never shown to clients', list: notes.filter(n => n.source === 'internal'), value: newInternalNote, setValue: setNewInternalNote, saving: savingInternalNote, submit: handleAddInternalNote, placeholder: 'Private note — internal eyes only...' },
+            ]).map((sec) => (
+                <div key={sec.key} className="space-y-3 pt-4 border-t border-border/15">
+                    <div className="flex items-baseline gap-2">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40 flex items-center gap-1">
+                            {sec.key === 'internal' && <Lock className="w-2.5 h-2.5" />}
+                            {sec.title}
+                        </span>
+                        <span className="text-[9px] text-muted-foreground/35 font-medium">{sec.hint}</span>
                     </div>
-                )}
-            </div>
+
+                    <div className="relative">
+                        <Textarea
+                            placeholder={sec.placeholder}
+                            value={sec.value}
+                            onChange={(e) => sec.setValue(e.target.value)}
+                            className="min-h-[80px] bg-muted/15 border-border/15 rounded-xl p-3 pr-12 text-xs font-medium focus:bg-muted/25 transition-[background-color,border-color] duration-200 resize-none"
+                        />
+                        <Button
+                            size="icon"
+                            disabled={!sec.value.trim() || sec.saving}
+                            onClick={sec.submit}
+                            className="absolute bottom-2.5 right-2.5 h-7 w-7 rounded-lg bg-peach text-foreground shadow-sm hover:bg-peach/80 transition-colors duration-200"
+                        >
+                            {sec.saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                        </Button>
+                    </div>
+
+                    {sec.list.length > 0 && (
+                        <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
+                            {sec.list.map(renderNote)}
+                        </div>
+                    )}
+                </div>
+            ))}
 
             {/* Lever Link */}
             <div className="pt-4 pb-8">

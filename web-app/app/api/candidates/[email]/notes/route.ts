@@ -43,7 +43,7 @@ export async function POST(request: NextRequest, props: { params: Promise<{ emai
     const params = await props.params;
     try {
         const email = params.email
-        const { content, author } = await request.json()
+        const { content, author, source } = await request.json()
 
         if (!email || !content) {
             return NextResponse.json({ error: 'Email and content are required' }, { status: 400 })
@@ -56,6 +56,8 @@ export async function POST(request: NextRequest, props: { params: Promise<{ emai
                     candidate_email: email,
                     content,
                     created_by: author,
+                    // 'internal' notes never reach the shared client report
+                    source: source === 'internal' ? 'internal' : null,
                     created_at: new Date().toISOString()
                 }
             ])

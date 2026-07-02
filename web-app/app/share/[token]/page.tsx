@@ -182,6 +182,7 @@ export default function SharedReportPage() {
             interviewing: [] as Candidate[],
             portfolio: [] as Candidate[],
             applied: [] as Candidate[],
+            withdrew: [] as Candidate[],
             rejected: [] as Candidate[],
             all: searched
         }
@@ -190,7 +191,12 @@ export default function SharedReportPage() {
             const stage = c.stage.toLowerCase()
 
             if (c.archivedAt) {
-                groups.rejected.push(c)
+                // Candidates who took themselves out get their own section.
+                if ((c.archivedReasonText || '').toLowerCase().includes('withdrew')) {
+                    groups.withdrew.push(c)
+                } else {
+                    groups.rejected.push(c)
+                }
                 return
             }
 
@@ -305,9 +311,10 @@ export default function SharedReportPage() {
         { value: "presenting", label: "Presenting", count: filteredAndGrouped.presenting.length },
         { value: "portfolio", label: "Portfolio Interview", count: filteredAndGrouped.portfolio.length },
         { value: "applied", label: "Sourced", count: filteredAndGrouped.applied.length },
+        { value: "withdrew", label: "Withdrew", count: filteredAndGrouped.withdrew.length },
         { value: "rejected", label: "Archived", count: filteredAndGrouped.rejected.length },
         { value: "all", label: "All Applied", count: filteredAndGrouped.all.length },
-    ]
+    ].filter(t => t.value !== 'withdrew' || t.count > 0)
 
     const currentCandidates = filteredAndGrouped[activeTab as keyof typeof filteredAndGrouped] || []
     const selectedCandidate = candidates.find(c => c.id === selectedCandidateId)

@@ -34,9 +34,10 @@ export async function GET(
 
     const { data, error } = await supabase
       .from('candidate_notes')
-      .select('id, content, created_at, created_by')
+      .select('id, content, created_at, created_by, source')
       .eq('candidate_email', email)
-      .eq('source', 'client')
+      // client-authored + staff team feedback; 'internal' notes are never exposed
+      .or('source.eq.client,source.is.null')
       .order('created_at', { ascending: false })
 
     if (error) {

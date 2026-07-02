@@ -9,7 +9,7 @@ export async function POST(request: NextRequest, props: { params: Promise<{ emai
         if (!success && rateLimitResponse) return rateLimitResponse
 
         const body = await request.json()
-        const { candidateName, postingId } = body
+        const { candidateName, postingId, links } = body
 
         const email = params.email === 'unknown' ? null : decodeURIComponent(params.email)
 
@@ -18,7 +18,10 @@ export async function POST(request: NextRequest, props: { params: Promise<{ emai
         }
 
         const jobDescription = await fetchJobDescription(postingId)
-        const pitch = await generatePitch({ email, candidateName, jobDescription })
+        const safeLinks = Array.isArray(links)
+            ? links.filter((l: any) => l && typeof l.url === 'string').slice(0, 10)
+            : undefined
+        const pitch = await generatePitch({ email, candidateName, jobDescription, links: safeLinks })
 
         if (!pitch) {
             return NextResponse.json({

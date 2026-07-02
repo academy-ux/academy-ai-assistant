@@ -42,6 +42,34 @@ export async function fetchJobDescription(postingId: string): Promise<string> {
     }
 }
 
+// Best-effort text of the candidate's portfolio site — one of the four sources
+// recruiters draw on when writing blurbs by hand (transcript, resume,
+// portfolio site, feedback notes).
+async function fetchPortfolioText(links: { url: string }[] | undefined): Promise<string> {
+    if (!links?.length) return ''
+    const skip = /linkedin\.com|github\.com|twitter\.com|x\.com|mailto:|instagram\.com/i
+    const target = links.find((l) => l.url && !skip.test(l.url))
+    if (!target) return ''
+    try {
+        const res = await fetch(target.url, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AcademyAssistant/1.0)' },
+            signal: AbortSignal.timeout(8000),
+        })
+        if (!res.ok || !/text\/html/i.test(res.headers.get('content-type') || '')) return ''
+        const html = await res.text()
+        const text = html
+            .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+            .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+            .replace(/<[^>]*>/g, ' ')
+            .replace(/&[a-z]+;/gi, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+        return text.length > 200 ? `(from ${target.url})\n${text.slice(0, 3000)}` : ''
+    } catch {
+        return ''
+    }
+}
+
 /**
  * Generate an AI pitch paragraph for a candidate based on their interview transcripts.
  * Returns null if no transcripts are found.
@@ -50,6 +78,7 @@ export async function generatePitch(opts: {
     email: string | null
     candidateName: string | null
     jobDescription?: string
+    links?: { url: string }[]
 }): Promise<string | null> {
     const { email, candidateName, jobDescription } = opts
 
@@ -82,6 +111,50 @@ export async function generatePitch(opts: {
         return null
     }
 
+    // Gather the other blurb sources in parallel: resume-derived profile,
+    // team feedback notes, and the candidate's portfolio site text.
+    const [profileRes, notesRes, portfolioText] = await Promise.all([
+        email
+            ? supabase
+                .from('candidate_profiles' as any)
+                .select('current_title, current_company, years_of_experience, salary_expectations')
+                .eq('candidate_email', email)
+                .maybeSingle()
+            : Promise.resolve({ data: null }),
+        email
+            ? supabase
+                .from('candidate_notes' as any)
+                .select('content, created_by, source')
+                .eq('candidate_email', email)
+                .order('created_at', { ascending: false })
+                .limit(8)
+            : Promise.resolve({ data: [] }),
+        fetchPortfolioText(opts.links),
+    ])
+
+    const profile: any = (profileRes as any).data
+    let exp: { relevantYears?: number; totalYears?: number; summary?: string } = {}
+    try {
+        if (profile?.years_of_experience) exp = JSON.parse(profile.years_of_experience) || {}
+    } catch { /* old non-JSON format */ }
+    const resumeContext = profile
+        ? [
+            profile.current_title && profile.current_company
+                ? `Current role: ${profile.current_title} at ${profile.current_company}`
+                : profile.current_title
+                    ? `Current role: ${profile.current_title}`
+                    : '',
+            exp.relevantYears != null ? `Relevant experience: ${exp.relevantYears} years (total ${exp.totalYears ?? '?'} years)` : '',
+            exp.summary ? `Resume summary: ${exp.summary}` : '',
+        ].filter(Boolean).join('\n')
+        : ''
+
+    const notesContext = (((notesRes as any).data || []) as any[])
+        // internal-only notes stay out of anything that could reach a client
+        .filter((n) => n.source !== 'internal' && n.content)
+        .map((n) => `- ${n.source === 'client' ? '[client] ' : ''}${String(n.content).slice(0, 400)}`)
+        .join('\n')
+
     const transcriptContext = interviews.map((interview, i) => {
         const transcriptSnippet = interview.transcript
             ? interview.transcript.slice(0, 4000)
@@ -97,26 +170,30 @@ ${transcriptSnippet}`
         generationConfig: { maxOutputTokens: 4096 }
     })
 
-    const prompt = `You are a senior recruiter at Academy, a design-led recruiting firm. You are writing a pitch paragraph to present a candidate to a hiring manager/client.
+    const prompt = `You are a senior recruiter at Academy, a design-led recruiting firm. You are writing a candidate blurb to present a candidate to a hiring manager/client, in the style your team writes by hand.
 
 CANDIDATE NAME: ${candidateName || 'Unknown'}
 
-${jobDescription ? `JOB DESCRIPTION:\n${jobDescription}\n` : ''}
+${jobDescription ? `JOB DESCRIPTION:\n${jobDescription}\n` : ''}${resumeContext ? `\nRESUME / BACKGROUND:\n${resumeContext}\n` : ''}${portfolioText ? `\nPORTFOLIO SITE TEXT:\n${portfolioText}\n` : ''}${notesContext ? `\nTEAM & CLIENT FEEDBACK NOTES:\n${notesContext}\n` : ''}
 INTERVIEW DATA:
 ${transcriptContext}
 
-TASK: Write a compelling, specific pitch paragraph (4-6 sentences) about why this candidate is a strong fit for this role.
+TASK: Write one tight, specific blurb paragraph (5-7 sentences) presenting this candidate for this role.
+
+STRUCTURE (follow this order):
+1. Open with their concrete background — current/most recent role, the companies and notable clients or products they've worked on, and years of relevant experience if known.
+2. Connect their strongest, most relevant experience directly to this job description's requirements, citing REAL examples from the interview, portfolio, or resume (specific projects, systems, outcomes).
+3. Close with the recruiter's honest read: what makes them compelling for this role, and — if the sources reveal one — a brief, matter-of-fact note on any gap or thing worth validating.
 
 GUIDELINES:
-- Reference SPECIFIC things the candidate said or demonstrated in the interviews — real examples, projects, skills they discussed
-- If a job description is provided, connect the candidate's experience directly to the role's requirements
-- Include the recruiter's assessment of the candidate's strengths based on the conversation
-- Be confident but honest — avoid generic praise like "great communicator" without backing it up
-- Write in a natural, professional tone as if you're speaking to a client
-- Do NOT use bullet points — write it as a flowing paragraph
-- Do NOT include the candidate's name at the start — the reader already knows who this is about
+- Prefer specifics over adjectives: name companies, products, project types, team sizes, outcomes
+- Never invent facts — only use what the sources above support
+- Be confident but honest; skip generic praise like "great communicator" unless demonstrated
+- Natural, professional tone as if speaking to a client
+- No bullet points, one flowing paragraph
+- Do NOT start with the candidate's name — the reader already knows who this is about
 
-Return ONLY the pitch paragraph text, nothing else.`
+Return ONLY the blurb paragraph text, nothing else.`
 
     const result = await model.generateContent(prompt)
     return result.response.text().trim()
