@@ -434,6 +434,9 @@ export default function ResourcingPlanner({ data, onResync }: { data: ScheduleDa
   const projLabels = Object.keys(agg).sort((a, b) => { const s = (o: Record<string, { h: number }>) => Object.values(o).reduce((x, e) => x + e.h, 0); return s(agg[b]) - s(agg[a]) })
 
   const selS: React.CSSProperties = { fontFamily: SANS, fontSize: 12.5, padding: '7px 9px', borderRadius: 8, border: `1px solid ${C.line}`, background: '#fff', color: C.ink, width: '100%' }
+  // selects hide the browser chevron and draw one inset 12px from the right edge
+  const chevron = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%234b4d44' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`
+  const ddS: React.CSSProperties = { ...selS, appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', backgroundImage: chevron, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', paddingRight: 34 }
   const lbl: React.CSSProperties = { fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', color: C.muted, display: 'block', marginBottom: 5 }
 
   return (
@@ -555,15 +558,15 @@ export default function ResourcingPlanner({ data, onResync }: { data: ScheduleDa
           <div className="rt-modal" onMouseDown={(e) => e.stopPropagation()} style={{ width: 360, background: '#fff', borderRadius: 14, padding: '22px 22px 20px', boxShadow: '0 20px 50px rgba(39,39,39,.28)', fontFamily: SANS }}>
             <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-.02em', color: C.ink, marginBottom: 16 }}>{form.editing != null ? 'Edit ' : 'Add '}{form.type === 'timeoff' ? 'time off' : 'booking'}</div>
             {form.editing == null && <div style={{ display: 'inline-flex', background: '#e3e5de', borderRadius: 8, padding: 3, marginBottom: 16 }}>{([['booking', 'Booking'], ['timeoff', 'Time off']] as const).map(([v, t]) => (<button key={v} onClick={() => setForm((f) => (f ? { ...f, type: v } : f))} style={pill(form.type, v)}>{t}</button>))}</div>}
-            <div style={{ marginBottom: 12 }}><label style={lbl}>Person</label><select value={form.name} disabled={form.type === 'timeoff' && form.all} onChange={(e) => setForm((f) => (f ? { ...f, name: e.target.value } : f))} style={{ ...selS, opacity: form.type === 'timeoff' && form.all ? 0.5 : 1 }}>{NAMES.map((n) => <option key={n} value={n}>{n}</option>)}</select></div>
+            <div style={{ marginBottom: 12 }}><label style={lbl}>Person</label><select value={form.name} disabled={form.type === 'timeoff' && form.all} onChange={(e) => setForm((f) => (f ? { ...f, name: e.target.value } : f))} style={{ ...ddS, opacity: form.type === 'timeoff' && form.all ? 0.5 : 1 }}>{NAMES.map((n) => <option key={n} value={n}>{n}</option>)}</select></div>
             {form.type === 'timeoff' && <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: C.ink2, marginBottom: 12, cursor: 'pointer' }}><input type="checkbox" checked={form.all} onChange={(e) => setForm((f) => (f ? { ...f, all: e.target.checked } : f))} />Apply to the whole team</label>}
             {form.type === 'booking' && <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
-              <div style={{ flex: 2 }}><label style={lbl}>Client / project</label><select value={form.client} onChange={(e) => setForm((f) => (f ? { ...f, client: e.target.value } : f))} style={selS}>{CLIENTS.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
+              <div style={{ flex: 2 }}><label style={lbl}>Client / project</label><select value={form.client} onChange={(e) => setForm((f) => (f ? { ...f, client: e.target.value } : f))} style={ddS}>{CLIENTS.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
               <div style={{ flex: 1 }}><label style={lbl}>Hrs/day</label><input type="number" min={0} max={16} value={form.hrs} onChange={(e) => setForm((f) => (f ? { ...f, hrs: e.target.value } : f))} style={selS} /></div>
             </div>}
             <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
-              <div style={{ flex: 1 }}><label style={lbl}>From day</label><select value={form.start} onChange={(e) => setForm((f) => (f ? { ...f, start: e.target.value } : f))} style={selS}>{horizon.map((k) => <option key={k} value={k}>{dLabel(k)}</option>)}</select></div>
-              <div style={{ flex: 1 }}><label style={lbl}>To day</label><select value={form.end} onChange={(e) => setForm((f) => (f ? { ...f, end: e.target.value } : f))} style={selS}>{horizon.map((k) => <option key={k} value={k}>{dLabel(k)}</option>)}</select></div>
+              <div style={{ flex: 1 }}><label style={lbl}>From day</label><select value={form.start} onChange={(e) => setForm((f) => (f ? { ...f, start: e.target.value } : f))} style={ddS}>{horizon.map((k) => <option key={k} value={k}>{dLabel(k)}</option>)}</select></div>
+              <div style={{ flex: 1 }}><label style={lbl}>To day</label><select value={form.end} onChange={(e) => setForm((f) => (f ? { ...f, end: e.target.value } : f))} style={ddS}>{horizon.map((k) => <option key={k} value={k}>{dLabel(k)}</option>)}</select></div>
             </div>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
               {form.editing != null && <button onClick={deleteForm} style={{ border: `1px solid ${C.neg}44`, background: '#fff', cursor: 'pointer', fontFamily: SANS, fontSize: 13, fontWeight: 600, color: C.neg, padding: '9px 14px', borderRadius: 9 }}>Delete</button>}
