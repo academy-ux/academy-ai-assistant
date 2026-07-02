@@ -45,13 +45,15 @@ const C = {
 }
 const SANS = "'neue-haas-grotesk-display','SF Pro Display',system-ui,sans-serif"
 
-// Client bar colors — Academy-adjacent hues; unknown clients cycle the palette.
+// Client bar colors — muted earth tones tuned to the Academy olive/charcoal/
+// peach palette (similar saturation + lightness so white bar text stays
+// readable); unknown clients cycle the palette.
 const CLR: Record<string, string> = {
-  Superhuman: '#5E8568', Klarity: '#3F8377', 'G&CO': '#B98A2E', 'Big Human': '#7D6A8E',
-  'Samsara AI': '#5B7A86', 'Samsara DS': '#6E8A97', Clerky: '#B5664E', DEXScreener: '#A9762F',
-  DeepMind: '#4E6C86', Academy: '#a4a794',
+  Superhuman: '#7A8B68', Klarity: '#5E8578', 'G&CO': '#B08E4F', 'Big Human': '#8B7A93',
+  'Samsara AI': '#647E8C', 'Samsara DS': '#87999F', Clerky: '#B37E63', DEXScreener: '#8A6F3D',
+  DeepMind: '#5C6E85', Academy: '#A4A794',
 }
-const FALLBACK = ['#5E8568', '#7D6A8E', '#B98A2E', '#5B7A86', '#B5664E', '#4E6C86', '#3F8377', '#A9762F']
+const FALLBACK = ['#7A8B68', '#8B7A93', '#B08E4F', '#647E8C', '#B37E63', '#5C6E85', '#5E8578', '#8A6F3D']
 const clientColor = (client: string) => {
   if (CLR[client]) return CLR[client]
   let h = 0
@@ -236,8 +238,8 @@ export default function ResourcingPlanner({ data, onResync }: { data: ScheduleDa
 
   const NOW = new Date()
   const todayKey = ymd(NOW)
-  const [weeksN, setWeeksN] = useState(3)
-  const [anchor, setAnchor] = useState(() => addWeeks(mondayOf(NOW), -1))
+  const [weeksN, setWeeksN] = useState(1)
+  const [anchor, setAnchor] = useState(() => mondayOf(NOW))
   const { days: DAYS, weeks: WKS } = buildDays(anchor, weeksN, todayKey, LAST_ACTUAL)
   const NC = DAYS.length
   const todayIdx = DAYS.findIndex((d) => d.isToday)
