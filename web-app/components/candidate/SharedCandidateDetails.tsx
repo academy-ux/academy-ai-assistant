@@ -255,7 +255,7 @@ export function SharedCandidateDetails({ candidate, token, onDecisionChange }: S
                         {initials}
                     </div>
                     <div className="min-w-0 flex-1">
-                        <h2 className="text-2xl font-bold tracking-tight text-foreground leading-tight">
+                        <h2 className="text-2xl font-bold tracking-tight text-foreground leading-tight break-words">
                             {candidate.name}
                         </h2>
                         <p className="text-sm text-muted-foreground mt-0.5 truncate">
@@ -354,7 +354,7 @@ export function SharedCandidateDetails({ candidate, token, onDecisionChange }: S
                         <span className="text-xs font-bold text-foreground/70">The Pitch</span>
                     </div>
                     <div className="bg-muted/15 rounded-xl p-4 border border-border/10">
-                        <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">
+                        <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap break-words">
                             {candidate.pitch}
                         </p>
                     </div>
@@ -369,7 +369,7 @@ export function SharedCandidateDetails({ candidate, token, onDecisionChange }: S
                         <span className="text-xs font-bold text-foreground/70">Experience</span>
                     </div>
                     <div className="bg-muted/15 rounded-xl p-4 border border-border/10">
-                        <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">
+                        <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap break-words">
                             {candidate.experienceSummary}
                         </p>
                     </div>
@@ -524,7 +524,7 @@ export function SharedCandidateDetails({ candidate, token, onDecisionChange }: S
                                                 </div>
                                             </div>
                                         ) : (
-                                            <p className="text-xs text-foreground/70 leading-relaxed whitespace-pre-wrap">{note.content}</p>
+                                            <p className="text-xs text-foreground/70 leading-relaxed whitespace-pre-wrap break-words">{note.content}</p>
                                         )}
                                     </div>
                                 )

@@ -299,9 +299,10 @@ export default function SharedReportPage() {
         )
     }
 
+    // Most-advanced stage first, matching the internal report's order.
     const tabs = [
-        { value: "presenting", label: "Presenting", count: filteredAndGrouped.presenting.length },
         { value: "interviewing", label: "Client Interview", count: filteredAndGrouped.interviewing.length },
+        { value: "presenting", label: "Presenting", count: filteredAndGrouped.presenting.length },
         { value: "portfolio", label: "Portfolio Interview", count: filteredAndGrouped.portfolio.length },
         { value: "applied", label: "Sourced", count: filteredAndGrouped.applied.length },
         { value: "rejected", label: "Archived", count: filteredAndGrouped.rejected.length },
@@ -354,25 +355,27 @@ export default function SharedReportPage() {
                         Mobile: search always visible on top, tabs scroll below it. */}
                     <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
                         {/* Search */}
-                        <div className="order-1 md:order-2 md:shrink-0 w-full md:w-60 pb-2 md:pb-0">
+                        <div className="order-1 md:order-2 md:shrink-0 w-full md:w-60 pb-3 md:pb-0">
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/40" />
                                 <Input
                                     placeholder="Search candidates..."
-                                    className="pl-9 h-9 w-full bg-muted/30 border-transparent rounded-xl text-xs font-medium placeholder:text-muted-foreground/30 focus:bg-card focus:border-border/40 focus:shadow-sm"
+                                    className="pl-9 pr-8 h-9 w-full bg-muted/30 border-transparent rounded-xl text-xs font-medium placeholder:text-muted-foreground/30 focus:bg-card focus:border-border/40 focus:shadow-sm"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
                                 <AnimatePresence>
                                     {searchQuery && (
                                         <motion.button
+                                            type="button"
+                                            aria-label="Clear search"
                                             initial={{ opacity: 0, scale: 0.8 }}
                                             animate={{ opacity: 1, scale: 1 }}
                                             exit={{ opacity: 0, scale: 0.8 }}
                                             onClick={() => setSearchQuery("")}
-                                            className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-muted text-muted-foreground/40 hover:text-foreground transition-all"
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center h-5 w-5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                                         >
-                                            <X className="h-3 w-3" />
+                                            <X className="h-3.5 w-3.5" />
                                         </motion.button>
                                     )}
                                 </AnimatePresence>

@@ -136,6 +136,17 @@ export async function fetchCandidatesForPosting(postingId?: string): Promise<Lev
 
     const hasPosting = !!(matchedApp?.posting && matchedApp?.postingTitle)
 
+    // Application custom questions hold portfolio URL/password answers. Lever
+    // has no `answers` field on applications — the data lives in
+    // customQuestions[].fields[] as { text, value }.
+    const answers = (matchedApp?.customQuestions || [])
+      .flatMap((q: any) => q.fields || [])
+      .filter((f: any) => f && typeof f.text === 'string')
+    const answerLinks = answers
+      .map((f: any) => (typeof f.value === 'string' ? f.value.trim() : ''))
+      .filter((v: string) => /^https?:\/\/\S+$/i.test(v))
+      .map((url: string) => ({ url }))
+
     const rawLocation = opp.location || opp.contact?.location || ''
     const locationText = typeof rawLocation === 'object' && rawLocation !== null
       ? (rawLocation.name || '')
@@ -150,6 +161,7 @@ export async function fetchCandidatesForPosting(postingId?: string): Promise<Lev
       links: deduplicateLinks([
         ...(opp.links || []),
         ...(opp.contact?.links || []),
+        ...answerLinks,
       ].map(normalizeLink)),
       position: matchedApp?.postingTitle || 'Uncategorized',
       postingId: matchedApp?.posting || null,
@@ -158,7 +170,7 @@ export async function fetchCandidatesForPosting(postingId?: string): Promise<Lev
       isUncategorized: !hasPosting,
       archivedAt: opp.archivedAt || null,
       archivedReason: opp.archivedReason || null,
-      answers: matchedApp?.answers || []
+      answers
     }
   })
 

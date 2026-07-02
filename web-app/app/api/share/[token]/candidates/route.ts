@@ -138,7 +138,17 @@ export async function GET(
         relevantYears: profile?.relevantYears ?? null,
         totalYears: profile?.totalYears ?? null,
         experienceSummary: profile?.summary || null,
-        portfolioPassword: (c.email ? passwordByEmail.get(c.email) : null) || null,
+        portfolioPassword:
+          (c.email ? passwordByEmail.get(c.email) : null) ||
+          // Fallback: password answered in the Lever application's custom questions
+          (() => {
+            const pw = (c.answers || []).find((a: any) => {
+              const q = (a.text || '').toLowerCase()
+              const v = typeof a.value === 'string' ? a.value.trim() : ''
+              return v && !/^https?:\/\//i.test(v) && (q.includes('password') || q.includes('passcode'))
+            })
+            return pw?.value ? String(pw.value).trim() : null
+          })(),
         clientDecision: decision?.decision || null,
         clientDecisionBy: decision?.decidedBy || null,
         // Deliberately omitting: email, answers

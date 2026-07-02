@@ -157,9 +157,11 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                     // Try to extract portfolio password from Lever application answers
                     const pwAnswer = candidate.answers.find((a: any) => {
                         const q = (a.text || '').toLowerCase()
-                        return q.includes('password') || q.includes('passcode') || q.includes('portfolio')
+                        const v = typeof a.value === 'string' ? a.value.trim() : ''
+                        // URLs are portfolio links, not passwords
+                        return v && !/^https?:\/\//i.test(v) && (q.includes('password') || q.includes('passcode'))
                     })
-                    if (pwAnswer?.value) setPortfolioPassword(pwAnswer.value)
+                    if (pwAnswer?.value) setPortfolioPassword(String(pwAnswer.value).trim())
                 }
             }
 
