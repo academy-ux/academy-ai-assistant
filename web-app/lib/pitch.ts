@@ -178,15 +178,17 @@ ${jobDescription ? `JOB DESCRIPTION:\n${jobDescription}\n` : ''}${resumeContext 
 INTERVIEW DATA:
 ${transcriptContext}
 
-TASK: Write one tight, specific blurb paragraph (5-7 sentences) presenting this candidate for this role.
+TASK: Write one tight, specific blurb paragraph (5-7 sentences) presenting this candidate for this role. The blurb is EXPERIENCE-FIRST: its backbone is where this person has worked and what they built there.
 
 STRUCTURE (follow this order):
-1. Open with their concrete background — current/most recent role, the companies and notable clients or products they've worked on, and years of relevant experience if known.
-2. Connect their strongest, most relevant experience directly to this job description's requirements, citing REAL examples from the interview, portfolio, or resume (specific projects, systems, outcomes).
+1. Open with their concrete background — current/most recent role AND the most impressive, recognizable companies, clients, or brands in their history (scan ALL sources for these; if they've worked at or with well-known names, those MUST appear by name).
+2. Then their most relevant projects: pick the 1-3 specific projects or products they mentioned (in the interview, portfolio, or resume) that align most closely with this job description's requirements, and say concretely what they did on them and how that maps to what this role needs.
 3. Close with the recruiter's honest read: what makes them compelling for this role, and — if the sources reveal one — a brief, matter-of-fact note on any gap or thing worth validating.
 
 GUIDELINES:
-- Prefer specifics over adjectives: name companies, products, project types, team sizes, outcomes
+- Name-drop deliberately: recognizable employers, clients, and products carry the pitch — never summarize them away as "several leading companies"
+- Choose projects for ALIGNMENT with the job description, not just impressiveness; make the connection explicit
+- Prefer specifics over adjectives: companies, products, project types, team sizes, outcomes
 - Never invent facts — only use what the sources above support
 - Be confident but honest; skip generic praise like "great communicator" unless demonstrated
 - Natural, professional tone as if speaking to a client
