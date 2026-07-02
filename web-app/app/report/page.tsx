@@ -3,8 +3,8 @@
 import { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, ArrowRight, Building2, Pencil, Check, X } from 'lucide-react'
-import { logoSources } from '@/lib/logo'
+import { Loader2, ArrowRight, Building2, Pencil, Check, X, Upload, Trash2 } from 'lucide-react'
+import { logoSourcesFor, fetchLogoMap, teamKey, type LogoConfig } from '@/lib/logo'
 
 interface Posting {
     id: string
@@ -38,12 +38,6 @@ function getLogoOverrides(): Record<string, string> {
     } catch { return {} }
 }
 
-function saveLogoOverride(team: string, domain: string) {
-    const overrides = getLogoOverrides()
-    overrides[team.toLowerCase().trim()] = domain
-    localStorage.setItem('logo-overrides', JSON.stringify(overrides))
-}
-
 function resolvedDomain(team: string): string {
     const override = getLogoOverrides()[team.toLowerCase().trim()]
     return override || teamToDomain(team)
@@ -53,32 +47,81 @@ function LogoImg({ team }: { team: string }) {
     const [srcIndex, setSrcIndex] = useState(0)
     const [editing, setEditing] = useState(false)
     const [draft, setDraft] = useState('')
-    const [domain, setDomain] = useState(() => resolvedDomain(team))
+    const [cfg, setCfg] = useState<LogoConfig | null>(null)
+    const [busy, setBusy] = useState(false)
     const inputRef = useRef<HTMLInputElement>(null)
+    const fileRef = useRef<HTMLInputElement>(null)
 
-    // Crisp brand logo first, website favicon as a fallback.
-    const sources = logoSources(domain)
+    useEffect(() => {
+        let alive = true
+        fetchLogoMap().then(map => { if (alive) setCfg(map[teamKey(team)] || null) })
+        return () => { alive = false }
+    }, [team])
+
+    // Uploaded logo first, then crisp brand logo, then website favicon.
+    const sources = logoSourcesFor(team, cfg)
     const current = sources[srcIndex]
-    useEffect(() => { setSrcIndex(0) }, [domain])
+    useEffect(() => { setSrcIndex(0) }, [cfg])
 
     function startEditing(e: React.MouseEvent) {
         e.preventDefault()
         e.stopPropagation()
-        setDraft(domain)
+        setDraft(cfg?.domain || resolvedDomain(team))
         setEditing(true)
         setTimeout(() => inputRef.current?.focus(), 0)
     }
 
-    function save(e: React.MouseEvent | React.FormEvent) {
+    async function save(e: React.MouseEvent | React.FormEvent) {
         e.preventDefault()
         e.stopPropagation()
         const cleaned = draft.trim().toLowerCase()
         if (cleaned) {
-            saveLogoOverride(team, cleaned)
-            setDomain(cleaned)
+            setCfg(c => ({ ...c, domain: cleaned }))
             setSrcIndex(0)
+            await fetch('/api/logos', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ team, domain: cleaned }),
+            }).catch(() => {})
+            fetchLogoMap(true)
         }
         setEditing(false)
+    }
+
+    async function uploadFile(file: File) {
+        setBusy(true)
+        try {
+            const form = new FormData()
+            form.set('team', team)
+            form.set('file', file)
+            const res = await fetch('/api/logos', { method: 'POST', body: form })
+            const body = await res.json()
+            if (res.ok && body.logoUrl) {
+                setCfg(c => ({ ...c, logoUrl: body.logoUrl }))
+                setSrcIndex(0)
+                fetchLogoMap(true)
+                setEditing(false)
+            } else {
+                alert(body.error || 'Upload failed')
+            }
+        } catch {
+            alert('Upload failed')
+        } finally {
+            setBusy(false)
+        }
+    }
+
+    async function removeUpload(e: React.MouseEvent) {
+        e.preventDefault()
+        e.stopPropagation()
+        setCfg(c => ({ ...c, logoUrl: null }))
+        setSrcIndex(0)
+        await fetch('/api/logos', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ team }),
+        }).catch(() => {})
+        fetchLogoMap(true)
     }
 
     function cancel(e: React.MouseEvent) {
@@ -105,12 +148,34 @@ function LogoImg({ team }: { team: string }) {
                     placeholder="company.com"
                     className="w-28 h-8 px-2 text-xs border rounded-full bg-background focus:outline-none focus:ring-1 focus:ring-primary"
                 />
-                <button type="submit" className="p-1 hover:bg-muted rounded" onClick={save}>
+                <button type="submit" className="p-1 hover:bg-muted rounded" onClick={save} title="Save domain">
                     <Check className="w-3.5 h-3.5 text-green-600" />
                 </button>
-                <button type="button" className="p-1 hover:bg-muted rounded" onClick={cancel}>
+                <button
+                    type="button"
+                    className="p-1 hover:bg-muted rounded disabled:opacity-50"
+                    disabled={busy}
+                    title="Upload a custom logo (PNG, JPG, SVG, WebP)"
+                    onClick={e => { e.preventDefault(); e.stopPropagation(); fileRef.current?.click() }}
+                >
+                    {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" /> : <Upload className="w-3.5 h-3.5 text-muted-foreground" />}
+                </button>
+                {cfg?.logoUrl && (
+                    <button type="button" className="p-1 hover:bg-muted rounded" title="Remove uploaded logo" onClick={removeUpload}>
+                        <Trash2 className="w-3.5 h-3.5 text-destructive/70" />
+                    </button>
+                )}
+                <button type="button" className="p-1 hover:bg-muted rounded" onClick={cancel} title="Close">
                     <X className="w-3.5 h-3.5 text-muted-foreground" />
                 </button>
+                <input
+                    ref={fileRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                    className="hidden"
+                    onClick={e => e.stopPropagation()}
+                    onChange={e => { const f = e.target.files?.[0]; if (f) uploadFile(f); e.target.value = '' }}
+                />
             </form>
         )
     }

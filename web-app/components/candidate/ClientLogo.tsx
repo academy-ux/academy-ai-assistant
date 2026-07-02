@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { Building2 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { resolveLogoDomain, logoSources } from "@/lib/logo"
+import { fetchLogoMap, logoSourcesFor, teamKey, type LogoConfig } from "@/lib/logo"
 
 interface ClientLogoProps {
     team?: string | null
@@ -12,14 +12,28 @@ interface ClientLogoProps {
 }
 
 /**
- * Client logo for a company/team name. Tries the crisp logo.dev brand logo
- * first, falls back to the website favicon, then a building glyph.
+ * Client logo for a company/team name. An uploaded custom logo (client_logos
+ * table) wins; otherwise the crisp logo.dev brand logo, then the website
+ * favicon, then a building glyph.
  */
 export function ClientLogo({ team, size = 28, className }: ClientLogoProps) {
-    const sources = useMemo(() => (team ? logoSources(resolveLogoDomain(team)) : []), [team])
+    const [cfg, setCfg] = useState<LogoConfig | null>(null)
+    const [loaded, setLoaded] = useState(false)
+
+    useEffect(() => {
+        let alive = true
+        fetchLogoMap().then((map) => {
+            if (!alive) return
+            setCfg(team ? map[teamKey(team)] || null : null)
+            setLoaded(true)
+        })
+        return () => { alive = false }
+    }, [team])
+
+    const sources = useMemo(() => (team && loaded ? logoSourcesFor(team, cfg) : []), [team, cfg, loaded])
     const [idx, setIdx] = useState(0)
 
-    useEffect(() => { setIdx(0) }, [team])
+    useEffect(() => { setIdx(0) }, [team, cfg, loaded])
 
     const current = sources[idx]
 

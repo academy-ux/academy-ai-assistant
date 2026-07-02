@@ -29,6 +29,12 @@ export default withAuth(
         if (req.nextUrl.pathname.match(/^\/api\/share\/[0-9a-f-]{36}\//)) {
           return true
         }
+
+        // Allow public logo-map reads (shared client reports render logos);
+        // writes are still gated by getToken inside the route.
+        if (req.nextUrl.pathname === '/api/logos' && req.method === 'GET') {
+          return true
+        }
         
         // Allow auth check endpoint for Chrome extension
         if (req.nextUrl.pathname === '/api/auth/check') {
