@@ -267,7 +267,21 @@ export default function ResourcingPlanner({ data, onResync }: { data: ScheduleDa
     if (day.projected) { const a = trailAvg(name); if (a && a.t > 0.4) return { ...a, variant: 'projected' } }
     return null
   }
-  const winUtil = (name: string) => { const cd0 = capDay(name); let s = 0, n = 0; DAYS.forEach((day) => { const cd = getCell(name, day); if (cd && !cd.off) { s += cd.t / cd0; n++ } }); return n ? Math.round((s / n) * 100) : null }
+  // Utilization vs weekly capacity: total hours across the visible window ÷
+  // (daily cap × weekdays in window). Days with nothing logged count as 0;
+  // time-off days are removed from capacity.
+  const winUtil = (name: string) => {
+    const cd0 = capDay(name)
+    if (cd0 <= 0) return null
+    let hours = 0, days = 0
+    DAYS.forEach((day) => {
+      const cd = getCell(name, day)
+      if (cd?.off) return
+      days++
+      hours += cd ? cd.t : 0
+    })
+    return days ? Math.round((hours / (cd0 * days)) * 100) : null
+  }
   const packLanes = (items: any[]) => { items.sort((a, b) => a.s - b.s || (a.kind === 'off' ? -1 : 1)); const lanes: number[] = []; items.forEach((it) => { let placed = false; for (let L = 0; L < lanes.length; L++) { if (it.s > lanes[L]) { lanes[L] = it.e; it.lane = L; placed = true; break } } if (!placed) { it.lane = lanes.length; lanes.push(it.e) } }); return Math.max(1, lanes.length) }
 
   const setItem = (d: NonNullable<DragState>, updater: (x: any) => any) => {
@@ -316,7 +330,6 @@ export default function ResourcingPlanner({ data, onResync }: { data: ScheduleDa
     return () => { window.removeEventListener('mousemove', mm); window.removeEventListener('mouseup', mu) }
   })
 
-  const openForm = (name?: string) => setForm({ type: 'booking', name: name || NAMES[0], client: CLIENTS[0], hrs: 8, start: todayKey, end: todayKey, all: false })
   const submitForm = () => {
     if (!form) return
     const s = form.start, e = form.end >= form.start ? form.end : form.start
@@ -344,7 +357,6 @@ export default function ResourcingPlanner({ data, onResync }: { data: ScheduleDa
       <div style={{ display: 'inline-flex', background: '#e3e5de', borderRadius: 9, padding: 3, flex: '0 0 auto' }}>{(['team', 'projects'] as const).map((v) => (<button key={v} onClick={() => setView(v)} style={pill(view, v)}>{v[0].toUpperCase() + v.slice(1)}</button>))}</div>
       {view === 'team' && <button onClick={() => { setPlanMode((p) => !p); setEditCap(false) }} style={{ flex: '0 0 auto', border: `1px solid ${planMode ? C.accent : C.line}`, cursor: 'pointer', fontFamily: SANS, fontSize: 12, fontWeight: 600, padding: '6px 13px', borderRadius: 8, background: planMode ? C.accent : '#fff', color: planMode ? '#fff' : C.ink2 }}>{planMode ? 'Done' : 'Plan ahead'}</button>}
       {planMode && <>
-        <button onClick={() => openForm()} style={{ flex: '0 0 auto', border: `1px solid ${C.line}`, cursor: 'pointer', fontFamily: SANS, fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 8, background: '#fff', color: C.pos }}>＋ Booking or time off</button>
         <button onClick={undo} disabled={!past.length} title="Undo (⌘Z)" style={{ ...navBtn, flex: '0 0 auto', color: past.length ? C.ink2 : '#c2c4ba', fontSize: 14 }}>↩</button>
         <button onClick={redo} disabled={!future.length} title="Redo (⌘⇧Z)" style={{ ...navBtn, flex: '0 0 auto', color: future.length ? C.ink2 : '#c2c4ba', fontSize: 14 }}>↪</button>
       </>}
@@ -393,7 +405,13 @@ export default function ResourcingPlanner({ data, onResync }: { data: ScheduleDa
     )
   }
 
-  const teamRows = NAMES.map((name, pi) => {
+  const isRecruiter = (name: string) => /recruit/i.test(DD[name].role || '')
+  const teamSections = [
+    { title: 'Recruiters', names: NAMES.filter(isRecruiter) },
+    { title: 'Everyone else', names: NAMES.filter((n) => !isRecruiter(n)) },
+  ].filter((s) => s.names.length)
+
+  const renderTeamRow = (name: string) => {
     const cap = caps[name] ?? DD[name].cap
     const changed = cap !== DD[name].cap
     const util = winUtil(name)
@@ -409,7 +427,7 @@ export default function ResourcingPlanner({ data, onResync }: { data: ScheduleDa
     const rowH = Math.max(44, PADV * 2 + nLanes * BARH + (nLanes - 1) * GAP)
     const selHere = drag && drag.mode === 'create' && drag.name === name ? { a: Math.min(drag.aIdx!, drag.bIdx!), b: Math.max(drag.aIdx!, drag.bIdx!) } : null
     return (
-      <div key={pi} className="rt-row" style={{ display: 'flex', borderBottom: `1px solid ${C.line2}` }}>
+      <div key={name} className="rt-row" style={{ display: 'flex', borderBottom: `1px solid ${C.line2}` }}>
         <div style={{ width: LEFT, flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 10, padding: '7px 14px' }}>
           <span style={{ width: 28, height: 28, borderRadius: '50%', flex: '0 0 auto', background: C.accent + '26', color: C.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700 }}>{name.split(' ').map((w) => w[0]).slice(0, 2).join('')}</span>
           <span style={{ minWidth: 0, flex: 1 }}>
@@ -427,7 +445,7 @@ export default function ResourcingPlanner({ data, onResync }: { data: ScheduleDa
         </div>
       </div>
     )
-  })
+  }
 
   const agg: Record<string, Record<string, { h: number; variant: string }>> = {}
   NAMES.forEach((name) => DAYS.forEach((day) => { const cd = getCell(name, day); if (!cd || cd.off || !cd.p) return; for (const [l, h] of Object.entries(cd.p)) { if (h <= 0) continue; agg[l] = agg[l] || {}; const e = agg[l][day.key] || { h: 0, variant: cd.variant }; e.h += h; if (cd.variant !== 'actual') e.variant = cd.variant; agg[l][day.key] = e } }))
@@ -476,7 +494,14 @@ export default function ResourcingPlanner({ data, onResync }: { data: ScheduleDa
         {planMode && <div style={{ margin: '-6px 0 14px', fontSize: 12, color: C.accent, fontWeight: 600 }}>Planning on — drag across days to book · drag a bar’s grips to resize, middle to move · click a bar to edit/delete · ⌘Z to undo.</div>}
         <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 2px rgba(39,39,39,.04)' }}>
           <Header />
-          {view === 'team' && teamRows}
+          {view === 'team' && teamSections.map((sec) => (
+            <React.Fragment key={sec.title}>
+              <div style={{ padding: '9px 14px 7px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.07em', color: C.muted, background: '#f3f4ee', borderBottom: `1px solid ${C.line2}` }}>
+                {sec.title} <span style={{ fontWeight: 500 }}>· {sec.names.length}</span>
+              </div>
+              {sec.names.map(renderTeamRow)}
+            </React.Fragment>
+          ))}
           {view === 'projects' && projLabels.map((label, pi) => {
             const cl = clientOf(label)
             const col = clientColor(cl)
