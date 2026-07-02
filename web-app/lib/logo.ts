@@ -58,9 +58,12 @@ export function logoSources(domain: string): string[] {
 // Uploaded logo wins over everything; a server domain override wins over the
 // per-browser localStorage override, which wins over the name heuristic.
 
+export type LogoSource = 'upload' | 'logodev' | 'favicon'
+
 export interface LogoConfig {
   domain?: string | null
   logoUrl?: string | null // public URL of an uploaded logo
+  source?: LogoSource | null // preferred source; null = auto (upload if present, else logo.dev → favicon)
 }
 
 export const teamKey = (team: string) => (team || '').toLowerCase().trim()
@@ -78,6 +81,16 @@ export function fetchLogoMap(force = false): Promise<Record<string, LogoConfig>>
 
 export function logoSourcesFor(team: string, cfg?: LogoConfig | null): string[] {
   const domain = cfg?.domain || getLogoOverride(team) || teamToDomain(team)
-  const base = logoSources(domain)
-  return cfg?.logoUrl ? [cfg.logoUrl, ...base] : base
+  const upload = cfg?.logoUrl || null
+  // Preferred source first; the rest stay as onError fallbacks.
+  switch (cfg?.source) {
+    case 'favicon':
+      return domain ? [faviconUrl(domain, 256), logoDevUrl(domain)] : upload ? [upload] : []
+    case 'logodev':
+      return domain ? [logoDevUrl(domain), faviconUrl(domain, 256)] : upload ? [upload] : []
+    case 'upload':
+      return upload ? [upload, ...logoSources(domain)] : logoSources(domain)
+    default:
+      return upload ? [upload, ...logoSources(domain)] : logoSources(domain)
+  }
 }

@@ -24,11 +24,12 @@ export async function GET() {
   try {
     const { data, error } = await (supabase as any).from('client_logos').select('*')
     if (error) throw new Error(error.message)
-    const map: Record<string, { domain: string | null; logoUrl: string | null }> = {}
+    const map: Record<string, { domain: string | null; logoUrl: string | null; source: string | null }> = {}
     for (const row of data || []) {
       map[row.team_key] = {
         domain: row.domain || null,
         logoUrl: row.logo_path ? publicUrl(row.logo_path) : null,
+        source: row.source || null,
       }
     }
     return NextResponse.json(map)
@@ -37,21 +38,29 @@ export async function GET() {
   }
 }
 
-// PUT { team, domain } — set/clear the domain override (staff only)
+// PUT { team, domain?, source? } — set the domain override and/or preferred source (staff only)
+const VALID_SOURCES = ['upload', 'logodev', 'favicon']
 export async function PUT(req: NextRequest) {
   try {
     const token = await getToken({ req })
     if (!token?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { team, domain } = await req.json()
+    const { team, domain, source } = await req.json()
     const team_key = keyOf(String(team || ''))
     if (!team_key || team_key.length > 120) {
       return NextResponse.json({ error: 'Invalid team' }, { status: 400 })
     }
-    const cleaned = String(domain || '').trim().toLowerCase().slice(0, 200) || null
-    const { error } = await (supabase as any)
-      .from('client_logos')
-      .upsert({ team_key, domain: cleaned, updated_by: token.email, updated_at: new Date().toISOString() })
+    if (source != null && source !== '' && !VALID_SOURCES.includes(source)) {
+      return NextResponse.json({ error: 'Invalid source' }, { status: 400 })
+    }
+    const row: Record<string, unknown> = {
+      team_key,
+      updated_by: token.email,
+      updated_at: new Date().toISOString(),
+    }
+    if (domain !== undefined) row.domain = String(domain || '').trim().toLowerCase().slice(0, 200) || null
+    if (source !== undefined) row.source = source || null
+    const { error } = await (supabase as any).from('client_logos').upsert(row)
     if (error) throw new Error(error.message)
     return NextResponse.json({ success: true })
   } catch (error) {
@@ -91,7 +100,7 @@ export async function POST(req: NextRequest) {
 
     const { error } = await (supabase as any)
       .from('client_logos')
-      .upsert({ team_key, logo_path: path, updated_by: token.email, updated_at: new Date().toISOString() })
+      .upsert({ team_key, logo_path: path, source: 'upload', updated_by: token.email, updated_at: new Date().toISOString() })
     if (error) throw new Error(error.message)
 
     if (existing?.logo_path && existing.logo_path !== path) {
@@ -115,9 +124,17 @@ export async function DELETE(req: NextRequest) {
 
     const { data: existing } = await (supabase as any)
       .from('client_logos').select('logo_path').eq('team_key', team_key).maybeSingle()
+    const { data: cur } = await (supabase as any)
+      .from('client_logos').select('source').eq('team_key', team_key).maybeSingle()
     const { error } = await (supabase as any)
       .from('client_logos')
-      .update({ logo_path: null, updated_by: token.email, updated_at: new Date().toISOString() })
+      .update({
+        logo_path: null,
+        // an explicit 'upload' preference no longer makes sense without a file
+        ...(cur?.source === 'upload' ? { source: null } : {}),
+        updated_by: token.email,
+        updated_at: new Date().toISOString(),
+      })
       .eq('team_key', team_key)
     if (error) throw new Error(error.message)
     if (existing?.logo_path) await supabase.storage.from(BUCKET).remove([existing.logo_path])

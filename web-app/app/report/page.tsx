@@ -1,10 +1,11 @@
 "use client"
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, ArrowRight, Building2, Pencil, Check, X, Upload, Trash2 } from 'lucide-react'
+import { Loader2, ArrowRight, Building2, Pencil } from 'lucide-react'
 import { logoSourcesFor, fetchLogoMap, teamKey, type LogoConfig } from '@/lib/logo'
+import { LogoEditorDialog } from '@/components/report/LogoEditorDialog'
 
 interface Posting {
     id: string
@@ -15,42 +16,10 @@ interface Posting {
     count: number
 }
 
-function teamToDomain(team: string): string {
-    const name = team.toLowerCase().trim()
-
-    // Explicit overrides for known multi-word domains
-    const overrides: Record<string, string> = {
-        'dex screener': 'dexscreener.com',
-    }
-    if (overrides[name]) return overrides[name]
-
-    // Academy roles → academyux.com
-    if (name.includes('academy')) return 'academyux.com'
-
-    // Use the first word as the domain (e.g. "Google DeepMind" → "google.com")
-    const firstWord = name.split(/\s+/)[0].replace(/[^a-z0-9]/g, '')
-    return firstWord + '.com'
-}
-
-function getLogoOverrides(): Record<string, string> {
-    try {
-        return JSON.parse(localStorage.getItem('logo-overrides') || '{}')
-    } catch { return {} }
-}
-
-function resolvedDomain(team: string): string {
-    const override = getLogoOverrides()[team.toLowerCase().trim()]
-    return override || teamToDomain(team)
-}
-
 function LogoImg({ team }: { team: string }) {
     const [srcIndex, setSrcIndex] = useState(0)
-    const [editing, setEditing] = useState(false)
-    const [draft, setDraft] = useState('')
     const [cfg, setCfg] = useState<LogoConfig | null>(null)
-    const [busy, setBusy] = useState(false)
-    const inputRef = useRef<HTMLInputElement>(null)
-    const fileRef = useRef<HTMLInputElement>(null)
+    const [open, setOpen] = useState(false)
 
     useEffect(() => {
         let alive = true
@@ -58,148 +27,38 @@ function LogoImg({ team }: { team: string }) {
         return () => { alive = false }
     }, [team])
 
-    // Uploaded logo first, then crisp brand logo, then website favicon.
+    // Preferred source first (upload / logo.dev / favicon), rest as fallbacks.
     const sources = logoSourcesFor(team, cfg)
     const current = sources[srcIndex]
     useEffect(() => { setSrcIndex(0) }, [cfg])
 
-    function startEditing(e: React.MouseEvent) {
-        e.preventDefault()
-        e.stopPropagation()
-        setDraft(cfg?.domain || resolvedDomain(team))
-        setEditing(true)
-        setTimeout(() => inputRef.current?.focus(), 0)
-    }
-
-    async function save(e: React.MouseEvent | React.FormEvent) {
-        e.preventDefault()
-        e.stopPropagation()
-        const cleaned = draft.trim().toLowerCase()
-        if (cleaned) {
-            setCfg(c => ({ ...c, domain: cleaned }))
-            setSrcIndex(0)
-            await fetch('/api/logos', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ team, domain: cleaned }),
-            }).catch(() => {})
-            fetchLogoMap(true)
-        }
-        setEditing(false)
-    }
-
-    async function uploadFile(file: File) {
-        setBusy(true)
-        try {
-            const form = new FormData()
-            form.set('team', team)
-            form.set('file', file)
-            const res = await fetch('/api/logos', { method: 'POST', body: form })
-            const body = await res.json()
-            if (res.ok && body.logoUrl) {
-                setCfg(c => ({ ...c, logoUrl: body.logoUrl }))
-                setSrcIndex(0)
-                fetchLogoMap(true)
-                setEditing(false)
-            } else {
-                alert(body.error || 'Upload failed')
-            }
-        } catch {
-            alert('Upload failed')
-        } finally {
-            setBusy(false)
-        }
-    }
-
-    async function removeUpload(e: React.MouseEvent) {
-        e.preventDefault()
-        e.stopPropagation()
-        setCfg(c => ({ ...c, logoUrl: null }))
-        setSrcIndex(0)
-        await fetch('/api/logos', {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ team }),
-        }).catch(() => {})
-        fetchLogoMap(true)
-    }
-
-    function cancel(e: React.MouseEvent) {
-        e.preventDefault()
-        e.stopPropagation()
-        setEditing(false)
-    }
-
-    if (editing) {
-        return (
-            <form
-                onSubmit={save}
-                onClick={e => { e.preventDefault(); e.stopPropagation() }}
-                onMouseDown={e => e.stopPropagation()}
-                className="flex items-center gap-1 shrink-0"
-            >
-                <input
-                    ref={inputRef}
-                    value={draft}
-                    onChange={e => setDraft(e.target.value)}
-                    onClick={e => { e.preventDefault(); e.stopPropagation() }}
-                    onMouseDown={e => e.stopPropagation()}
-                    onKeyDown={e => { if (e.key === 'Escape') cancel(e as any) }}
-                    placeholder="company.com"
-                    className="w-28 h-8 px-2 text-xs border rounded-full bg-background focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-                <button type="submit" className="p-1 hover:bg-muted rounded" onClick={save} title="Save domain">
-                    <Check className="w-3.5 h-3.5 text-green-600" />
-                </button>
-                <button
-                    type="button"
-                    className="p-1 hover:bg-muted rounded disabled:opacity-50"
-                    disabled={busy}
-                    title="Upload a custom logo (PNG, JPG, SVG, WebP)"
-                    onClick={e => { e.preventDefault(); e.stopPropagation(); fileRef.current?.click() }}
-                >
-                    {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" /> : <Upload className="w-3.5 h-3.5 text-muted-foreground" />}
-                </button>
-                {cfg?.logoUrl && (
-                    <button type="button" className="p-1 hover:bg-muted rounded" title="Remove uploaded logo" onClick={removeUpload}>
-                        <Trash2 className="w-3.5 h-3.5 text-destructive/70" />
-                    </button>
-                )}
-                <button type="button" className="p-1 hover:bg-muted rounded" onClick={cancel} title="Close">
-                    <X className="w-3.5 h-3.5 text-muted-foreground" />
-                </button>
-                <input
-                    ref={fileRef}
-                    type="file"
-                    accept="image/png,image/jpeg,image/svg+xml,image/webp"
-                    className="hidden"
-                    onClick={e => e.stopPropagation()}
-                    onChange={e => { const f = e.target.files?.[0]; if (f) uploadFile(f); e.target.value = '' }}
-                />
-            </form>
-        )
-    }
-
     return (
-        <div className="relative shrink-0 group/logo" onClick={startEditing}>
-            {!current || !team ? (
-                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                    <Building2 className="w-5 h-5 text-muted-foreground" />
+        <>
+            <div
+                className="relative shrink-0 group/logo"
+                onClick={e => { e.preventDefault(); e.stopPropagation(); setOpen(true) }}
+                onMouseDown={e => e.stopPropagation()}
+            >
+                {!current || !team ? (
+                    <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                        <Building2 className="w-5 h-5 text-muted-foreground" />
+                    </div>
+                ) : (
+                    <img
+                        src={current}
+                        alt={`${team} logo`}
+                        width={40}
+                        height={40}
+                        className="w-10 h-10 rounded-full object-contain bg-white/60"
+                        onError={() => setSrcIndex(i => i + 1)}
+                    />
+                )}
+                <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover/logo:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
+                    <Pencil className="w-3.5 h-3.5 text-white" />
                 </div>
-            ) : (
-                <img
-                    src={current}
-                    alt={`${team} logo`}
-                    width={40}
-                    height={40}
-                    className="w-10 h-10 rounded-full object-contain bg-white/60"
-                    onError={() => setSrcIndex(i => i + 1)}
-                />
-            )}
-            <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover/logo:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
-                <Pencil className="w-3.5 h-3.5 text-white" />
             </div>
-        </div>
+            <LogoEditorDialog team={team} open={open} onOpenChange={setOpen} cfg={cfg} onSaved={setCfg} />
+        </>
     )
 }
 
