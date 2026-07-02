@@ -7,6 +7,7 @@ const HARVEST_BASE = 'https://api.harvestapp.com/v2'
 export interface HarvestBundle {
   people: Record<string, { cap: number; role: string; days: Record<string, Record<string, number>> }>
   clients: string[]
+  projectNames: Record<string, string[]> // client -> active Harvest project names
   burned: Record<string, number> // lifetime hours per project label
   starts: Record<string, string> // earliest known day per project label
   lastActual: string // most recent spent_date seen
@@ -135,6 +136,13 @@ export async function fetchHarvestBundle(windowDays = 120): Promise<HarvestBundl
     }
   }
 
+  const projectNames: Record<string, string[]> = {}
+  for (const pr of projects) {
+    const client = pr.client?.name
+    if (!client || !pr.name || pr.is_active === false) continue
+    ;(projectNames[client] = projectNames[client] || []).push(pr.name)
+  }
+
   // Prefer the project's contractual start date over the first entry in-window.
   for (const pr of projects) {
     const client = pr.client?.name
@@ -150,6 +158,7 @@ export async function fetchHarvestBundle(windowDays = 120): Promise<HarvestBundl
   return {
     people,
     clients: [...clients].sort(),
+    projectNames,
     burned,
     starts,
     lastActual: lastActual || ymd(today),

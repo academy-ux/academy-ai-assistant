@@ -30,7 +30,9 @@ export interface PlannerState {
   plans: PlannerBooking[]
   timeoff: PlannerTimeoff[]
   budgets: Record<string, number> // label -> target hours
-  capOverrides: Record<string, number> // person -> weekly hours
+  // person -> week start (Monday, YYYY-MM-DD) -> weekly hours. Each week is
+  // independent so capacity edits never apply retroactively.
+  capWeeks: Record<string, Record<string, number>>
 }
 
 export async function loadPlannerState(): Promise<PlannerState> {
@@ -38,7 +40,7 @@ export async function loadPlannerState(): Promise<PlannerState> {
     sb.from('resourcing_bookings').select('*').order('created_at'),
     sb.from('resourcing_timeoff').select('*').order('created_at'),
     sb.from('resourcing_budgets').select('*'),
-    sb.from('resourcing_capacity_overrides').select('*'),
+    sb.from('resourcing_capacity_weeks').select('*'),
   ])
   for (const r of [plans, timeoff, budgets, caps]) {
     if (r.error) throw new Error(`Planner load failed: ${r.error.message}`)
@@ -62,9 +64,10 @@ export async function loadPlannerState(): Promise<PlannerState> {
         : null,
     })),
     budgets: Object.fromEntries((budgets.data || []).map((b: any) => [b.label, Number(b.hours)])),
-    capOverrides: Object.fromEntries(
-      (caps.data || []).map((c: any) => [c.person, Number(c.weekly_hours)])
-    ),
+    capWeeks: (caps.data || []).reduce((acc: Record<string, Record<string, number>>, c: any) => {
+      ;(acc[c.person] = acc[c.person] || {})[c.week_start] = Number(c.weekly_hours)
+      return acc
+    }, {}),
   }
 }
 
@@ -130,14 +133,30 @@ export async function savePlannerState(state: PlannerState, editor: string): Pro
     }))
   )
 
-  await replace(
-    'resourcing_capacity_overrides',
-    'person',
-    Object.entries(state.capOverrides).map(([person, weekly_hours]) => ({
-      person,
-      weekly_hours,
-      updated_by: editor,
-      updated_at: now,
-    }))
-  )
+  // Composite-keyed week overrides: upsert current rows, prune stale ones.
+  {
+    const rows = Object.entries(state.capWeeks).flatMap(([person, weeks]) =>
+      Object.entries(weeks).map(([week_start, weekly_hours]) => ({
+        person,
+        week_start,
+        weekly_hours,
+        updated_by: editor,
+        updated_at: now,
+      }))
+    )
+    if (rows.length) {
+      const { error } = await sb.from('resourcing_capacity_weeks').upsert(rows)
+      if (error) throw new Error(`Planner save failed (capacity weeks): ${error.message}`)
+    }
+    const keep = new Set(rows.map((r) => `${r.person}|${r.week_start}`))
+    const existing = await sb.from('resourcing_capacity_weeks').select('person, week_start')
+    if (existing.error) throw new Error(`Planner save failed (capacity weeks): ${existing.error.message}`)
+    for (const row of existing.data || []) {
+      const key = `${(row as any).person}|${(row as any).week_start}`
+      if (!keep.has(key)) {
+        await sb.from('resourcing_capacity_weeks').delete()
+          .eq('person', (row as any).person).eq('week_start', (row as any).week_start)
+      }
+    }
+  }
 }

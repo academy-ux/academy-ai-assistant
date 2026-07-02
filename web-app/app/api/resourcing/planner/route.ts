@@ -37,7 +37,8 @@ const plannerSchema = z.object({
     )
     .max(500),
   budgets: z.record(z.string().max(160), z.number().min(0).max(100000)),
-  capOverrides: z.record(z.string().max(120), z.number().min(0).max(80)),
+  // person -> week start (Monday) -> weekly hours; weeks are independent
+  capWeeks: z.record(z.string().max(120), z.record(dayKey, z.number().min(0).max(80))),
 })
 
 export async function PUT(req: NextRequest) {

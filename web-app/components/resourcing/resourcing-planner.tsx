@@ -14,11 +14,13 @@ export interface ScheduleData {
   starts: Record<string, string>
   lastActual: string
   syncedAt: string
+  projectNames?: Record<string, string[]>
   planner: {
     plans: Booking[]
     timeoff: Timeoff[]
     budgets: Record<string, number>
-    capOverrides: Record<string, number>
+    // person -> week start (Monday) -> weekly hours; each week independent
+    capWeeks: Record<string, Record<string, number>>
   }
 }
 
@@ -73,18 +75,19 @@ const parseKey = (k: string) => { const [y, m, d] = k.split('-').map(Number); re
 const dLabel = (key: string) => parseKey(key).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
 const isoWeek = (d: Date) => { const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); const day = (t.getUTCDay() + 6) % 7; t.setUTCDate(t.getUTCDate() - day + 3); const first = new Date(Date.UTC(t.getUTCFullYear(), 0, 4)); return 1 + Math.round(((t.getTime() - first.getTime()) / 86400000 - 3 + ((first.getUTCDay() + 6) % 7)) / 7) }
 
-interface DayCol { date: Date; key: string; dow: number; weekIdx: number; dayNum: number; projected: boolean; isToday: boolean }
+interface DayCol { date: Date; key: string; weekKey: string; dow: number; weekIdx: number; dayNum: number; projected: boolean; isToday: boolean }
 
 const buildDays = (anchorMon: Date, weeksN: number, todayKey: string, lastActual: string) => {
   const days: DayCol[] = []
-  const weeks: { ww: number; label: string; start: number }[] = []
+  const weeks: { ww: number; label: string; start: number; key: string }[] = []
   for (let w = 0; w < weeksN; w++) {
     const wkMon = addWeeks(anchorMon, w)
-    weeks.push({ ww: isoWeek(wkMon), label: wkMon.toLocaleString('en-US', { month: 'short', day: 'numeric' }), start: w * 5 })
+    const weekKey = ymd(wkMon)
+    weeks.push({ ww: isoWeek(wkMon), label: wkMon.toLocaleString('en-US', { month: 'short', day: 'numeric' }), start: w * 5, key: weekKey })
     for (let k = 0; k < 5; k++) {
       const d = addDays(wkMon, k)
       const key = ymd(d)
-      days.push({ date: d, key, dow: k, weekIdx: w, dayNum: d.getDate(), projected: key > lastActual, isToday: key === todayKey })
+      days.push({ date: d, key, weekKey, dow: k, weekIdx: w, dayNum: d.getDate(), projected: key > lastActual, isToday: key === todayKey })
     }
   }
   return { days, weeks }
@@ -125,6 +128,7 @@ type FormState = {
   repeat?: 'once' | 'weekly'
   weekdays?: number[]
   all: boolean
+  lockName?: boolean // drag-created on a person's row — person is fixed
 } | null
 
 type DragState = {
@@ -155,9 +159,8 @@ export default function ResourcingPlanner({ data, onResync }: { data: ScheduleDa
   const PSTART = data.starts
 
   const [view, setView] = useState<'team' | 'projects'>('team')
-  const [caps, setCaps] = useState<Record<string, number>>(() =>
-    Object.fromEntries(NAMES.map((n) => [n, data.planner.capOverrides[n] ?? DD[n].cap]))
-  )
+  // person -> week start -> weekly hours (only overridden weeks are stored)
+  const [capWeeks, setCapWeeks] = useState<Record<string, Record<string, number>>>(data.planner.capWeeks || {})
   const [editCap, setEditCap] = useState(false)
   const [planMode, setPlanMode] = useState(false)
   const [plans, setPlans] = useState<Booking[]>(data.planner.plans)
@@ -179,8 +182,7 @@ export default function ResourcingPlanner({ data, onResync }: { data: ScheduleDa
     return next
   })
   const bizDays = (a: string, b: string) => { let n = 0, d = parseKey(a); const e = parseKey(b); while (d <= e) { const w = d.getDay(); if (w >= 1 && w <= 5) n++; d = addDays(d, 1) } return n }
-  const setCap = (n: string, v: string) => setCaps((c) => ({ ...c, [n]: clamp(Number(v) || 0, 0, 80) }))
-  const edited = NAMES.some((n) => caps[n] !== DD[n].cap)
+  const edited = Object.values(capWeeks).some((weeks) => Object.keys(weeks || {}).length > 0)
 
   // ---- persistence: debounced replace-all save of planner state ----
   // Saves are chained so two in-flight PUTs can never interleave server-side.
@@ -192,10 +194,7 @@ export default function ResourcingPlanner({ data, onResync }: { data: ScheduleDa
     setSaveState('saving')
     if (saveTimer.current) clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(() => {
-      const capOverrides = Object.fromEntries(
-        NAMES.filter((n) => caps[n] != null && caps[n] !== DD[n].cap).map((n) => [n, caps[n]])
-      )
-      const body = JSON.stringify({ plans, timeoff, budgets, capOverrides })
+      const body = JSON.stringify({ plans, timeoff, budgets, capWeeks })
       saveChain.current = saveChain.current.then(async () => {
         try {
           const res = await fetch('/api/resourcing/planner', {
@@ -213,7 +212,7 @@ export default function ResourcingPlanner({ data, onResync }: { data: ScheduleDa
     }, 800)
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [plans, timeoff, budgets, caps])
+  }, [plans, timeoff, budgets, capWeeks])
 
   // ---- undo/redo history ----
   const plansRef = useRef(plans); plansRef.current = plans
@@ -273,8 +272,8 @@ export default function ResourcingPlanner({ data, onResync }: { data: ScheduleDa
     })
     return Math.max(1, 5 - wds.size)
   }
-  // ?? fallback: a resync can introduce a person who wasn't in the initial caps state
-  const capDay = (name: string) => (caps[name] ?? DD[name].cap) / workdaysPerWeek(name)
+  const capForWeek = (name: string, weekKey: string) => capWeeks[name]?.[weekKey] ?? DD[name].cap
+  const capDay = (name: string, day: DayCol) => capForWeek(name, day.weekKey) / workdaysPerWeek(name)
   const offMatches = (o: Timeoff, day: DayCol) =>
     o.weekdays?.length
       ? o.weekdays.includes(day.dow) && day.key >= o.start && (!o.end || day.key <= o.end)
@@ -292,16 +291,19 @@ export default function ResourcingPlanner({ data, onResync }: { data: ScheduleDa
   // (daily cap × weekdays in window). Days with nothing logged count as 0;
   // time-off days are removed from capacity.
   const winUtil = (name: string) => {
-    const cd0 = capDay(name)
-    if (cd0 <= 0) return null
-    let hours = 0, days = 0
+    let hours = 0, capH = 0
     DAYS.forEach((day) => {
       const cd = getCell(name, day)
       if (cd?.off) return
-      days++
+      capH += capDay(name, day)
       hours += cd ? cd.t : 0
     })
-    return days ? Math.round((hours / (cd0 * days)) * 100) : null
+    if (capH <= 0) return null
+    return {
+      pct: Math.round((hours / capH) * 100),
+      hours: Math.round(hours * 10) / 10,
+      cap: Math.round(capH * 10) / 10,
+    }
   }
   const packLanes = (items: any[]) => { items.sort((a, b) => a.s - b.s || (a.kind === 'off' ? -1 : 1)); const lanes: number[] = []; items.forEach((it) => { let placed = false; for (let L = 0; L < lanes.length; L++) { if (it.s > lanes[L]) { lanes[L] = it.e; it.lane = L; placed = true; break } } if (!placed) { it.lane = lanes.length; lanes.push(it.e) } }); return Math.max(1, lanes.length) }
 
@@ -342,7 +344,7 @@ export default function ResourcingPlanner({ data, onResync }: { data: ScheduleDa
     const mu = () => {
       const d = dragRef.current
       if (!d) return
-      if (d.mode === 'create') { const a = Math.min(d.aIdx!, d.bIdx!), b = Math.max(d.aIdx!, d.bIdx!); setForm({ type: 'booking', name: d.name!, client: CLIENTS[0], hrs: 8, start: DAYS[a].key, end: DAYS[b].key, repeat: 'once', weekdays: [], all: false }) }
+      if (d.mode === 'create') { const a = Math.min(d.aIdx!, d.bIdx!), b = Math.max(d.aIdx!, d.bIdx!); setForm({ type: 'booking', name: d.name!, lockName: true, client: CLIENTS[0], hrs: 8, start: DAYS[a].key, end: DAYS[b].key, repeat: 'once', weekdays: [], all: false }) }
       else if (!d.moved) { popHist(); openEdit(d.kind!, d.id!) } // click without drag = edit
       dragRef.current = null
       setDrag(null)
@@ -389,7 +391,7 @@ export default function ResourcingPlanner({ data, onResync }: { data: ScheduleDa
         <button onClick={redo} disabled={!future.length} title="Redo (⌘⇧Z)" style={{ ...navBtn, flex: '0 0 auto', color: future.length ? C.ink2 : '#c2c4ba', fontSize: 14 }}>↪</button>
       </>}
       {view === 'team' && !planMode && <button onClick={() => setEditCap((e) => !e)} style={{ flex: '0 0 auto', border: `1px solid ${editCap ? C.accent : C.line}`, cursor: 'pointer', fontFamily: SANS, fontSize: 12, fontWeight: 600, padding: '6px 13px', borderRadius: 8, background: editCap ? C.accent : '#fff', color: editCap ? '#fff' : C.ink2 }}>{editCap ? 'Done' : 'Edit capacity'}</button>}
-      {editCap && edited && <button onClick={() => setCaps(Object.fromEntries(NAMES.map((n) => [n, DD[n].cap])))} style={{ flex: '0 0 auto', border: `1px solid ${C.line}`, cursor: 'pointer', fontFamily: SANS, fontSize: 12, fontWeight: 600, padding: '6px 10px', borderRadius: 8, background: '#fff', color: C.muted }}>Reset</button>}
+      {editCap && edited && <button onClick={() => setCapWeeks({})} style={{ flex: '0 0 auto', border: `1px solid ${C.line}`, cursor: 'pointer', fontFamily: SANS, fontSize: 12, fontWeight: 600, padding: '6px 10px', borderRadius: 8, background: '#fff', color: C.muted }}>Reset</button>}
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 7, flex: '0 0 auto' }}>
         <div style={{ display: 'inline-flex', background: '#e3e5de', borderRadius: 8, padding: 2 }}>{[1, 2, 3, 4].map((n) => (<button key={n} onClick={() => setWeeksN(n)} style={{ ...pill(weeksN, n), padding: '5px 9px' }}>{n}w</button>))}</div>
         <button onClick={() => shift(-weeksN)} style={navBtn}><Chevron dir="left" /></button>
@@ -442,10 +444,21 @@ export default function ResourcingPlanner({ data, onResync }: { data: ScheduleDa
   ].filter((s) => s.names.length)
 
   const renderTeamRow = (name: string) => {
-    const cap = caps[name] ?? DD[name].cap
-    const changed = cap !== DD[name].cap
+    const wkKeys = WKS.map((w) => w.key)
+    const visibleCaps = wkKeys.map((k) => capForWeek(name, k))
+    const uniform = visibleCaps.every((c) => c === visibleCaps[0])
+    const cap = visibleCaps[0]
+    const changed = wkKeys.some((k) => capWeeks[name]?.[k] != null)
     const util = winUtil(name)
-    const uc = util == null ? C.muted : util > 105 ? C.neg : util >= 85 ? C.pos : C.ink
+    const uc = util == null ? C.muted : util.pct > 105 ? C.neg : util.pct >= 85 ? C.pos : C.ink
+    // capacity edits apply to the weeks currently in view — never retroactively
+    const setCap = (v: string) => {
+      const n = clamp(Number(v) || 0, 0, 80)
+      setCapWeeks((prev) => ({
+        ...prev,
+        [name]: { ...(prev[name] || {}), ...Object.fromEntries(wkKeys.map((k) => [k, n])) },
+      }))
+    }
     const cds = DAYS.map((day) => getCell(name, day))
     const labelSet = new Set<string>()
     cds.forEach((cd) => { if (cd && cd.p) Object.keys(cd.p).forEach((l) => { if (!l.endsWith('· planned')) labelSet.add(l) }) })
@@ -474,10 +487,13 @@ export default function ResourcingPlanner({ data, onResync }: { data: ScheduleDa
           <span style={{ minWidth: 0, flex: 1 }}>
             <span style={{ display: 'block', fontSize: 13, fontWeight: 600, color: C.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
             <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: C.muted, marginTop: 1 }}>{DD[name].role || 'Team'} ·
-              {editCap ? (<><input type="number" value={cap} min={0} max={80} onChange={(e) => setCap(name, e.target.value)} style={{ width: 40, fontFamily: SANS, fontSize: 11, fontWeight: 700, color: C.ink, textAlign: 'right', border: `1px solid ${changed ? C.accent : C.line}`, borderRadius: 5, padding: '2px 4px' }} /><span>h/wk</span></>) : (<span style={{ color: changed ? C.accent : C.muted, fontWeight: changed ? 700 : 400 }}>{cap}h/wk{changed ? ' ✎' : ''}</span>)}
+              {editCap ? (<><input type="number" value={cap} min={0} max={80} onChange={(e) => setCap(e.target.value)} title="Applies to the visible week(s) only" style={{ width: 40, fontFamily: SANS, fontSize: 11, fontWeight: 700, color: C.ink, textAlign: 'right', border: `1px solid ${changed ? C.accent : C.line}`, borderRadius: 5, padding: '2px 4px' }} /><span>h/wk</span></>) : (<span style={{ color: changed ? C.accent : C.muted, fontWeight: changed ? 700 : 400 }}>{uniform ? `${cap}h/wk` : `${Math.min(...visibleCaps)}–${Math.max(...visibleCaps)}h/wk`}{changed ? ' ✎' : ''}</span>)}
             </span>
           </span>
-          <span style={{ marginLeft: 'auto', fontSize: 11.5, fontWeight: 700, color: uc }}>{util == null ? '—' : util + '%'}</span>
+          <span style={{ marginLeft: 'auto', textAlign: 'right', flex: '0 0 auto' }}>
+            <span style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: uc }}>{util == null ? '—' : util.pct + '%'}</span>
+            {util != null && <span style={{ display: 'block', fontSize: 9.5, fontWeight: 600, color: C.muted }}>{util.hours}/{util.cap}h</span>}
+          </span>
         </div>
         <div onMouseDown={(e) => beginDrag(e, name)} style={{ position: 'relative', flex: 1, minWidth: 0, height: rowH, backgroundImage: gridBg(NC), cursor: planMode ? 'crosshair' : 'default', userSelect: 'none' }}>
           {todayIdx >= 0 && <div style={{ position: 'absolute', top: 0, bottom: 0, left: `calc(${todayIdx}*100%/${NC})`, width: `calc(100%/${NC})`, background: 'rgba(143,145,127,.12)', pointerEvents: 'none' }} />}
@@ -568,8 +584,8 @@ export default function ResourcingPlanner({ data, onResync }: { data: ScheduleDa
                     <span style={{ fontSize: 12.5, fontWeight: 600, color: C.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{cl}</span>
                     {status && <span style={{ marginLeft: 'auto', flex: '0 0 auto', fontSize: 9.5, fontWeight: 700, color: sc, background: sc + '1E', padding: '2px 7px', borderRadius: 999, letterSpacing: '.02em' }}>{status}</span>}
                   </div>
-                  <div style={{ fontSize: 10, color: C.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', paddingLeft: 17 }}>
-                    {kind} · {start ? `${dLabel(start).replace(/^\w+, /, '')} → ${ongoing ? 'ongoing' : 'now'}` : '—'}
+                  <div title={(data.projectNames?.[cl] || []).join(', ')} style={{ fontSize: 10, color: C.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', paddingLeft: 17 }}>
+                    {(() => { const names = (data.projectNames?.[cl] || []).filter((n) => n.toLowerCase() !== cl.toLowerCase()); return names.length ? `${names.join(', ')} · ` : '' })()}{kind} · {start ? `${dLabel(start).replace(/^\w+, /, '')} → ${ongoing ? 'ongoing' : 'now'}` : '—'}
                   </div>
                   <div style={{ paddingLeft: 17, display: 'flex', alignItems: 'center', gap: 7 }}>
                     {budget ? (
@@ -624,7 +640,7 @@ export default function ResourcingPlanner({ data, onResync }: { data: ScheduleDa
           <div className="rt-modal" onMouseDown={(e) => e.stopPropagation()} style={{ width: 360, background: '#fff', borderRadius: 14, padding: '22px 22px 20px', boxShadow: '0 20px 50px rgba(39,39,39,.28)', fontFamily: SANS }}>
             <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-.02em', color: C.ink, marginBottom: 16 }}>{form.editing != null ? 'Edit ' : 'Add '}{form.type === 'timeoff' ? 'time off' : 'booking'}</div>
             {form.editing == null && <div style={{ display: 'inline-flex', background: '#e3e5de', borderRadius: 8, padding: 3, marginBottom: 16 }}>{([['booking', 'Booking'], ['timeoff', 'Time off']] as const).map(([v, t]) => (<button key={v} onClick={() => setForm((f) => (f ? { ...f, type: v } : f))} style={pill(form.type, v)}>{t}</button>))}</div>}
-            <div style={{ marginBottom: 12 }}><label style={lbl}>Person</label><select value={form.name} disabled={form.type === 'timeoff' && form.all} onChange={(e) => setForm((f) => (f ? { ...f, name: e.target.value } : f))} style={{ ...ddS, opacity: form.type === 'timeoff' && form.all ? 0.5 : 1 }}>{NAMES.map((n) => <option key={n} value={n}>{n}</option>)}</select></div>
+            <div style={{ marginBottom: 12 }}><label style={lbl}>Person</label><select value={form.name} disabled={(form.type === 'timeoff' && form.all) || Boolean(form.lockName)} onChange={(e) => setForm((f) => (f ? { ...f, name: e.target.value } : f))} style={{ ...ddS, opacity: (form.type === 'timeoff' && form.all) || form.lockName ? 0.6 : 1 }}>{NAMES.map((n) => <option key={n} value={n}>{n}</option>)}</select></div>
             {form.type === 'timeoff' && <>
               <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div>
