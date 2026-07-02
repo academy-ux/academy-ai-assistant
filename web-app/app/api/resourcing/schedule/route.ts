@@ -22,11 +22,17 @@ export async function GET(req: NextRequest) {
     }
 
     if (!harvestConfigured()) {
+      const hasId = Boolean(process.env.HARVEST_ACCOUNT_ID)
+      const hasToken = Boolean(process.env.HARVEST_ACCESS_TOKEN)
+      console.warn('[resourcing] harvest not configured', {
+        hasId,
+        hasToken,
+        harvestKeys: Object.keys(process.env).filter((k) => k.toUpperCase().includes('HARVEST')),
+      })
       return NextResponse.json(
         {
           error: 'harvest_not_configured',
-          message:
-            'Set HARVEST_ACCOUNT_ID and HARVEST_ACCESS_TOKEN (personal access token from id.getharvest.com → Developers).',
+          message: `Set HARVEST_ACCOUNT_ID and HARVEST_ACCESS_TOKEN (personal access token from id.getharvest.com → Developers). Runtime sees: HARVEST_ACCOUNT_ID=${hasId ? 'present' : 'missing'}, HARVEST_ACCESS_TOKEN=${hasToken ? 'present' : 'missing'}.`,
         },
         { status: 503 }
       )
