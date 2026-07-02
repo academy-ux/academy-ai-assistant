@@ -4,7 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
-import { LayoutDashboard, History, MessageSquare, LogOut, Sparkles, FileText } from 'lucide-react'
+import { LayoutDashboard, History, MessageSquare, LogOut, Sparkles, FileText, CalendarRange } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -68,6 +68,12 @@ export function Sidebar() {
                         <Button variant="ghost" className={cn("w-full justify-start gap-3 font-medium", pathname.startsWith('/report') && "bg-primary/10 text-primary")}>
                             <FileText size={18} className={cn(pathname.startsWith('/report') ? "text-primary" : "text-muted-foreground")} />
                             Reports
+                        </Button>
+                    </Link>
+                    <Link href="/resourcing">
+                        <Button variant="ghost" className={cn("w-full justify-start gap-3 font-medium", pathname === '/resourcing' && "bg-primary/10 text-primary")}>
+                            <CalendarRange size={18} className={cn(pathname === '/resourcing' ? "text-primary" : "text-muted-foreground")} />
+                            Resourcing
                         </Button>
                     </Link>
                     <Link href="/feedback">
