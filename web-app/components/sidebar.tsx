@@ -70,12 +70,14 @@ export function Sidebar() {
                             Reports
                         </Button>
                     </Link>
-                    <Link href="/resourcing">
-                        <Button variant="ghost" className={cn("w-full justify-start gap-3 font-medium", pathname === '/resourcing' && "bg-primary/10 text-primary")}>
-                            <CalendarRange size={18} className={cn(pathname === '/resourcing' ? "text-primary" : "text-muted-foreground")} />
-                            Resourcing
-                        </Button>
-                    </Link>
+                    {(session.user as any)?.isResourcingAdmin && (
+                        <Link href="/resourcing">
+                            <Button variant="ghost" className={cn("w-full justify-start gap-3 font-medium", pathname === '/resourcing' && "bg-primary/10 text-primary")}>
+                                <CalendarRange size={18} className={cn(pathname === '/resourcing' ? "text-primary" : "text-muted-foreground")} />
+                                Resourcing
+                            </Button>
+                        </Link>
+                    )}
                     <Link href="/feedback">
                         <Button variant="ghost" className={cn("w-full justify-start gap-3 font-medium", pathname === '/feedback' && "bg-muted")}>
                             <MessageSquare size={18} className="text-muted-foreground" />

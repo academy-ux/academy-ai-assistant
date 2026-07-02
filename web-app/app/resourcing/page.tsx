@@ -5,7 +5,8 @@ import { useSession } from 'next-auth/react'
 import ResourcingPlanner, { ScheduleData } from '@/components/resourcing/resourcing-planner'
 
 export default function ResourcingPage() {
-  const { status } = useSession()
+  const { data: session, status } = useSession()
+  const allowed = status !== 'authenticated' || Boolean((session?.user as any)?.isResourcingAdmin)
   const [data, setData] = useState<ScheduleData | null>(null)
   const [error, setError] = useState<{ code?: string; message: string } | null>(null)
   const [loading, setLoading] = useState(true)
@@ -28,9 +29,22 @@ export default function ResourcingPage() {
   }, [])
 
   useEffect(() => {
-    if (status === 'authenticated') load()
+    if (status === 'authenticated' && allowed) load()
     if (status === 'unauthenticated') setLoading(false)
-  }, [status, load])
+  }, [status, allowed, load])
+
+  if (status === 'authenticated' && !allowed) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh] px-6">
+        <div className="max-w-md bg-card border border-border/60 rounded-xl p-6 text-center animate-fade-in-up">
+          <h2 className="text-base font-semibold text-foreground mb-2">Admins only</h2>
+          <p className="text-sm text-muted-foreground">
+            The resourcing planner is limited to planner admins. Ask Adam if you need access.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   if (status === 'loading' || loading) {
     return (

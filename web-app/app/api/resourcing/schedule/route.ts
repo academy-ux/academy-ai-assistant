@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 import { errorResponse } from '@/lib/validation'
+import { isResourcingAdmin } from '@/lib/auth'
 import { fetchHarvestBundle, harvestConfigured, type HarvestBundle } from '@/lib/harvest'
 import { loadPlannerState } from '@/lib/resourcing-db'
 
@@ -15,6 +16,9 @@ export async function GET(req: NextRequest) {
     const token = await getToken({ req })
     if (!token?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    if (!isResourcingAdmin(token.email)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     if (!harvestConfigured()) {

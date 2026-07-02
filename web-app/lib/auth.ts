@@ -24,6 +24,19 @@ export function isAdmin(email?: string | null) {
 }
 
 /**
+ * Resourcing planner access: RESOURCING_ADMIN_EMAILS allowlist,
+ * falling back to ADMIN_EMAILS if unset. Comma-separated emails.
+ */
+export function isResourcingAdmin(email?: string | null) {
+  if (!email) return false
+  const list = (process.env.RESOURCING_ADMIN_EMAILS || process.env.ADMIN_EMAILS || '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean)
+  return list.includes(email.toLowerCase())
+}
+
+/**
  * Exchange a Google refresh token for a fresh access token.
  * Used by both the NextAuth JWT callback and the cron endpoint.
  */
@@ -171,6 +184,7 @@ export const authOptions: NextAuthOptions = {
         const picture = (token as any).picture ?? (token as any).image
         session.user.image = (picture as string) ?? session.user.image
         ;(session.user as any).isAdmin = isAdmin(session.user.email)
+        ;(session.user as any).isResourcingAdmin = isResourcingAdmin(session.user.email)
       }
       if (!didLogSessionOnce) {
         didLogSessionOnce = true

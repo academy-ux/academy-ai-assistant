@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 import { z } from 'zod'
 import { errorResponse } from '@/lib/validation'
+import { isResourcingAdmin } from '@/lib/auth'
 import { savePlannerState } from '@/lib/resourcing-db'
 
 export const dynamic = 'force-dynamic'
@@ -40,6 +41,9 @@ export async function PUT(req: NextRequest) {
     const token = await getToken({ req })
     if (!token?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    if (!isResourcingAdmin(token.email)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const body = await req.json()
