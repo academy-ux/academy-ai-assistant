@@ -137,7 +137,8 @@ export async function computeExperience(
 
       const model = genAI.getGenerativeModel({
         model: 'gemini-2.5-flash',
-        generationConfig: { maxOutputTokens: 2048 },
+        // thinking off: its tokens count against the cap and truncate the JSON
+        generationConfig: { maxOutputTokens: 2048, thinkingConfig: { thinkingBudget: 0 } } as any,
       })
 
       const prompt = `Analyze each candidate's work history and calculate their years of experience.

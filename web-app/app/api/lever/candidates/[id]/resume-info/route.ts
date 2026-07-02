@@ -125,7 +125,8 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
         // Use Gemini to analyze relevant experience
         const model = genAI.getGenerativeModel({
             model: 'gemini-2.5-flash',
-            generationConfig: { maxOutputTokens: 1024 }
+            // thinking off: its tokens count against the cap and truncate the JSON
+            generationConfig: { maxOutputTokens: 1024, thinkingConfig: { thinkingBudget: 0 } } as any
         })
 
         const prompt = `Analyze this candidate's work history and calculate their years of experience.

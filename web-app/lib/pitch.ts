@@ -167,7 +167,9 @@ ${transcriptSnippet}`
 
     const model = genAI.getGenerativeModel({
         model: 'gemini-2.5-flash',
-        generationConfig: { maxOutputTokens: 4096 }
+        // Thinking tokens count against maxOutputTokens on 2.5 models and were
+        // truncating pitches mid-sentence — a blurb needs no chain-of-thought.
+        generationConfig: { maxOutputTokens: 4096, thinkingConfig: { thinkingBudget: 0 } } as any
     })
 
     const prompt = `You are a senior recruiter at Academy, a design-led recruiting firm. You are writing a candidate blurb to present a candidate to a hiring manager/client, in the style your team writes by hand.
