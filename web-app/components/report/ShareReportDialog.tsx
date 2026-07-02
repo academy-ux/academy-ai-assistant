@@ -36,6 +36,7 @@ export function ShareReportDialog({ open, onClose, postingId, postingTitle }: Sh
     const [creating, setCreating] = useState(false)
     const [url, setUrl] = useState<string | null>(null)
     const [copied, setCopied] = useState(false)
+    const [sendInvites, setSendInvites] = useState(true)
 
     if (!open) return null
 
@@ -80,7 +81,13 @@ export function ShareReportDialog({ open, onClose, postingId, postingTitle }: Sh
             const res = await fetch('/api/share', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ postingId, postingTitle, allowedEmails, allowedDomains }),
+                body: JSON.stringify({
+                    postingId,
+                    postingTitle,
+                    allowedEmails,
+                    allowedDomains,
+                    sendInvites: mode === 'restricted' && sendInvites && allowedEmails.length > 0,
+                }),
             })
             const data = await res.json()
             if (!res.ok) throw new Error(data.error || 'Failed to create share link')
@@ -89,6 +96,19 @@ export function ShareReportDialog({ open, onClose, postingId, postingTitle }: Sh
             setCopied(true)
             setTimeout(() => setCopied(false), 2000)
             toast.success(data.restricted ? 'Restricted link created & copied' : 'Public link created & copied')
+
+            // Report what happened with invite emails (sent from your Gmail).
+            const invites = data.invites
+            if (invites) {
+                if (invites.sent?.length) {
+                    toast.success(`Invite emailed to ${invites.sent.join(', ')}`)
+                }
+                if (invites.blocked === 'gmail_scope_missing' || invites.blocked === 'no_refresh_token') {
+                    toast.warning('Couldn\'t email invites — sign out and back in to grant Gmail permission, then share again.', { duration: 8000 })
+                } else if (invites.failed?.length) {
+                    toast.error(`Couldn't email: ${invites.failed.map((f: any) => f.email).join(', ')}`)
+                }
+            }
         } catch (e) {
             toast.error(e instanceof Error ? e.message : 'Failed to create share link')
         } finally {
@@ -193,6 +213,15 @@ export function ShareReportDialog({ open, onClose, postingId, postingTitle }: Sh
                                     ))}
                                 </div>
                             )}
+                            <label className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground cursor-pointer select-none pt-0.5">
+                                <input
+                                    type="checkbox"
+                                    checked={sendInvites}
+                                    onChange={e => setSendInvites(e.target.checked)}
+                                    className="h-3.5 w-3.5 rounded border-border accent-primary"
+                                />
+                                Email an invite to each address (sent from your Gmail)
+                            </label>
                         </div>
                     )}
 

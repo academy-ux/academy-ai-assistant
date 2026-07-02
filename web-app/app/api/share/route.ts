@@ -3,13 +3,17 @@ import { getToken } from 'next-auth/jwt'
 import { z } from 'zod'
 import { supabase } from '@/lib/supabase'
 import { validateBody, errorResponse } from '@/lib/validation'
+import { sendGmailInvites, shareInviteHtml, type SendResult } from '@/lib/email'
 
 const createShareSchema = z.object({
   postingId: z.string().min(1).max(100),
   postingTitle: z.string().max(200).optional(),
+  team: z.string().max(200).optional(),
   // Optional access restrictions. Empty/omitted => public link.
   allowedEmails: z.array(z.string().email().max(200)).max(100).optional(),
   allowedDomains: z.array(z.string().max(200)).max(100).optional(),
+  // Email an invite (from the sharer's own Gmail) to each allowed email.
+  sendInvites: z.boolean().optional(),
 })
 
 function normalizeList(list: string[] | undefined): string[] {
@@ -41,6 +45,24 @@ export async function POST(request: NextRequest) {
 
     const origin = request.nextUrl.origin
 
+    // Email invites from the sharer's own Gmail account (opt-in from the dialog).
+    const sendInvitesFor = async (url: string): Promise<SendResult | null> => {
+      if (!body.sendInvites || allowedEmails.length === 0) return null
+      const { subject, html } = shareInviteHtml({
+        senderName: (token.name as string) || (token.email as string),
+        team: body.team || null,
+        postingTitle: body.postingTitle || null,
+        url,
+      })
+      return sendGmailInvites({
+        senderEmail: token.email as string,
+        senderName: token.name as string | null,
+        recipients: allowedEmails,
+        subject,
+        html,
+      })
+    }
+
     if (existing) {
       // Keep the same link, but update its access rules to whatever the user
       // just chose (this is how restrictions get added/changed/cleared).
@@ -49,12 +71,14 @@ export async function POST(request: NextRequest) {
         .update({ allowed_emails: allowedEmails, allowed_domains: allowedDomains })
         .eq('token', (existing as any).token)
 
+      const url = `${origin}/share/${(existing as any).token}`
       return NextResponse.json({
         success: true,
         token: (existing as any).token,
-        url: `${origin}/share/${(existing as any).token}`,
+        url,
         isNew: false,
         restricted,
+        invites: await sendInvitesFor(url),
       })
     }
 
@@ -75,12 +99,14 @@ export async function POST(request: NextRequest) {
       throw new Error(insertError?.message || 'Failed to create share link')
     }
 
+    const url = `${origin}/share/${(newShare as any).token}`
     return NextResponse.json({
       success: true,
       token: (newShare as any).token,
-      url: `${origin}/share/${(newShare as any).token}`,
+      url,
       isNew: true,
       restricted,
+      invites: await sendInvitesFor(url),
     })
   } catch (error) {
     return errorResponse(error, 'Share creation error')
