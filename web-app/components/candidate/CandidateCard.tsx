@@ -24,7 +24,7 @@ export interface Candidate {
     salary?: string | null
     portfolioPassword?: string | null
     // Client accept/reject signal (advisory — does not change the Lever stage)
-    clientDecision?: 'accepted' | 'rejected' | null
+    clientDecision?: 'accepted' | 'maybe' | 'rejected' | null
     clientDecisionBy?: string | null
     // Current role parsed from the candidate's resume
     currentTitle?: string | null

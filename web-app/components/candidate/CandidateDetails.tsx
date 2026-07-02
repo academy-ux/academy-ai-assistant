@@ -71,6 +71,56 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
     const [savingNoteEdit, setSavingNoteEdit] = useState(false)
     const [loadingContext, setLoadingContext] = useState(false)
 
+    // Staff-side client decision (set/override/clear on the client's behalf)
+    const [staffDecision, setStaffDecision] = useState<'accepted' | 'maybe' | 'rejected' | null>(candidate.clientDecision ?? null)
+    const [staffDecisionBy, setStaffDecisionBy] = useState<string | null>(candidate.clientDecisionBy ?? null)
+    const [savingStaffDecision, setSavingStaffDecision] = useState(false)
+
+    useEffect(() => {
+        setStaffDecision(candidate.clientDecision ?? null)
+        setStaffDecisionBy(candidate.clientDecisionBy ?? null)
+    }, [candidate.id, candidate.clientDecision, candidate.clientDecisionBy])
+
+    const handleStaffDecision = async (next: 'accepted' | 'maybe' | 'rejected') => {
+        if (savingStaffDecision) return
+        const resolvedPostingId = postingId
+        if (!resolvedPostingId) {
+            toast.error('No posting associated with this candidate')
+            return
+        }
+        const value = staffDecision === next ? null : next
+        const prev = staffDecision
+        const prevBy = staffDecisionBy
+        setSavingStaffDecision(true)
+        setStaffDecision(value)
+        if (!value) setStaffDecisionBy(null)
+        try {
+            const res = await fetch('/api/report/decision', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    candidateId: candidate.id,
+                    postingId: resolvedPostingId,
+                    decision: value,
+                    candidateEmail: candidate.email || undefined,
+                    stage: candidate.stage,
+                }),
+            })
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}))
+                throw new Error(data.error || 'Failed to save decision')
+            }
+            toast.success(value ? `Marked ${value} on the client's behalf` : 'Decision cleared')
+            onRefresh?.()
+        } catch (e) {
+            setStaffDecision(prev)
+            setStaffDecisionBy(prevBy)
+            toast.error(e instanceof Error ? e.message : 'Failed to save decision')
+        } finally {
+            setSavingStaffDecision(false)
+        }
+    }
+
     const [portfolioPassword, setPortfolioPassword] = useState("")
     const [savingPassword, setSavingPassword] = useState(false)
     const [isEditingPassword, setIsEditingPassword] = useState(false)
@@ -498,35 +548,55 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                 )}
             </div>
 
-            {/* Client decision banner — advisory signal from the shared report */}
-            {candidate.clientDecision && (
-                <div className={cn(
-                    "flex items-center gap-3 rounded-xl px-4 py-3 border",
-                    candidate.clientDecision === 'accepted'
-                        ? "bg-emerald-500/5 border-emerald-500/15"
-                        : "bg-destructive/5 border-destructive/15"
-                )}>
-                    <div className={cn(
-                        "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
-                        candidate.clientDecision === 'accepted' ? "bg-emerald-500/10 text-emerald-600" : "bg-destructive/10 text-destructive/70"
-                    )}>
-                        {candidate.clientDecision === 'accepted' ? <Check className="w-4 h-4" /> : <X className="w-4 h-4" />}
-                    </div>
+            {/* Client decision — set from the shared report, or here by staff on
+                the client's behalf (feedback often arrives on calls). */}
+            <div className={cn(
+                "rounded-xl px-4 py-3 border",
+                staffDecision === 'accepted' ? "bg-emerald-500/5 border-emerald-500/15" :
+                staffDecision === 'maybe' ? "bg-amber-500/5 border-amber-500/15" :
+                staffDecision === 'rejected' ? "bg-destructive/5 border-destructive/15" :
+                "bg-muted/20 border-border/40"
+            )}>
+                <div className="flex items-center justify-between gap-3 flex-wrap">
                     <div className="min-w-0">
                         <p className={cn(
                             "text-xs font-bold",
-                            candidate.clientDecision === 'accepted' ? "text-emerald-700" : "text-destructive/80"
+                            staffDecision === 'accepted' ? "text-emerald-700" :
+                            staffDecision === 'maybe' ? "text-amber-700" :
+                            staffDecision === 'rejected' ? "text-destructive/80" :
+                            "text-muted-foreground"
                         )}>
-                            Client {candidate.clientDecision === 'accepted' ? 'accepted' : 'rejected'} this candidate
+                            {staffDecision
+                                ? `Client decision: ${staffDecision}`
+                                : 'No client decision yet'}
                         </p>
-                        {candidate.clientDecisionBy && (
-                            <p className="text-[11px] text-muted-foreground/60 mt-0.5">
-                                By {candidate.clientDecisionBy}
-                            </p>
+                        {staffDecisionBy && staffDecision && (
+                            <p className="text-[11px] text-muted-foreground/60 mt-0.5">By {staffDecisionBy}</p>
                         )}
                     </div>
+                    <div className="flex items-center gap-1.5">
+                        {(['accepted', 'maybe', 'rejected'] as const).map(d => (
+                            <button
+                                key={d}
+                                type="button"
+                                disabled={savingStaffDecision}
+                                onClick={() => handleStaffDecision(d)}
+                                title={staffDecision === d ? 'Click again to clear' : `Mark ${d} on the client's behalf`}
+                                className={cn(
+                                    "px-2.5 py-1 rounded-lg text-[11px] font-bold capitalize border transition-colors disabled:opacity-50",
+                                    staffDecision === d
+                                        ? d === 'accepted' ? "bg-emerald-500 text-white border-emerald-500"
+                                            : d === 'maybe' ? "bg-amber-500 text-white border-amber-500"
+                                            : "bg-destructive text-white border-destructive"
+                                        : "bg-card text-muted-foreground border-border/50 hover:text-foreground"
+                                )}
+                            >
+                                {d === 'accepted' ? 'Accept' : d === 'maybe' ? 'Maybe' : 'Reject'}
+                            </button>
+                        ))}
+                    </div>
                 </div>
-            )}
+            </div>
 
             {/* Info Card */}
             <div className="bg-muted/20 rounded-xl p-4 md:p-5 relative group/meta">

@@ -135,7 +135,7 @@ export default function SharedReportPage() {
     // Patch a single candidate's decision locally so the table badge updates
     // without re-fetching the whole pipeline from Lever. Accepting also advances
     // the candidate to Client Interview in Lever, so re-pull to reflect the move.
-    const handleDecisionChange = useCallback((candidateId: string, decision: 'accepted' | 'rejected' | null) => {
+    const handleDecisionChange = useCallback((candidateId: string, decision: 'accepted' | 'maybe' | 'rejected' | null) => {
         setCandidates(prev => prev.map(c => c.id === candidateId ? { ...c, clientDecision: decision } : c))
         if (decision === 'accepted') {
             setTimeout(() => fetchData({ silent: true }), 1200)

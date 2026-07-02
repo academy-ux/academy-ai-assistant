@@ -13,7 +13,7 @@ import { toast } from "sonner"
 interface SharedCandidateDetailsProps {
     candidate: Candidate
     token: string
-    onDecisionChange?: (candidateId: string, decision: 'accepted' | 'rejected' | null) => void
+    onDecisionChange?: (candidateId: string, decision: 'accepted' | 'maybe' | 'rejected' | null) => void
 }
 
 interface ClientNote {
@@ -51,9 +51,11 @@ export function SharedCandidateDetails({ candidate, token, onDecisionChange }: S
         return link
     }) || []
 
-    const canDecide = isPresentingStage(candidate.stage) && !candidate.archivedAt
+    // Presenting candidates get decisions; Client Interview keeps them editable
+    // (accepting moves the candidate there — minds must stay changeable).
+    const canDecide = (isPresentingStage(candidate.stage) || (candidate.stage || '').toLowerCase() === 'client interview') && !candidate.archivedAt
     const [reviewerName, setReviewerName] = useState("")
-    const [decision, setDecision] = useState<'accepted' | 'rejected' | null>(candidate.clientDecision ?? null)
+    const [decision, setDecision] = useState<'accepted' | 'maybe' | 'rejected' | null>(candidate.clientDecision ?? null)
     const [savingDecision, setSavingDecision] = useState(false)
 
     const [notes, setNotes] = useState<ClientNote[]>([])
@@ -140,10 +142,10 @@ export function SharedCandidateDetails({ candidate, token, onDecisionChange }: S
         }
     }
 
-    const handleDecision = async (next: 'accepted' | 'rejected') => {
+    const handleDecision = async (next: 'accepted' | 'maybe' | 'rejected') => {
         if (savingDecision) return
         // Toggle off if the same decision is tapped again.
-        const value: 'accepted' | 'rejected' | null = decision === next ? null : next
+        const value: 'accepted' | 'maybe' | 'rejected' | null = decision === next ? null : next
         setSavingDecision(true)
         const previous = decision
         setDecision(value) // optimistic
@@ -160,7 +162,8 @@ export function SharedCandidateDetails({ candidate, token, onDecisionChange }: S
             onDecisionChange?.(candidate.id, value)
             toast.success(
                 value === 'accepted' ? 'Marked as accepted' :
-                value === 'rejected' ? 'Marked as rejected' : 'Decision cleared'
+                value === 'rejected' ? 'Marked as rejected' :
+                value === 'maybe' ? 'Marked as maybe' : 'Decision cleared'
             )
         } catch (e) {
             setDecision(previous) // revert
@@ -265,11 +268,11 @@ export function SharedCandidateDetails({ candidate, token, onDecisionChange }: S
                     {decision && (
                         <span className={cn(
                             "shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider",
-                            decision === 'accepted'
-                                ? "bg-emerald-500/10 text-emerald-600"
-                                : "bg-destructive/10 text-destructive/80"
+                            decision === 'accepted' ? "bg-emerald-500/10 text-emerald-600" :
+                            decision === 'maybe' ? "bg-amber-500/10 text-amber-600" :
+                            "bg-destructive/10 text-destructive/80"
                         )}>
-                            {decision === 'accepted' ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                            {decision === 'accepted' ? <Check className="w-3 h-3" /> : decision === 'maybe' ? <span className="text-[11px] leading-none font-black">?</span> : <X className="w-3 h-3" />}
                             {decision}
                         </span>
                     )}
@@ -410,12 +413,12 @@ export function SharedCandidateDetails({ candidate, token, onDecisionChange }: S
                         <p className="text-xs text-muted-foreground/60 leading-relaxed">
                             Let us know if you'd like to move forward with this candidate. This won't change their stage — our team follows up on your feedback.
                         </p>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-3 gap-2">
                             <button
                                 onClick={() => handleDecision('accepted')}
                                 disabled={savingDecision || nameMissing}
                                 className={cn(
-                                    "flex items-center justify-center gap-2 h-11 rounded-xl text-xs font-bold tracking-wide transition-[color,background-color,transform] duration-200 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none",
+                                    "flex items-center justify-center gap-1.5 h-11 rounded-xl text-xs font-bold tracking-wide transition-[color,background-color,transform] duration-200 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none",
                                     decision === 'accepted'
                                         ? "bg-emerald-500 text-white shadow-sm"
                                         : "border border-border/40 bg-card/60 text-muted-foreground hover:text-emerald-600 hover:border-emerald-500/40 hover:bg-emerald-500/5"
@@ -425,10 +428,23 @@ export function SharedCandidateDetails({ candidate, token, onDecisionChange }: S
                                 Accept
                             </button>
                             <button
+                                onClick={() => handleDecision('maybe')}
+                                disabled={savingDecision || nameMissing}
+                                className={cn(
+                                    "flex items-center justify-center gap-1.5 h-11 rounded-xl text-xs font-bold tracking-wide transition-[color,background-color,transform] duration-200 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none",
+                                    decision === 'maybe'
+                                        ? "bg-amber-500 text-white shadow-sm"
+                                        : "border border-border/40 bg-card/60 text-muted-foreground hover:text-amber-600 hover:border-amber-500/40 hover:bg-amber-500/5"
+                                )}
+                            >
+                                {savingDecision ? <Loader2 className="w-4 h-4 animate-spin" /> : <span className={cn("text-sm leading-none font-black", decision === 'maybe' ? "" : "text-amber-600")}>?</span>}
+                                Maybe
+                            </button>
+                            <button
                                 onClick={() => handleDecision('rejected')}
                                 disabled={savingDecision || nameMissing}
                                 className={cn(
-                                    "flex items-center justify-center gap-2 h-11 rounded-xl text-xs font-bold tracking-wide transition-[color,background-color,transform] duration-200 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none",
+                                    "flex items-center justify-center gap-1.5 h-11 rounded-xl text-xs font-bold tracking-wide transition-[color,background-color,transform] duration-200 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none",
                                     decision === 'rejected'
                                         ? "bg-destructive text-white shadow-sm"
                                         : "border border-border/40 bg-card/60 text-muted-foreground hover:text-destructive hover:border-destructive/40 hover:bg-destructive/5"
@@ -440,7 +456,7 @@ export function SharedCandidateDetails({ candidate, token, onDecisionChange }: S
                         </div>
                         {decision && (
                             <p className="text-[11px] text-muted-foreground/50 text-center">
-                                Tap the {decision === 'accepted' ? 'Accept' : 'Reject'} button again to clear your decision.
+                                Tap the same button again to clear your decision — you can change it any time.
                             </p>
                         )}
                     </div>
