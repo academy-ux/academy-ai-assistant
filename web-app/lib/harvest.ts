@@ -64,12 +64,28 @@ export async function fetchHarvestBundle(windowDays = 120): Promise<HarvestBundl
   const today = new Date()
   const from = new Date(today.getTime() - windowDays * 86400000)
 
-  const [users, entries, projectReport, projects] = await Promise.all([
+  const [users, entries, projects] = await Promise.all([
     harvestGetAll<any>('/users', { is_active: 'true' }, 'users'),
     harvestGetAll<any>('/time_entries', { from: ymd(from), to: ymd(today) }, 'time_entries'),
-    harvestGetAll<any>('/reports/time/projects', { from: '2015-01-01', to: ymd(today) }, 'results'),
     harvestGetAll<any>('/projects', {}, 'projects'),
   ])
+
+  // Lifetime burned: the reports API caps timeframes at 1 year, so query
+  // calendar-year chunks from the earliest project start and merge.
+  let earliestYear = today.getFullYear()
+  for (const pr of projects) {
+    if (pr.starts_on) earliestYear = Math.min(earliestYear, Number(pr.starts_on.slice(0, 4)) || earliestYear)
+  }
+  earliestYear = Math.max(2010, earliestYear)
+  const projectReport = (
+    await Promise.all(
+      Array.from({ length: today.getFullYear() - earliestYear + 1 }, (_, i) => {
+        const y = earliestYear + i
+        const to = y === today.getFullYear() ? ymd(today) : `${y}-12-31`
+        return harvestGetAll<any>('/reports/time/projects', { from: `${y}-01-01`, to }, 'results')
+      })
+    )
+  ).flat()
 
   const people: HarvestBundle['people'] = {}
   for (const u of users) {
