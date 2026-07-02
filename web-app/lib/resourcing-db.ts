@@ -22,7 +22,8 @@ export interface PlannerTimeoff {
   id: string
   name: string
   start: string
-  end: string
+  end?: string | null // null/absent on recurring rules = no end date
+  weekdays?: number[] | null // 0-4 (Mon..Fri); set = repeats weekly on those days
 }
 
 export interface PlannerState {
@@ -55,7 +56,10 @@ export async function loadPlannerState(): Promise<PlannerState> {
       id: o.id,
       name: o.person,
       start: o.start_day,
-      end: o.end_day,
+      end: o.end_day ?? null,
+      weekdays: o.weekdays
+        ? String(o.weekdays).split(',').map(Number).filter((n: number) => n >= 0 && n <= 4)
+        : null,
     })),
     budgets: Object.fromEntries((budgets.data || []).map((b: any) => [b.label, Number(b.hours)])),
     capOverrides: Object.fromEntries(
@@ -108,7 +112,8 @@ export async function savePlannerState(state: PlannerState, editor: string): Pro
       id: o.id,
       person: o.name,
       start_day: o.start,
-      end_day: o.end,
+      end_day: o.end || null,
+      weekdays: o.weekdays?.length ? o.weekdays.join(',') : null,
       created_by: editor,
       updated_at: now,
     }))

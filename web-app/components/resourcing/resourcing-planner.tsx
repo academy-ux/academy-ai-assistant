@@ -23,7 +23,9 @@ export interface ScheduleData {
 }
 
 interface Booking { id: string; name: string; client: string; hrs: number; start: string; end: string }
-interface Timeoff { id: string; name: string; start: string; end: string }
+// weekdays (0-4 = Mon..Fri) set → repeats weekly from start until end (no end when null)
+interface Timeoff { id: string; name: string; start: string; end?: string | null; weekdays?: number[] | null }
+const WD_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
 
 // Academy design tokens (globals.css) mapped onto the planner surface.
 const C = {
@@ -117,7 +119,9 @@ type FormState = {
   client?: string
   hrs?: number | string
   start: string
-  end: string
+  end: string // '' = no end date (recurring only)
+  repeat?: 'once' | 'weekly'
+  weekdays?: number[]
   all: boolean
 } | null
 
@@ -131,6 +135,7 @@ type DragState = {
   grabIdx?: number
   origStart?: string
   origEnd?: string
+  recurring?: boolean
   rectLeft: number
   colW: number
   moved?: boolean
@@ -256,10 +261,24 @@ export default function ResourcingPlanner({ data, onResync }: { data: ScheduleDa
     return { t, p }
   }
 
+  // Weekly capacity is spread over the person's working days: 5 minus any
+  // recurring-off weekdays (part-timers), so a 32h cap on a Mon–Thu schedule
+  // means 8h/day — not 6.4h/day with Fridays double-counted as lost capacity.
+  const workdaysPerWeek = (name: string) => {
+    const wds = new Set<number>()
+    timeoff.forEach((o) => {
+      if (o.name === name && o.weekdays?.length && o.start <= DAYS[NC - 1].key && (!o.end || o.end >= DAYS[0].key)) o.weekdays.forEach((d) => wds.add(d))
+    })
+    return Math.max(1, 5 - wds.size)
+  }
   // ?? fallback: a resync can introduce a person who wasn't in the initial caps state
-  const capDay = (name: string) => (caps[name] ?? DD[name].cap) / 5
+  const capDay = (name: string) => (caps[name] ?? DD[name].cap) / workdaysPerWeek(name)
+  const offMatches = (o: Timeoff, day: DayCol) =>
+    o.weekdays?.length
+      ? o.weekdays.includes(day.dow) && day.key >= o.start && (!o.end || day.key <= o.end)
+      : day.key >= o.start && day.key <= (o.end || o.start)
   const getCell = (name: string, day: DayCol): { off?: boolean; variant: string; t: number; p: Record<string, number> } | null => {
-    if (timeoff.some((o) => o.name === name && day.key >= o.start && day.key <= o.end)) return { off: true, variant: 'off', t: 0, p: {} }
+    if (timeoff.some((o) => o.name === name && offMatches(o, day))) return { off: true, variant: 'off', t: 0, p: {} }
     const dd = DD[name].days
     if (dd[day.key]) { const p = dd[day.key]; return { p, t: Object.values(p).reduce((a, b) => a + b, 0), variant: 'actual' } }
     const pl = plans.filter((b) => b.name === name && day.key >= b.start && day.key <= b.end)
@@ -297,14 +316,14 @@ export default function ResourcingPlanner({ data, onResync }: { data: ScheduleDa
     e.preventDefault()
     let d: DragState
     if (ds.handle) {
-      d = { mode: ds.handle === 'M' ? 'move' : ds.handle === 'L' ? 'resizeL' : 'resizeR', kind: ds.kind as 'plan' | 'off', id: ds.id, grabIdx: idx, origStart: ds.start, origEnd: ds.end, rectLeft: r.left, colW, moved: false }
+      d = { mode: ds.handle === 'M' ? 'move' : ds.handle === 'L' ? 'resizeL' : 'resizeR', kind: ds.kind as 'plan' | 'off', id: ds.id, grabIdx: idx, origStart: ds.start, origEnd: ds.end, recurring: ds.recurring === '1', rectLeft: r.left, colW, moved: false }
       pushHist()
     } else d = { mode: 'create', name, aIdx: idx, bIdx: idx, rectLeft: r.left, colW }
     dragRef.current = d
     setDrag(d)
   }
   const openEdit = (kind: 'plan' | 'off', id: string) => {
-    if (kind === 'off') { const o = timeoffRef.current.find((x) => x.id === id); if (o) setForm({ type: 'timeoff', editing: id, name: o.name, start: o.start, end: o.end, all: false }) }
+    if (kind === 'off') { const o = timeoffRef.current.find((x) => x.id === id); if (o) setForm({ type: 'timeoff', editing: id, name: o.name, start: o.start, end: o.end || '', repeat: o.weekdays?.length ? 'weekly' : 'once', weekdays: o.weekdays || [], all: false }) }
     else { const b = plansRef.current.find((x) => x.id === id); if (b) setForm({ type: 'booking', editing: id, name: b.name, client: b.client, hrs: b.hrs, start: b.start, end: b.end, all: false }) }
   }
   useEffect(() => {
@@ -312,6 +331,7 @@ export default function ResourcingPlanner({ data, onResync }: { data: ScheduleDa
       const d = dragRef.current
       if (!d) return
       const idx = clamp(Math.floor((e.clientX - d.rectLeft) / d.colW), 0, NC - 1)
+      if (d.recurring) return // recurring rules edit via dialog only, never by drag
       if (d.mode === 'create') { if (idx !== d.bIdx) { d.bIdx = idx; setDrag({ ...d }) } }
       else if (d.mode === 'resizeL') { if (idx !== d.grabIdx) d.moved = true; const key = DAYS[idx].key; setItem(d, (it) => (key <= it.end ? { ...it, start: key } : it)) }
       else if (d.mode === 'resizeR') { if (idx !== d.grabIdx) d.moved = true; const key = DAYS[idx].key; setItem(d, (it) => (key >= it.start ? { ...it, end: key } : it)) }
@@ -320,7 +340,7 @@ export default function ResourcingPlanner({ data, onResync }: { data: ScheduleDa
     const mu = () => {
       const d = dragRef.current
       if (!d) return
-      if (d.mode === 'create') { const a = Math.min(d.aIdx!, d.bIdx!), b = Math.max(d.aIdx!, d.bIdx!); setForm({ type: 'booking', name: d.name!, client: CLIENTS[0], hrs: 8, start: DAYS[a].key, end: DAYS[b].key, all: false }) }
+      if (d.mode === 'create') { const a = Math.min(d.aIdx!, d.bIdx!), b = Math.max(d.aIdx!, d.bIdx!); setForm({ type: 'booking', name: d.name!, client: CLIENTS[0], hrs: 8, start: DAYS[a].key, end: DAYS[b].key, repeat: 'once', weekdays: [], all: false }) }
       else if (!d.moved) { popHist(); openEdit(d.kind!, d.id!) } // click without drag = edit
       dragRef.current = null
       setDrag(null)
@@ -330,14 +350,20 @@ export default function ResourcingPlanner({ data, onResync }: { data: ScheduleDa
     return () => { window.removeEventListener('mousemove', mm); window.removeEventListener('mouseup', mu) }
   })
 
+  const weekly = form?.type === 'timeoff' && form.repeat === 'weekly'
+  const canSubmit = !weekly || (form?.weekdays?.length ?? 0) > 0
   const submitForm = () => {
-    if (!form) return
+    if (!form || !canSubmit) return
     const s = form.start, e = form.end >= form.start ? form.end : form.start
+    // recurring: end is optional ('' = repeats forever), weekdays drive the days
+    const offFields = weekly
+      ? { start: s, end: form.end && form.end >= s ? form.end : null, weekdays: form.weekdays! }
+      : { start: s, end: e, weekdays: null }
     pushHist()
     if (form.editing != null) {
-      if (form.type === 'timeoff') setTimeoff((t) => t.map((x) => (x.id === form.editing ? { ...x, name: form.name, start: s, end: e } : x)))
+      if (form.type === 'timeoff') setTimeoff((t) => t.map((x) => (x.id === form.editing ? { ...x, name: form.name, ...offFields } : x)))
       else setPlans((p) => p.map((x) => (x.id === form.editing ? { ...x, name: form.name, client: form.client!, hrs: clamp(Number(form.hrs) || 0, 0, 16), start: s, end: e } : x)))
-    } else if (form.type === 'timeoff') { const targets = form.all ? NAMES : [form.name]; setTimeoff((t) => [...t, ...targets.map((n) => ({ id: crypto.randomUUID(), name: n, start: s, end: e }))]) }
+    } else if (form.type === 'timeoff') { const targets = form.all ? NAMES : [form.name]; setTimeoff((t) => [...t, ...targets.map((n) => ({ id: crypto.randomUUID(), name: n, ...offFields }))]) }
     else setPlans((p) => [...p, { id: crypto.randomUUID(), name: form.name, client: form.client!, hrs: clamp(Number(form.hrs) || 0, 0, 16), start: s, end: e }])
     setForm(null)
   }
@@ -391,16 +417,18 @@ export default function ResourcingPlanner({ data, onResync }: { data: ScheduleDa
     const col = isOff ? C.off : clientColor(cl)
     const projected = it.kind === 'seg' && it.variant === 'projected'
     const draggable = it.kind === 'plan' || it.kind === 'off'
+    const recurring = Boolean(it.recurring)
+    const resizable = draggable && !recurring
     const left = `calc(${(it.s / NC) * 100}% + 2px)`, width = `calc(${((it.e - it.s + 1) / NC) * 100}% - 4px)`
     const top = PADV + it.lane * (BARH + GAP)
     const wide = it.e - it.s + 1 >= 2
-    const label = isOff ? (wide ? 'Time off' : 'Off') : `${cl}${wide ? ' · ' + +it.hrs.toFixed(1) + 'h' : ''}`
-    const da = { 'data-kind': isOff ? 'off' : 'plan', 'data-id': it.id, 'data-start': it.start, 'data-end': it.end }
+    const label = isOff ? (wide ? (recurring ? 'Off ↻' : 'Time off') : 'Off') : `${cl}${wide ? ' · ' + +it.hrs.toFixed(1) + 'h' : ''}`
+    const da = { 'data-kind': isOff ? 'off' : 'plan', 'data-id': it.id, 'data-start': it.start, 'data-end': it.end, ...(recurring ? { 'data-recurring': '1' } : {}) }
     return (
-      <div key={it.kind + '-' + (it.id || it.label) + '-' + it.s} className={'rt-bar' + (draggable && planMode ? ' ed' : '')} title={isOff ? 'Time off' : `${cl} · ${+it.hrs.toFixed(2)}h/day`} style={{ position: 'absolute', left, width, top, height: BARH, display: 'flex', borderRadius: 4, overflow: 'hidden', pointerEvents: draggable ? 'auto' : 'none', background: projected ? col + '2E' : col, border: projected ? `1px dashed ${col}` : 'none', boxShadow: it.kind === 'plan' ? 'inset 0 0 0 1.5px rgba(255,255,255,.5), 0 1px 2px rgba(39,39,39,.18)' : projected ? 'none' : '0 1px 2px rgba(39,39,39,.13)' }}>
-        {draggable && <div className="rt-grip" data-handle="L" {...da} style={{ width: planMode ? 10 : 6, flex: '0 0 auto', cursor: planMode ? 'ew-resize' : 'default', background: planMode ? 'rgba(255,255,255,.32)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{planMode && <span data-handle="L" {...da} style={{ width: 3, height: 11, borderLeft: '1.5px solid rgba(255,255,255,.9)', borderRight: '1.5px solid rgba(255,255,255,.9)' }} />}</div>}
-        <div {...(draggable ? { 'data-handle': 'M', ...da } : {})} title={draggable && planMode ? 'Click to edit · drag to move' : undefined} style={{ flex: 1, minWidth: 0, cursor: draggable && planMode ? 'grab' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9.5, fontWeight: 700, color: projected ? col : '#fff', whiteSpace: 'nowrap', overflow: 'hidden', padding: '0 3px' }}>{label}</div>
-        {draggable && <div className="rt-grip" data-handle="R" {...da} style={{ width: planMode ? 10 : 6, flex: '0 0 auto', cursor: planMode ? 'ew-resize' : 'default', background: planMode ? 'rgba(255,255,255,.32)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{planMode && <span data-handle="R" {...da} style={{ width: 3, height: 11, borderLeft: '1.5px solid rgba(255,255,255,.9)', borderRight: '1.5px solid rgba(255,255,255,.9)' }} />}</div>}
+      <div key={it.kind + '-' + (it.id || it.label) + '-' + it.s} className={'rt-bar' + (draggable && planMode ? ' ed' : '')} title={isOff ? (recurring ? 'Recurring time off' : 'Time off') : `${cl} · ${+it.hrs.toFixed(2)}h/day`} style={{ position: 'absolute', left, width, top, height: BARH, display: 'flex', borderRadius: 4, overflow: 'hidden', pointerEvents: draggable ? 'auto' : 'none', background: projected ? col + '2E' : col, border: projected ? `1px dashed ${col}` : 'none', boxShadow: it.kind === 'plan' ? 'inset 0 0 0 1.5px rgba(255,255,255,.5), 0 1px 2px rgba(39,39,39,.18)' : projected ? 'none' : '0 1px 2px rgba(39,39,39,.13)' }}>
+        {resizable && <div className="rt-grip" data-handle="L" {...da} style={{ width: planMode ? 10 : 6, flex: '0 0 auto', cursor: planMode ? 'ew-resize' : 'default', background: planMode ? 'rgba(255,255,255,.32)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{planMode && <span data-handle="L" {...da} style={{ width: 3, height: 11, borderLeft: '1.5px solid rgba(255,255,255,.9)', borderRight: '1.5px solid rgba(255,255,255,.9)' }} />}</div>}
+        <div {...(draggable ? { 'data-handle': 'M', ...da } : {})} title={draggable && planMode ? (recurring ? 'Click to edit the recurring rule' : 'Click to edit · drag to move') : undefined} style={{ flex: 1, minWidth: 0, cursor: draggable && planMode ? (recurring ? 'pointer' : 'grab') : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9.5, fontWeight: 700, color: projected ? col : '#fff', whiteSpace: 'nowrap', overflow: 'hidden', padding: '0 3px' }}>{label}</div>
+        {resizable && <div className="rt-grip" data-handle="R" {...da} style={{ width: planMode ? 10 : 6, flex: '0 0 auto', cursor: planMode ? 'ew-resize' : 'default', background: planMode ? 'rgba(255,255,255,.32)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{planMode && <span data-handle="R" {...da} style={{ width: 3, height: 11, borderLeft: '1.5px solid rgba(255,255,255,.9)', borderRight: '1.5px solid rgba(255,255,255,.9)' }} />}</div>}
       </div>
     )
   }
@@ -422,7 +450,18 @@ export default function ResourcingPlanner({ data, onResync }: { data: ScheduleDa
     const items: any[] = []
     labelSet.forEach((label) => { const wv = cds.map((cd) => (cd && cd.p && cd.p[label] > 0 ? { h: cd.p[label], variant: cd.variant } : null)); mergeSegs(wv).forEach((sg) => items.push({ ...sg, kind: 'seg', label })) })
     plans.filter((p) => p.name === name).forEach((p) => { const ii = DAYS.map((w, i) => i).filter((i) => DAYS[i].key >= p.start && DAYS[i].key <= p.end); if (ii.length) items.push({ s: ii[0], e: ii[ii.length - 1], kind: 'plan', id: p.id, client: p.client, hrs: p.hrs, start: p.start, end: p.end }) })
-    timeoff.filter((o) => o.name === name).forEach((o) => { const ii = DAYS.map((w, i) => i).filter((i) => DAYS[i].key >= o.start && DAYS[i].key <= o.end); if (ii.length) items.push({ s: ii[0], e: ii[ii.length - 1], kind: 'off', id: o.id, start: o.start, end: o.end }) })
+    timeoff.filter((o) => o.name === name).forEach((o) => {
+      const ii = DAYS.map((w, i) => i).filter((i) => offMatches(o, DAYS[i]))
+      if (!ii.length) return
+      if (o.weekdays?.length) {
+        // recurring: consecutive matching columns merge into per-week segments
+        const runs: [number, number][] = []
+        ii.forEach((i) => { const last = runs[runs.length - 1]; if (last && i === last[1] + 1) last[1] = i; else runs.push([i, i]) })
+        runs.forEach(([s, e]) => items.push({ s, e, kind: 'off', id: o.id, start: o.start, end: o.end, recurring: true }))
+      } else {
+        items.push({ s: ii[0], e: ii[ii.length - 1], kind: 'off', id: o.id, start: o.start, end: o.end })
+      }
+    })
     const nLanes = packLanes(items)
     const rowH = Math.max(44, PADV * 2 + nLanes * BARH + (nLanes - 1) * GAP)
     const selHere = drag && drag.mode === 'create' && drag.name === name ? { a: Math.min(drag.aIdx!, drag.bIdx!), b: Math.max(drag.aIdx!, drag.bIdx!) } : null
@@ -565,7 +604,7 @@ export default function ResourcingPlanner({ data, onResync }: { data: ScheduleDa
           <div style={{ marginTop: 18, background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, padding: '14px 18px' }}>
             <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', color: C.muted, marginBottom: 10 }}>Planned changes</div>
             {plans.map((b) => (<div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', fontSize: 12.5, color: C.ink2, borderBottom: `1px solid ${C.line2}` }}><span style={{ width: 9, height: 9, borderRadius: 2, background: clientColor(b.client) }} /><b style={{ color: C.ink }}>{b.name}</b> → {b.client}<span style={{ color: C.muted }}>{b.hrs}h/day · {dLabel(b.start)}–{dLabel(b.end)}</span><button onClick={() => delPlan(b.id)} style={{ marginLeft: 'auto', border: 'none', background: 'none', cursor: 'pointer', color: C.muted, fontSize: 15 }}>×</button></div>))}
-            {timeoff.map((o) => (<div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', fontSize: 12.5, color: C.ink2, borderBottom: `1px solid ${C.line2}` }}><span style={{ width: 9, height: 9, borderRadius: 2, background: C.off }} /><b style={{ color: C.ink }}>{o.name}</b> — Time off<span style={{ color: C.muted }}>{dLabel(o.start)}–{dLabel(o.end)}</span><button onClick={() => delOff(o.id)} style={{ marginLeft: 'auto', border: 'none', background: 'none', cursor: 'pointer', color: C.muted, fontSize: 15 }}>×</button></div>))}
+            {timeoff.map((o) => (<div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', fontSize: 12.5, color: C.ink2, borderBottom: `1px solid ${C.line2}` }}><span style={{ width: 9, height: 9, borderRadius: 2, background: C.off }} /><b style={{ color: C.ink }}>{o.name}</b> — Time off<span style={{ color: C.muted }}>{o.weekdays?.length ? `every ${o.weekdays.map((d) => WD_NAMES[d]).join(', ')} from ${dLabel(o.start)}${o.end ? ` until ${dLabel(o.end)}` : ''}` : `${dLabel(o.start)}–${dLabel(o.end || o.start)}`}</span><button onClick={() => delOff(o.id)} style={{ marginLeft: 'auto', border: 'none', background: 'none', cursor: 'pointer', color: C.muted, fontSize: 15 }}>×</button></div>))}
           </div>
         )}
 
@@ -584,19 +623,33 @@ export default function ResourcingPlanner({ data, onResync }: { data: ScheduleDa
             <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-.02em', color: C.ink, marginBottom: 16 }}>{form.editing != null ? 'Edit ' : 'Add '}{form.type === 'timeoff' ? 'time off' : 'booking'}</div>
             {form.editing == null && <div style={{ display: 'inline-flex', background: '#e3e5de', borderRadius: 8, padding: 3, marginBottom: 16 }}>{([['booking', 'Booking'], ['timeoff', 'Time off']] as const).map(([v, t]) => (<button key={v} onClick={() => setForm((f) => (f ? { ...f, type: v } : f))} style={pill(form.type, v)}>{t}</button>))}</div>}
             <div style={{ marginBottom: 12 }}><label style={lbl}>Person</label><select value={form.name} disabled={form.type === 'timeoff' && form.all} onChange={(e) => setForm((f) => (f ? { ...f, name: e.target.value } : f))} style={{ ...ddS, opacity: form.type === 'timeoff' && form.all ? 0.5 : 1 }}>{NAMES.map((n) => <option key={n} value={n}>{n}</option>)}</select></div>
-            {form.type === 'timeoff' && <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: C.ink2, marginBottom: 12, cursor: 'pointer' }}><input type="checkbox" checked={form.all} onChange={(e) => setForm((f) => (f ? { ...f, all: e.target.checked } : f))} />Apply to the whole team</label>}
+            {form.type === 'timeoff' && <>
+              <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div>
+                  <label style={lbl}>Repeats</label>
+                  <div style={{ display: 'inline-flex', background: '#e3e5de', borderRadius: 8, padding: 3 }}>{([['once', 'Once'], ['weekly', 'Weekly']] as const).map(([v, t]) => (<button key={v} onClick={() => setForm((f) => (f ? { ...f, repeat: v } : f))} style={pill(form.repeat || 'once', v)}>{t}</button>))}</div>
+                </div>
+                {form.repeat === 'weekly' && <div>
+                  <label style={lbl}>On days</label>
+                  <div style={{ display: 'inline-flex', gap: 4 }}>{WD_NAMES.map((wd, i) => { const on = form.weekdays?.includes(i); return (
+                    <button key={wd} onClick={() => setForm((f) => (f ? { ...f, weekdays: on ? (f.weekdays || []).filter((x) => x !== i) : [...(f.weekdays || []), i].sort() } : f))} style={{ width: 34, height: 28, borderRadius: 7, border: `1px solid ${on ? C.accent : C.line}`, background: on ? C.accent : '#fff', color: on ? '#fff' : C.ink2, fontFamily: SANS, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>{wd[0] + (wd === 'Thu' ? 'h' : wd === 'Tue' ? 'u' : '')}</button>
+                  ) })}</div>
+                </div>}
+              </div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: C.ink2, marginBottom: 12, cursor: 'pointer' }}><input type="checkbox" checked={form.all} onChange={(e) => setForm((f) => (f ? { ...f, all: e.target.checked } : f))} />Apply to the whole team</label>
+            </>}
             {form.type === 'booking' && <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
               <div style={{ flex: 2 }}><label style={lbl}>Client / project</label><select value={form.client} onChange={(e) => setForm((f) => (f ? { ...f, client: e.target.value } : f))} style={ddS}>{CLIENTS.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
               <div style={{ flex: 1 }}><label style={lbl}>Hrs/day</label><input type="number" min={0} max={16} value={form.hrs} onChange={(e) => setForm((f) => (f ? { ...f, hrs: e.target.value } : f))} style={selS} /></div>
             </div>}
             <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
               <div style={{ flex: 1 }}><label style={lbl}>From day</label><select value={form.start} onChange={(e) => setForm((f) => (f ? { ...f, start: e.target.value } : f))} style={ddS}>{horizon.map((k) => <option key={k} value={k}>{dLabel(k)}</option>)}</select></div>
-              <div style={{ flex: 1 }}><label style={lbl}>To day</label><select value={form.end} onChange={(e) => setForm((f) => (f ? { ...f, end: e.target.value } : f))} style={ddS}>{horizon.map((k) => <option key={k} value={k}>{dLabel(k)}</option>)}</select></div>
+              <div style={{ flex: 1 }}><label style={lbl}>{weekly ? 'Until (optional)' : 'To day'}</label><select value={form.end} onChange={(e) => setForm((f) => (f ? { ...f, end: e.target.value } : f))} style={ddS}>{weekly && <option value="">No end date</option>}{horizon.map((k) => <option key={k} value={k}>{dLabel(k)}</option>)}</select></div>
             </div>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
               {form.editing != null && <button onClick={deleteForm} style={{ border: `1px solid ${C.neg}44`, background: '#fff', cursor: 'pointer', fontFamily: SANS, fontSize: 13, fontWeight: 600, color: C.neg, padding: '9px 14px', borderRadius: 9 }}>Delete</button>}
               <button onClick={() => setForm(null)} style={{ marginLeft: 'auto', border: `1px solid ${C.line}`, background: '#fff', cursor: 'pointer', fontFamily: SANS, fontSize: 13, fontWeight: 600, color: C.ink2, padding: '9px 16px', borderRadius: 9 }}>Cancel</button>
-              <button onClick={submitForm} style={{ border: 'none', background: C.accent, cursor: 'pointer', fontFamily: SANS, fontSize: 13, fontWeight: 700, color: '#fff', padding: '9px 18px', borderRadius: 9 }}>{form.editing != null ? 'Save' : form.type === 'timeoff' ? 'Mark off' : 'Add booking'}</button>
+              <button onClick={submitForm} disabled={!canSubmit} title={canSubmit ? undefined : 'Pick at least one weekday'} style={{ border: 'none', background: C.accent, cursor: canSubmit ? 'pointer' : 'not-allowed', opacity: canSubmit ? 1 : 0.5, fontFamily: SANS, fontSize: 13, fontWeight: 700, color: '#fff', padding: '9px 18px', borderRadius: 9 }}>{form.editing != null ? 'Save' : form.type === 'timeoff' ? 'Mark off' : 'Add booking'}</button>
             </div>
           </div>
         </div>

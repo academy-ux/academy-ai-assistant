@@ -28,8 +28,12 @@ const plannerSchema = z.object({
         id: z.string().uuid(),
         name: z.string().min(1).max(120),
         start: dayKey,
-        end: dayKey,
-      }).refine((o) => o.end >= o.start, { message: 'end must be on or after start' })
+        end: dayKey.nullish(), // optional on recurring rules
+        weekdays: z.array(z.number().int().min(0).max(4)).max(5).nullish(),
+      }).refine(
+        (o) => (o.weekdays?.length ? !o.end || o.end >= o.start : Boolean(o.end && o.end >= o.start)),
+        { message: 'one-off time off needs end ≥ start; recurring needs weekdays' }
+      )
     )
     .max(500),
   budgets: z.record(z.string().max(160), z.number().min(0).max(100000)),
