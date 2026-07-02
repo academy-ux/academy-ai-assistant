@@ -847,6 +847,7 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                             placeholder={sec.placeholder}
                             value={sec.value}
                             onChange={(e) => sec.setValue(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (sec.value.trim() && !sec.saving) sec.submit() } }}
                             className="min-h-[80px] bg-muted/15 border-border/15 rounded-xl p-3 pr-12 text-xs font-medium focus:bg-muted/25 transition-[background-color,border-color] duration-200 resize-none"
                         />
                         <Button
@@ -868,7 +869,7 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
             ))}
 
             {/* Lever Link */}
-            <div className="pt-4 pb-8">
+            <div className="pt-4 pb-16">
                 <a
                     href={`https://hire.lever.co/candidates/${candidate.id}`}
                     target="_blank"

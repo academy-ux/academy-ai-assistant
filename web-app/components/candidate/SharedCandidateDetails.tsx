@@ -250,7 +250,7 @@ export function SharedCandidateDetails({ candidate, token, onDecisionChange }: S
     const hasPortfolio = normalizedLinks.some(l => !l.url.includes('linkedin.com'))
 
     return (
-        <div className="flex flex-col h-full space-y-8 pb-10">
+        <div className="flex flex-col h-full space-y-8 pb-20">
             {/* Hero */}
             <div className="space-y-5">
                 <div className="flex items-start gap-4">
@@ -468,9 +468,10 @@ export function SharedCandidateDetails({ candidate, token, onDecisionChange }: S
 
                     <div className="relative">
                         <Textarea
-                            placeholder={nameMissing ? "Enter your name above first..." : "Share your thoughts on this candidate..."}
+                            placeholder={nameMissing ? "Enter your name above first..." : "Share your thoughts — Enter to send, Shift+Enter for a new line"}
                             value={newNote}
                             onChange={(e) => setNewNote(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (newNote.trim() && !savingNote && !nameMissing) handleAddNote() } }}
                             className="min-h-[80px] bg-card/60 border-border/20 rounded-xl p-3 pr-12 text-xs font-medium focus:bg-card transition-colors resize-none"
                         />
                         <Button

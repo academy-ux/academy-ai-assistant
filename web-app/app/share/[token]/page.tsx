@@ -133,13 +133,12 @@ export default function SharedReportPage() {
     }, [needsEmail, candidates.length, token, fetchData])
 
     // Patch a single candidate's decision locally so the table badge updates
-    // without re-fetching the whole pipeline from Lever. Accepting also advances
-    // the candidate to Client Interview in Lever, so re-pull to reflect the move.
+    // without re-fetching the whole pipeline from Lever. Any decision change can
+    // move the candidate's stage (accept advances them; changing away from
+    // accept moves them back), so always re-pull to reflect it.
     const handleDecisionChange = useCallback((candidateId: string, decision: 'accepted' | 'maybe' | 'rejected' | null) => {
         setCandidates(prev => prev.map(c => c.id === candidateId ? { ...c, clientDecision: decision } : c))
-        if (decision === 'accepted') {
-            setTimeout(() => fetchData({ silent: true }), 1200)
-        }
+        setTimeout(() => fetchData({ silent: true }), 1200)
     }, [fetchData])
 
     // High-level funnel stats (computed across the full pipeline, ignoring search).
