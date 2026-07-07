@@ -8,7 +8,7 @@ import { CandidateDetails } from '@/components/candidate/CandidateDetails'
 import { ReportTabs } from '@/components/candidate/ReportTabs'
 import { ShareReportDialog } from '@/components/report/ShareReportDialog'
 import { ClientLogo } from '@/components/candidate/ClientLogo'
-import { Search, X, ChevronLeft, Users, FileText, Loader2, ExternalLink, Share2, Check, RefreshCw, FolderOpen, ArrowUpRight } from 'lucide-react'
+import { Search, X, ChevronLeft, Users, FileText, Loader2, ExternalLink, Share2, Check, RefreshCw, FolderOpen, ArrowUpRight, Table2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
@@ -235,6 +235,7 @@ export default function CandidateReportPage() {
     const [shareLoading, setShareLoading] = useState(false)
     const [shareCopied, setShareCopied] = useState(false)
     const [shareDialogOpen, setShareDialogOpen] = useState(false)
+    const [sheetExporting, setSheetExporting] = useState(false)
 
     const fetchStages = useCallback(async () => {
         try {
@@ -346,6 +347,27 @@ export default function CandidateReportPage() {
             console.error("Background pitch generation failed", e)
         }
     }, [postingId])
+
+    const handleExportSheet = useCallback(async () => {
+        if (sheetExporting) return
+        setSheetExporting(true)
+        const toastId = toast.loading('Building contact sheet…')
+        try {
+            const res = await fetch(`/api/report/${postingId}/export-sheet`, { method: 'POST' })
+            const data = await res.json()
+            if (!res.ok) throw new Error(data.error || 'Export failed')
+            toast.success(`Exported ${data.count} candidate${data.count === 1 ? '' : 's'}`, {
+                id: toastId,
+                action: { label: 'Open', onClick: () => window.open(data.url, '_blank') },
+            })
+            window.open(data.url, '_blank')
+        } catch (err: any) {
+            console.error('Sheet export failed:', err)
+            toast.error(err.message || 'Export failed', { id: toastId })
+        } finally {
+            setSheetExporting(false)
+        }
+    }, [sheetExporting, postingId])
 
     const handleExport = useCallback(async (e?: React.MouseEvent) => {
         if (exporting) return
@@ -626,6 +648,16 @@ export default function CandidateReportPage() {
                         >
                             <Share2 className="h-3.5 w-3.5" />
                             <span>Share</span>
+                        </button>
+
+                        <button
+                            onClick={handleExportSheet}
+                            disabled={sheetExporting || candidates.length === 0}
+                            title="Export a Google Sheet of everyone in the pipeline (all stages, incl. archived)"
+                            className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-[color,background-color,transform] duration-200 ease-smooth whitespace-nowrap border border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted/30 active:scale-[0.97] disabled:opacity-40 disabled:pointer-events-none"
+                        >
+                            {sheetExporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Table2 className="h-3.5 w-3.5" />}
+                            <span>Export Sheet</span>
                         </button>
 
                         {exportResult && (
