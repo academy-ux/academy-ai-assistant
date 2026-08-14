@@ -33,7 +33,7 @@ export function ShareDialog({ open, onClose, title }: ShareDialogProps) {
         <div className="flex items-center justify-between px-6 pt-5 pb-4">
           <div className="flex items-center gap-2.5">
             <Link2 className="h-4 w-4 text-white/50" />
-            <h2 className="text-[15px] font-semibold text-white">{title}</h2>
+            <h2 className="text-base font-semibold text-white">{title}</h2>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors">
             <X className="h-4 w-4 text-white/50" />

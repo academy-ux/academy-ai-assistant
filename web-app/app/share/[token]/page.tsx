@@ -248,7 +248,7 @@ export default function SharedReportPage() {
                             className="h-11 bg-muted/30 border-border/30 rounded-xl text-sm text-center font-medium focus:bg-card focus:border-border/50"
                         />
                         {gateError && (
-                            <p className="text-[11px] text-destructive/70 text-center font-medium">{gateError}</p>
+                            <p className="text-2xs text-destructive/70 text-center font-medium">{gateError}</p>
                         )}
                         <button
                             type="submit"
@@ -328,7 +328,7 @@ export default function SharedReportPage() {
                         <div className="flex items-center gap-3">
                             {team && <ClientLogo team={team} size={44} />}
                             <div className="min-w-0">
-                                <h1 className="text-[22px] font-bold tracking-tight text-foreground leading-tight truncate">
+                                <h1 className="text-2xl font-bold tracking-tight text-foreground leading-tight truncate">
                                     {projectTitle}
                                 </h1>
                                 <p className="text-xs text-muted-foreground/50 font-medium mt-0.5 tabular-nums">
@@ -347,9 +347,9 @@ export default function SharedReportPage() {
                                     { label: "Presentation Conversion", value: `${stats.pctClientInterview}%`, sub: `applied → client interview` },
                                 ].map(stat => (
                                     <div key={stat.label} className="rounded-xl bg-muted/20 px-3.5 py-3">
-                                        <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/50">{stat.label}</p>
+                                        <p className="text-2xs font-bold uppercase tracking-wider text-muted-foreground/50">{stat.label}</p>
                                         <p className="text-xl font-bold tracking-tight text-foreground tabular-nums mt-1">{stat.value}</p>
-                                        {stat.sub && <p className="text-[10px] text-muted-foreground/40 font-medium mt-0.5">{stat.sub}</p>}
+                                        {stat.sub && <p className="text-2xs text-muted-foreground/40 font-medium mt-0.5">{stat.sub}</p>}
                                     </div>
                                 ))}
                             </div>
@@ -427,7 +427,7 @@ export default function SharedReportPage() {
                 <SheetContent className="w-full sm:max-w-lg lg:max-w-xl overflow-y-auto border-l border-border/20 bg-background p-0">
                     <div className="h-full flex flex-col">
                         <div className="px-8 pt-8 pb-4 border-b border-border/10">
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Candidate Profile</span>
+                            <span className="text-2xs font-bold uppercase tracking-widest text-muted-foreground/50">Candidate Profile</span>
                         </div>
                         <div className="px-8 py-6 flex-1 overflow-y-auto">
                             {selectedCandidate && (

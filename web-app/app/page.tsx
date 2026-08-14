@@ -92,7 +92,7 @@ function HomeContent() {
                    <FileText className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold tracking-widest uppercase text-muted-foreground/80 mb-1">STATUS</p>
+                  <p className="text-2xs font-bold tracking-widest uppercase text-muted-foreground/80 mb-1">STATUS</p>
                   <p className="text-lg font-semibold text-foreground tracking-tight">Transcript Synced</p>
                 </div>
               </div>
@@ -105,7 +105,7 @@ function HomeContent() {
                    <BarChart3 className="h-6 w-6 text-peach" />
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold tracking-widest uppercase text-muted-foreground/80 mb-1">MATCH SCORE</p>
+                  <p className="text-2xs font-bold tracking-widest uppercase text-muted-foreground/80 mb-1">MATCH SCORE</p>
                   <div className="flex items-baseline gap-1">
                     <p className="text-3xl font-bold text-foreground tracking-tighter">98%</p>
                     <span className="text-sm font-medium text-muted-foreground">Fit</span>

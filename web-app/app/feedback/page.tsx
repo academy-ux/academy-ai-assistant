@@ -1823,7 +1823,7 @@ function FeedbackContent() {
                                           src={session?.user?.image || undefined}
                                           alt={session?.user?.name || 'User'}
                                         />
-                                        <AvatarFallback className="text-[9px] font-semibold bg-muted/50 text-foreground/70">
+                                        <AvatarFallback className="text-2xs font-semibold bg-muted/50 text-foreground/70">
                                           {viewerInitials || 'U'}
                                         </AvatarFallback>
                                       </Avatar>
@@ -2400,7 +2400,7 @@ function FeedbackContent() {
                                         )}
                                       </div>
                                       {aiGeneratedFields[field.text] && (
-                                        <Badge variant="outline" className="gap-1 rounded-full border-primary/20 bg-primary/5 text-[10px] text-primary">
+                                        <Badge variant="outline" className="gap-1 rounded-full border-primary/20 bg-primary/5 text-2xs text-primary">
                                           <MagicWandIcon className="h-3 w-3" />
                                           AI suggested
                                         </Badge>
@@ -2460,7 +2460,7 @@ function FeedbackContent() {
                                         )}
                                       </div>
                                       {aiGeneratedFields[field.text] && (
-                                        <Badge variant="outline" className="gap-1 rounded-full border-primary/20 bg-primary/5 text-[10px] text-primary">
+                                        <Badge variant="outline" className="gap-1 rounded-full border-primary/20 bg-primary/5 text-2xs text-primary">
                                           <MagicWandIcon className="h-3 w-3" />
                                           AI suggested
                                         </Badge>
@@ -2529,7 +2529,7 @@ function FeedbackContent() {
                                           }}
                                         />
                                         {aiGeneratedFields[field.text] && (
-                                          <Badge variant="outline" className="gap-1 rounded-full border-primary/20 bg-primary/5 text-[10px] text-primary">
+                                          <Badge variant="outline" className="gap-1 rounded-full border-primary/20 bg-primary/5 text-2xs text-primary">
                                             <MagicWandIcon className="h-3 w-3" />
                                             AI generated
                                           </Badge>
@@ -2557,7 +2557,7 @@ function FeedbackContent() {
                     </div>
 
                     <div className="p-4 border-t border-border/40 bg-card/20 flex flex-col sm:flex-row justify-between items-center gap-3 backdrop-blur-sm">
-                      <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">
+                      <span className="text-2xs text-muted-foreground uppercase tracking-wider font-medium">
                         {selectedCandidate && selectedTemplate ? 'Ready to submit' : 'Select candidate & template'}
                       </span>
                       <Button

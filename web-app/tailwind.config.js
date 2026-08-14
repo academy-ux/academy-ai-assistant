@@ -10,6 +10,25 @@ module.exports = {
     fontFamily: {
       sans: ['"neue-haas-grotesk-display"', 'SF Pro Display', 'system-ui', 'sans-serif'],
     },
+    // App-wide type scale. Every step pairs a size with its line-height and
+    // letter-spacing: micro sizes track slightly open for legibility, display
+    // sizes tighten progressively. Use these steps — no arbitrary text-[Npx].
+    fontSize: {
+      '2xs': ['0.6875rem', { lineHeight: '0.875rem', letterSpacing: '0.01em' }], // 11px — micro labels, badges
+      xs: ['0.75rem', { lineHeight: '1rem', letterSpacing: '0.005em' }], // 12px — captions, helper text
+      sm: ['0.875rem', { lineHeight: '1.25rem', letterSpacing: '0' }], // 14px — default UI text
+      base: ['1rem', { lineHeight: '1.5rem', letterSpacing: '0' }], // 16px — body/reading text
+      lg: ['1.125rem', { lineHeight: '1.75rem', letterSpacing: '-0.01em' }], // 18px — card titles
+      xl: ['1.25rem', { lineHeight: '1.75rem', letterSpacing: '-0.015em' }], // 20px — page titles
+      '2xl': ['1.5rem', { lineHeight: '2rem', letterSpacing: '-0.02em' }], // 24px — section headings
+      '3xl': ['1.875rem', { lineHeight: '2.25rem', letterSpacing: '-0.02em' }], // 30px
+      '4xl': ['2.25rem', { lineHeight: '2.5rem', letterSpacing: '-0.025em' }], // 36px
+      '5xl': ['3rem', { lineHeight: '1.1', letterSpacing: '-0.025em' }], // display
+      '6xl': ['3.75rem', { lineHeight: '1.05', letterSpacing: '-0.03em' }],
+      '7xl': ['4.5rem', { lineHeight: '1.05', letterSpacing: '-0.03em' }],
+      '8xl': ['6rem', { lineHeight: '1', letterSpacing: '-0.03em' }],
+      '9xl': ['8rem', { lineHeight: '1', letterSpacing: '-0.03em' }],
+    },
     extend: {
       borderRadius: {
         lg: 'var(--radius)',

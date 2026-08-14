@@ -482,13 +482,13 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
         <div key={note.id} className="group/note p-3 rounded-xl bg-card/50 border border-border/10 hover:border-border/20 transition-colors duration-200">
             <div className="flex items-center justify-between mb-1.5 gap-2">
                 <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="text-[10px] font-bold text-primary/60 truncate">{note.created_by}</span>
+                    <span className="text-2xs font-bold text-primary/60 truncate">{note.created_by}</span>
                     {note.source === 'client' && (
                         <span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-peach/20 text-foreground/50 shrink-0">Client</span>
                     )}
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="text-[10px] text-muted-foreground/30">{new Date(note.created_at).toLocaleDateString()}</span>
+                    <span className="text-2xs text-muted-foreground/30">{new Date(note.created_at).toLocaleDateString()}</span>
                     {canModifyNote(note) && editingNoteId !== note.id && (
                         <div className="flex items-center gap-0.5">
                             <button
@@ -520,14 +520,14 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                     <div className="flex items-center justify-end gap-1.5">
                         <button
                             onClick={() => { setEditingNoteId(null); setEditingNoteContent("") }}
-                            className="px-2.5 h-7 rounded-lg text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50 hover:text-foreground hover:bg-muted/30 transition-colors"
+                            className="px-2.5 h-7 rounded-lg text-2xs font-bold uppercase tracking-wider text-muted-foreground/50 hover:text-foreground hover:bg-muted/30 transition-colors"
                         >
                             Cancel
                         </button>
                         <button
                             onClick={() => handleEditNote(note.id)}
                             disabled={!editingNoteContent.trim() || savingNoteEdit}
-                            className="inline-flex items-center gap-1.5 px-2.5 h-7 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-wider hover:bg-primary/90 transition-colors disabled:opacity-50"
+                            className="inline-flex items-center gap-1.5 px-2.5 h-7 rounded-lg bg-primary text-primary-foreground text-2xs font-bold uppercase tracking-wider hover:bg-primary/90 transition-colors disabled:opacity-50"
                         >
                             {savingNoteEdit ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
                             Save
@@ -560,7 +560,7 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                         href={`https://hire.lever.co/candidates/${candidate.id}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-muted/30 text-[11px] font-semibold text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors duration-200"
+                        className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-muted/30 text-2xs font-semibold text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors duration-200"
                         title="Open in Lever (staff only — clients never see this)"
                     >
                         <ExternalLink className="w-3 h-3" /> Lever
@@ -603,7 +603,7 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                             onBlur={() => {
                                 handleSavePassword()
                             }}
-                            className="h-7 pl-8 pr-8 bg-muted/20 border-border/15 rounded-lg text-[11px] font-medium focus:bg-muted/30 transition-all"
+                            className="h-7 pl-8 pr-8 bg-muted/20 border-border/15 rounded-lg text-2xs font-medium focus:bg-muted/30 transition-all"
                         />
                         <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
                             {isEditingPassword ? (
@@ -648,7 +648,7 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                                 : 'No client decision yet'}
                         </p>
                         {staffDecisionBy && staffDecision && (
-                            <p className="text-[11px] text-muted-foreground/60 mt-0.5">By {staffDecisionBy}</p>
+                            <p className="text-2xs text-muted-foreground/60 mt-0.5">By {staffDecisionBy}</p>
                         )}
                     </div>
                     <div className="flex items-center gap-1.5">
@@ -660,7 +660,7 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                                 onClick={() => handleStaffDecision(d)}
                                 title={staffDecision === d ? 'Click again to clear' : `Mark ${d} on the client's behalf`}
                                 className={cn(
-                                    "px-2.5 py-1 rounded-lg text-[11px] font-bold capitalize border transition-colors disabled:opacity-50",
+                                    "px-2.5 py-1 rounded-lg text-2xs font-bold capitalize border transition-colors disabled:opacity-50",
                                     staffDecision === d
                                         ? d === 'accepted' ? "bg-emerald-500 text-white border-emerald-500"
                                             : d === 'maybe' ? "bg-amber-500 text-white border-amber-500"
@@ -685,7 +685,7 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                         { label: "Salary", value: profileSalary, field: "salary" },
                     ].filter(item => item.value || isEditingMetadata).map((item) => (
                         <div key={item.label} className="flex items-center justify-between gap-2">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50 shrink-0">{item.label}</span>
+                            <span className="text-2xs font-bold uppercase tracking-wider text-muted-foreground/50 shrink-0">{item.label}</span>
                             {isEditingMetadata ? (
                                 <Input
                                     value={item.field === "location" ? profileLocation : item.field === "exp" ? profileExp : item.field === "totalExp" ? profileTotalExp : profileSalary}
@@ -707,13 +707,13 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                 <div className="flex justify-end mt-3">
                     {isEditingMetadata ? (
                         <button onClick={() => { handleSaveProfile(); setIsEditingMetadata(false) }} disabled={savingProfile}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-wider hover:bg-primary/90 transition-colors duration-200">
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-2xs font-bold uppercase tracking-wider hover:bg-primary/90 transition-colors duration-200">
                             {savingProfile ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
                             Save
                         </button>
                     ) : (
                         <button onClick={() => setIsEditingMetadata(true)}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-muted-foreground/40 hover:text-foreground hover:bg-muted/30 transition-colors duration-200 text-[10px] font-bold uppercase tracking-wider">
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-muted-foreground/40 hover:text-foreground hover:bg-muted/30 transition-colors duration-200 text-2xs font-bold uppercase tracking-wider">
                             <Pencil className="w-2.5 h-2.5" /> Edit
                         </button>
                     )}
@@ -732,7 +732,7 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                             <button
                                 onClick={() => handleGeneratePitch()}
                                 disabled={generatingPitch}
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider text-peach hover:text-foreground hover:bg-peach/10 transition-colors duration-200"
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-2xs font-bold uppercase tracking-wider text-peach hover:text-foreground hover:bg-peach/10 transition-colors duration-200"
                             >
                                 {generatingPitch ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
                                 {generatingPitch ? "Generating..." : "Regenerate"}
@@ -741,7 +741,7 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                                 <button
                                     onClick={handleSaveProfile}
                                     disabled={savingProfile}
-                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-wider hover:bg-primary/90 transition-all"
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-2xs font-bold uppercase tracking-wider hover:bg-primary/90 transition-all"
                                 >
                                     {savingProfile ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
                                     Save
@@ -749,7 +749,7 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
                             ) : (
                                 <button
                                     onClick={() => setIsEditingPitch(true)}
-                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider text-muted-foreground/40 hover:text-foreground hover:bg-muted/30 transition-all"
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-2xs font-bold uppercase tracking-wider text-muted-foreground/40 hover:text-foreground hover:bg-muted/30 transition-all"
                                 >
                                     <Pencil className="w-3 h-3" /> Edit
                                 </button>
@@ -796,11 +796,11 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
 
             {/* Controls */}
             <div className="space-y-4 pt-4 border-t border-border/15">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">Pipeline Controls</span>
+                <span className="text-2xs font-bold uppercase tracking-widest text-muted-foreground/40">Pipeline Controls</span>
 
                 <div className="grid grid-cols-1 gap-3">
                     <div className="bg-muted/15 p-4 rounded-xl space-y-2">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/40">Stage</span>
+                        <span className="text-2xs font-bold uppercase tracking-wider text-muted-foreground/40">Stage</span>
                         <div onClick={(e) => e.stopPropagation()}>
                             <Select
                                 onValueChange={handleStageUpdate}
@@ -835,11 +835,11 @@ export function CandidateDetails({ candidate, postingId, onRefresh }: CandidateD
             ]).map((sec) => (
                 <div key={sec.key} className="space-y-3 pt-4 border-t border-border/15">
                     <div className="flex items-baseline gap-2">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40 flex items-center gap-1">
+                        <span className="text-2xs font-bold uppercase tracking-widest text-muted-foreground/40 flex items-center gap-1">
                             {sec.key === 'internal' && <Lock className="w-2.5 h-2.5" />}
                             {sec.title}
                         </span>
-                        <span className="text-[9px] text-muted-foreground/35 font-medium">{sec.hint}</span>
+                        <span className="text-2xs text-muted-foreground/35 font-medium">{sec.hint}</span>
                     </div>
 
                     <div className="relative">

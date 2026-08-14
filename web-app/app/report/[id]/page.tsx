@@ -97,7 +97,7 @@ function ExportOverlay({
                                         exit={{ opacity: 0, y: -6 }}
                                         transition={{ duration: 0.2 }}
                                     >
-                                        <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/40 mb-5">
+                                        <p className="text-2xs font-semibold uppercase tracking-[0.1em] text-muted-foreground/40 mb-5">
                                             {syncing ? 'Syncing Report' : 'Generating Report'}
                                         </p>
 
@@ -123,7 +123,7 @@ function ExportOverlay({
                                                             )}
                                                         </div>
                                                         <span className={cn(
-                                                            "text-[13px] transition-colors duration-300",
+                                                            "text-sm transition-colors duration-300",
                                                             isCurrent ? "text-foreground font-medium" :
                                                             isComplete ? "text-muted-foreground/50" :
                                                             "text-muted-foreground/30"
@@ -147,7 +147,7 @@ function ExportOverlay({
                                             <div className="w-7 h-7 rounded-xl bg-foreground/[0.06] flex items-center justify-center">
                                                 <Check className="h-3.5 w-3.5 text-foreground/70" />
                                             </div>
-                                            <p className="text-[13px] font-semibold text-foreground">
+                                            <p className="text-sm font-semibold text-foreground">
                                                 {syncing ? 'Report synced' : 'Report created'}
                                             </p>
                                         </div>
@@ -162,8 +162,8 @@ function ExportOverlay({
                                                     { n: result.stats.pitchesGenerated, l: 'pitches' },
                                                 ].filter(s => s.n > 0).map(s => (
                                                     <div key={s.l} className="text-center">
-                                                        <p className="text-[15px] font-semibold text-foreground tabular-nums">{s.n}</p>
-                                                        <p className="text-[9px] text-muted-foreground/50 font-medium">{s.l}</p>
+                                                        <p className="text-base font-semibold text-foreground tabular-nums">{s.n}</p>
+                                                        <p className="text-2xs text-muted-foreground/50 font-medium">{s.l}</p>
                                                     </div>
                                                 ))}
                                             </div>
@@ -578,7 +578,7 @@ export default function CandidateReportPage() {
                             className="flex items-center gap-2 -ml-1 px-2 py-1.5 rounded-lg text-muted-foreground/50 hover:text-foreground hover:bg-muted/30 transition-colors duration-200 group"
                         >
                             <ChevronLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" />
-                            <span className="text-[11px] font-medium">Back</span>
+                            <span className="text-2xs font-medium">Back</span>
                         </button>
                     </div>
 
@@ -587,7 +587,7 @@ export default function CandidateReportPage() {
                         <div className="flex items-center gap-3">
                             {team && <ClientLogo team={team} size={44} />}
                             <div className="min-w-0">
-                                <h1 className="text-lg md:text-[22px] font-bold tracking-tight text-foreground leading-tight truncate">
+                                <h1 className="text-lg md:text-2xl font-bold tracking-tight text-foreground leading-tight truncate">
                                     {projectTitle}
                                 </h1>
                                 <p className="text-xs text-muted-foreground/50 font-medium mt-0.5 tabular-nums">
@@ -725,7 +725,7 @@ export default function CandidateReportPage() {
                 <SheetContent className="w-full sm:max-w-lg lg:max-w-xl overflow-y-auto border-l border-border/20 bg-background p-0">
                     <div className="h-full flex flex-col">
                         <div className="px-5 md:px-8 pt-6 md:pt-8 pb-4 border-b border-border/10">
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Candidate Profile</span>
+                            <span className="text-2xs font-bold uppercase tracking-widest text-muted-foreground/50">Candidate Profile</span>
                         </div>
                         <div className="px-5 md:px-8 py-5 md:py-6 flex-1 overflow-y-auto">
                             {selectedCandidate && (

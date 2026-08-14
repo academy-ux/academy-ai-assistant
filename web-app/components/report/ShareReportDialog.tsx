@@ -131,7 +131,7 @@ export function ShareReportDialog({ open, onClose, postingId, postingTitle }: Sh
                 <div className="flex items-center justify-between px-6 pt-5 pb-3">
                     <div className="flex items-center gap-2.5">
                         <Link2 className="h-4 w-4 text-muted-foreground/60" />
-                        <h2 className="text-[15px] font-semibold text-foreground">Share report</h2>
+                        <h2 className="text-base font-semibold text-foreground">Share report</h2>
                     </div>
                     <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted/50 transition-colors">
                         <X className="h-4 w-4 text-muted-foreground/60" />
@@ -153,7 +153,7 @@ export function ShareReportDialog({ open, onClose, postingId, postingTitle }: Sh
                             <Globe className={cn("h-4 w-4 mt-0.5 shrink-0", mode === 'anyone' ? "text-foreground" : "text-muted-foreground/50")} />
                             <div>
                                 <p className={cn("text-xs font-semibold", mode === 'anyone' ? "text-foreground" : "text-foreground/70")}>Anyone with the link</p>
-                                <p className="text-[10px] text-muted-foreground/50 mt-0.5">No email required</p>
+                                <p className="text-2xs text-muted-foreground/50 mt-0.5">No email required</p>
                             </div>
                             {mode === 'anyone' && (
                                 <span className="ml-auto shrink-0 w-4 h-4 rounded-full bg-foreground flex items-center justify-center">
@@ -173,7 +173,7 @@ export function ShareReportDialog({ open, onClose, postingId, postingTitle }: Sh
                             <Lock className={cn("h-4 w-4 mt-0.5 shrink-0", mode === 'restricted' ? "text-foreground" : "text-muted-foreground/50")} />
                             <div>
                                 <p className={cn("text-xs font-semibold", mode === 'restricted' ? "text-foreground" : "text-foreground/70")}>Only specific people</p>
-                                <p className="text-[10px] text-muted-foreground/50 mt-0.5">By email or domain</p>
+                                <p className="text-2xs text-muted-foreground/50 mt-0.5">By email or domain</p>
                             </div>
                             {mode === 'restricted' && (
                                 <span className="ml-auto shrink-0 w-4 h-4 rounded-full bg-foreground flex items-center justify-center">
@@ -198,13 +198,13 @@ export function ShareReportDialog({ open, onClose, postingId, postingTitle }: Sh
                                     <Plus className="h-4 w-4" />
                                 </button>
                             </div>
-                            <p className="text-[10px] text-muted-foreground/50 leading-relaxed">
+                            <p className="text-2xs text-muted-foreground/50 leading-relaxed">
                                 Add a full email to allow one person, or <span className="font-semibold">@domain.com</span> to allow everyone at a company.
                             </p>
                             {entries.length > 0 && (
                                 <div className="flex flex-wrap gap-1.5">
                                     {entries.map(e => (
-                                        <span key={e} className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-lg bg-muted/40 text-[11px] font-medium text-foreground">
+                                        <span key={e} className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-lg bg-muted/40 text-2xs font-medium text-foreground">
                                             {e.includes('@') && !e.startsWith('@') ? e : <span className="flex items-center gap-1"><Lock className="h-2.5 w-2.5 text-peach" />{e.replace(/^@/, '@')}</span>}
                                             <button onClick={() => removeEntry(e)} className="p-0.5 rounded hover:bg-muted text-muted-foreground/50 hover:text-foreground">
                                                 <X className="h-2.5 w-2.5" />
@@ -213,7 +213,7 @@ export function ShareReportDialog({ open, onClose, postingId, postingTitle }: Sh
                                     ))}
                                 </div>
                             )}
-                            <label className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground cursor-pointer select-none pt-0.5">
+                            <label className="flex items-center gap-2 text-2xs font-medium text-muted-foreground cursor-pointer select-none pt-0.5">
                                 <input
                                     type="checkbox"
                                     checked={sendInvites}
@@ -238,7 +238,7 @@ export function ShareReportDialog({ open, onClose, postingId, postingTitle }: Sh
                                     {copied ? 'Copied' : 'Copy'}
                                 </button>
                             </div>
-                            <p className="text-[10px] text-muted-foreground/50 text-center">
+                            <p className="text-2xs text-muted-foreground/50 text-center">
                                 You can re-open this dialog any time to change who has access.
                             </p>
                         </div>

@@ -267,12 +267,12 @@ export function SharedCandidateDetails({ candidate, token, onDecisionChange }: S
                     </div>
                     {decision && (
                         <span className={cn(
-                            "shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider",
+                            "shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-2xs font-bold uppercase tracking-wider",
                             decision === 'accepted' ? "bg-emerald-500/10 text-emerald-600" :
                             decision === 'maybe' ? "bg-amber-500/10 text-amber-600" :
                             "bg-destructive/10 text-destructive/80"
                         )}>
-                            {decision === 'accepted' ? <Check className="w-3 h-3" /> : decision === 'maybe' ? <span className="text-[11px] leading-none font-black">?</span> : <X className="w-3 h-3" />}
+                            {decision === 'accepted' ? <Check className="w-3 h-3" /> : decision === 'maybe' ? <span className="text-2xs leading-none font-black">?</span> : <X className="w-3 h-3" />}
                             {decision}
                         </span>
                     )}
@@ -307,7 +307,7 @@ export function SharedCandidateDetails({ candidate, token, onDecisionChange }: S
                 {hasPortfolio && candidate.portfolioPassword && (
                     <div className="flex items-center gap-2 bg-muted/20 rounded-lg px-3 py-2 max-w-[280px]">
                         <Lock className="h-3 w-3 text-muted-foreground/40 shrink-0" />
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50 shrink-0">Portfolio</span>
+                        <span className="text-2xs font-bold uppercase tracking-wider text-muted-foreground/50 shrink-0">Portfolio</span>
                         <span className="text-xs font-bold tracking-tight truncate flex-1">{candidate.portfolioPassword}</span>
                         <button
                             onClick={() => {
@@ -342,7 +342,7 @@ export function SharedCandidateDetails({ candidate, token, onDecisionChange }: S
                         }] : []),
                     ].filter(item => item.value).map((item) => (
                         <div key={item.label} className="flex items-center justify-between gap-2">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50 shrink-0">{item.label}</span>
+                            <span className="text-2xs font-bold uppercase tracking-wider text-muted-foreground/50 shrink-0">{item.label}</span>
                             <span className="text-sm font-bold tracking-tight truncate max-w-[200px]">{item.value}</span>
                         </div>
                     ))}
@@ -382,15 +382,15 @@ export function SharedCandidateDetails({ candidate, token, onDecisionChange }: S
             {/* For Client — everything the client fills in, boxed together */}
             <div className="rounded-2xl border border-peach/30 bg-peach/[0.04] p-5 space-y-5">
                 <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-peach">For Client</span>
+                    <span className="text-2xs font-bold uppercase tracking-widest text-peach">For Client</span>
                     <div className="flex-1 h-px bg-peach/15" />
                 </div>
 
                 {/* Your name (required — used for decision + comments) */}
                 <div className="space-y-2">
                     <div className="flex items-center gap-1">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Your Name</span>
-                        <span className="text-destructive/70 text-[11px] font-bold leading-none">*</span>
+                        <span className="text-2xs font-bold uppercase tracking-widest text-muted-foreground/50">Your Name</span>
+                        <span className="text-destructive/70 text-2xs font-bold leading-none">*</span>
                     </div>
                     <Input
                         placeholder="Enter your name"
@@ -402,14 +402,14 @@ export function SharedCandidateDetails({ candidate, token, onDecisionChange }: S
                         )}
                     />
                     {nameMissing && (
-                        <p className="text-[10px] text-muted-foreground/50">Add your name to leave a decision or comment.</p>
+                        <p className="text-2xs text-muted-foreground/50">Add your name to leave a decision or comment.</p>
                     )}
                 </div>
 
                 {/* Accept / Reject — presenting candidates only */}
                 {canDecide && (
                     <div className="space-y-3 pt-4 border-t border-peach/15">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Your Decision</span>
+                        <span className="text-2xs font-bold uppercase tracking-widest text-muted-foreground/50">Your Decision</span>
                         <p className="text-xs text-muted-foreground/60 leading-relaxed">
                             Let us know if you'd like to move forward with this candidate. This won't change their stage — our team follows up on your feedback.
                         </p>
@@ -455,7 +455,7 @@ export function SharedCandidateDetails({ candidate, token, onDecisionChange }: S
                             </button>
                         </div>
                         {decision && (
-                            <p className="text-[11px] text-muted-foreground/50 text-center">
+                            <p className="text-2xs text-muted-foreground/50 text-center">
                                 Tap the same button again to clear your decision — you can change it any time.
                             </p>
                         )}
@@ -464,7 +464,7 @@ export function SharedCandidateDetails({ candidate, token, onDecisionChange }: S
 
                 {/* Comments */}
                 <div className="space-y-3 pt-4 border-t border-peach/15">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Your Comments</span>
+                    <span className="text-2xs font-bold uppercase tracking-widest text-muted-foreground/50">Your Comments</span>
 
                     <div className="relative">
                         <Textarea
@@ -492,9 +492,9 @@ export function SharedCandidateDetails({ candidate, token, onDecisionChange }: S
                                 return (
                                     <div key={note.id} className="p-3 rounded-xl bg-card/70 border border-border/10">
                                         <div className="flex items-center justify-between mb-1.5 gap-2">
-                                            <span className="text-[10px] font-bold text-primary/60">{note.created_by}</span>
+                                            <span className="text-2xs font-bold text-primary/60">{note.created_by}</span>
                                             <div className="flex items-center gap-2">
-                                                <span className="text-[10px] text-muted-foreground/30">{new Date(note.created_at).toLocaleDateString()}</span>
+                                                <span className="text-2xs text-muted-foreground/30">{new Date(note.created_at).toLocaleDateString()}</span>
                                                 {isMine && !isEditing && (
                                                     <div className="flex items-center gap-0.5">
                                                         <button
@@ -526,14 +526,14 @@ export function SharedCandidateDetails({ candidate, token, onDecisionChange }: S
                                                 <div className="flex items-center justify-end gap-1.5">
                                                     <button
                                                         onClick={() => { setEditingNoteId(null); setEditingContent("") }}
-                                                        className="px-2.5 h-7 rounded-lg text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50 hover:text-foreground hover:bg-muted/40 transition-colors"
+                                                        className="px-2.5 h-7 rounded-lg text-2xs font-bold uppercase tracking-wider text-muted-foreground/50 hover:text-foreground hover:bg-muted/40 transition-colors"
                                                     >
                                                         Cancel
                                                     </button>
                                                     <button
                                                         onClick={() => handleEditNote(note.id)}
                                                         disabled={!editingContent.trim() || savingEdit}
-                                                        className="inline-flex items-center gap-1.5 px-2.5 h-7 rounded-lg bg-foreground text-background text-[10px] font-bold uppercase tracking-wider hover:bg-foreground/90 transition-colors disabled:opacity-50"
+                                                        className="inline-flex items-center gap-1.5 px-2.5 h-7 rounded-lg bg-foreground text-background text-2xs font-bold uppercase tracking-wider hover:bg-foreground/90 transition-colors disabled:opacity-50"
                                                     >
                                                         {savingEdit ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
                                                         Save

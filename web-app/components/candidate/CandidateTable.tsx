@@ -120,12 +120,12 @@ export function CandidateTable({ candidates, onSelect, selectedId, stages, onRef
             <div className={cn("space-y-1", readOnly ? "md:min-w-[960px]" : "md:min-w-[1140px]")}>
             {/* Column headers — hidden on mobile */}
             <div className={cn("hidden md:grid gap-x-6 items-center px-5 pb-2 pt-1", gridCols)}>
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/40">Candidate</span>
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/40">Stage</span>
-                {!readOnly && <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/40">Experience</span>}
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/40">Decision</span>
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/40">Location</span>
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/40 text-right">Links</span>
+                <span className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground/40">Candidate</span>
+                <span className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground/40">Stage</span>
+                {!readOnly && <span className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground/40">Experience</span>}
+                <span className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground/40">Decision</span>
+                <span className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground/40">Location</span>
+                <span className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground/40 text-right">Links</span>
             </div>
             {candidates.map((candidate, index) => {
                 const normalizedLinks = candidate.links.map(link => {
@@ -147,7 +147,7 @@ export function CandidateTable({ candidates, onSelect, selectedId, stages, onRef
 
                 const decisionPill = candidate.clientDecision ? (
                     <div className={cn(
-                        "inline-flex items-center gap-1 h-6 px-2.5 rounded-md text-[9px] font-bold uppercase tracking-wide",
+                        "inline-flex items-center gap-1 h-6 px-2.5 rounded-md text-2xs font-bold uppercase tracking-wide",
                         candidate.clientDecision === 'accepted'
                             ? "bg-emerald-500/10 text-emerald-600"
                             : "bg-destructive/10 text-destructive/70"
@@ -178,7 +178,7 @@ export function CandidateTable({ candidates, onSelect, selectedId, stages, onRef
                         {/* Avatar + Info */}
                         <div className="flex items-center gap-3 md:gap-4 min-w-0">
                             <Avatar className="h-10 w-10 rounded-xl border-0 shrink-0">
-                                <AvatarFallback className={cn("bg-gradient-to-br text-foreground/70 font-bold text-[11px] rounded-xl", avatarGradient)}>
+                                <AvatarFallback className={cn("bg-gradient-to-br text-foreground/70 font-bold text-2xs rounded-xl", avatarGradient)}>
                                     {initials}
                                 </AvatarFallback>
                             </Avatar>
@@ -189,7 +189,7 @@ export function CandidateTable({ candidates, onSelect, selectedId, stages, onRef
                                         {candidate.name}
                                     </h3>
                                     {candidate.archivedAt && (
-                                        <Badge variant="outline" className="text-[9px] uppercase tracking-wider font-bold py-0 h-4 border-destructive/20 text-destructive/70 bg-destructive/5 rounded-md">
+                                        <Badge variant="outline" className="text-2xs uppercase tracking-wider font-bold py-0 h-4 border-destructive/20 text-destructive/70 bg-destructive/5 rounded-md">
                                             Archived
                                         </Badge>
                                     )}
@@ -209,7 +209,7 @@ export function CandidateTable({ candidates, onSelect, selectedId, stages, onRef
                         {/* Mobile: compact metadata row */}
                         <div className="flex items-center gap-3 flex-wrap md:hidden pl-[52px]">
                             {/* Stage badge */}
-                            <div className="h-6 px-2.5 py-0 border border-border/30 bg-muted/20 rounded-md text-[9px] font-bold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+                            <div className="h-6 px-2.5 py-0 border border-border/30 bg-muted/20 rounded-md text-2xs font-bold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
                                 <div className="w-1.5 h-1.5 rounded-full bg-peach shrink-0" />
                                 <span className="truncate max-w-[120px]">{candidate.stage}</span>
                             </div>
@@ -218,11 +218,11 @@ export function CandidateTable({ candidates, onSelect, selectedId, stages, onRef
                             {!readOnly && exp && (
                                 <div className="flex items-center gap-1" title={exp.summary}>
                                     <Briefcase className="w-3 h-3 text-muted-foreground/40 shrink-0" />
-                                    <span className="text-[11px] font-bold tabular-nums text-foreground">
+                                    <span className="text-2xs font-bold tabular-nums text-foreground">
                                         {exp.relevantYears} yr
                                     </span>
                                     {exp.totalYears > exp.relevantYears && (
-                                        <span className="text-[10px] text-muted-foreground/40">
+                                        <span className="text-2xs text-muted-foreground/40">
                                             / {exp.totalYears}
                                         </span>
                                     )}
@@ -233,7 +233,7 @@ export function CandidateTable({ candidates, onSelect, selectedId, stages, onRef
                             {candidate.clientDecision && decisionPill}
 
                             {/* Location on mobile */}
-                            <div className="flex items-center gap-1 text-[11px] text-muted-foreground/60">
+                            <div className="flex items-center gap-1 text-2xs text-muted-foreground/60">
                                 <MapPin className="w-3 h-3 shrink-0" />
                                 <span className="truncate max-w-[100px]">{candidate.location && typeof candidate.location === 'string' ? candidate.location : "Remote"}</span>
                             </div>
@@ -264,7 +264,7 @@ export function CandidateTable({ candidates, onSelect, selectedId, stages, onRef
                         <div className="hidden md:block">
                             {readOnly ? (
                                 <div className="shrink-0">
-                                    <div className="h-7 px-3 py-0 border border-border/30 bg-muted/20 rounded-lg text-[9px] font-bold uppercase tracking-wide text-muted-foreground flex items-center gap-2">
+                                    <div className="h-7 px-3 py-0 border border-border/30 bg-muted/20 rounded-lg text-2xs font-bold uppercase tracking-wide text-muted-foreground flex items-center gap-2">
                                         <div className="w-1.5 h-1.5 rounded-full bg-peach shrink-0" />
                                         <span className="truncate">{candidate.stage}</span>
                                     </div>
@@ -276,7 +276,7 @@ export function CandidateTable({ candidates, onSelect, selectedId, stages, onRef
                                         onValueChange={(value) => handleUpdateStage(candidate.id, value)}
                                         defaultValue={stages?.find(s => s.text === candidate.stage)?.id}
                                     >
-                                        <SelectTrigger className="h-7 w-full px-3 py-0 border border-border/30 bg-muted/20 shadow-none rounded-lg text-[9px] font-bold uppercase tracking-wide text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors duration-200 justify-start gap-2">
+                                        <SelectTrigger className="h-7 w-full px-3 py-0 border border-border/30 bg-muted/20 shadow-none rounded-lg text-2xs font-bold uppercase tracking-wide text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors duration-200 justify-start gap-2">
                                             {isUpdating ? (
                                                 <Loader2 className="h-3 w-3 animate-spin" />
                                             ) : (
@@ -291,7 +291,7 @@ export function CandidateTable({ candidates, onSelect, selectedId, stages, onRef
                                                 <SelectItem
                                                     key={stage.id}
                                                     value={stage.id}
-                                                    className="text-[10px] font-bold uppercase tracking-wider focus:bg-primary/5 focus:text-primary rounded-lg my-0.5 mx-1"
+                                                    className="text-2xs font-bold uppercase tracking-wider focus:bg-primary/5 focus:text-primary rounded-lg my-0.5 mx-1"
                                                 >
                                                     {stage.text}
                                                 </SelectItem>
@@ -314,7 +314,7 @@ export function CandidateTable({ candidates, onSelect, selectedId, stages, onRef
                                             {exp.relevantYears} yr
                                         </span>
                                         {exp.totalYears > exp.relevantYears && (
-                                            <span className="text-[10px] text-muted-foreground/40">
+                                            <span className="text-2xs text-muted-foreground/40">
                                                 / {exp.totalYears}
                                             </span>
                                         )}

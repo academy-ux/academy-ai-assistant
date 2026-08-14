@@ -594,7 +594,7 @@ export default function InterviewDetailPage() {
                       <span className="font-medium text-foreground">{transcriptLines.length}</span> matches
                     </p>
                     {visibleTranscriptLines.length === 0 && (
-                      <Badge variant="secondary" className="text-[10px] rounded-full">
+                      <Badge variant="secondary" className="text-2xs rounded-full">
                         No matches
                       </Badge>
                     )}
@@ -785,7 +785,7 @@ export default function InterviewDetailPage() {
                                 }
                               }}
                               placeholder={messages.length > 0 ? "Ask follow-up..." : `Ask about ${interview.candidate_name}...`}
-                              className="min-h-[44px] max-h-[160px] py-2.5 px-4 bg-input focus-visible:ring-0 focus-visible:ring-offset-0 resize-none overflow-y-auto text-[15px] placeholder:text-muted-foreground/50"
+                              className="min-h-[44px] max-h-[160px] py-2.5 px-4 bg-input focus-visible:ring-0 focus-visible:ring-offset-0 resize-none overflow-y-auto text-base placeholder:text-muted-foreground/50"
                               rows={1}
                             />
                           </div>

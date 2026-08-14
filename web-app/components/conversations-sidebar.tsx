@@ -252,7 +252,7 @@ export function ConversationsSidebar({
                       }}
                     >
                       <div className="flex items-start justify-between gap-3 mb-2.5">
-                        <h4 className="text-[13px] font-semibold tracking-tight text-foreground line-clamp-2 leading-snug">
+                        <h4 className="text-sm font-semibold tracking-tight text-foreground line-clamp-2 leading-snug">
                           {conv.title}
                         </h4>
                         <button
@@ -271,7 +271,7 @@ export function ConversationsSidebar({
                         </p>
                       )}
 
-                      <div className="flex items-center gap-2 text-[11px] text-muted-foreground/70 font-medium">
+                      <div className="flex items-center gap-2 text-2xs text-muted-foreground/70 font-medium">
                         <Clock className="h-3 w-3" />
                         <span>{formatDate(conv.last_message_at)}</span>
                         <span className="text-muted-foreground/40">•</span>

@@ -41,13 +41,13 @@ export function Navbar() {
             <>
               <Link
                 href="/history"
-                className="text-[11px] sm:text-xs font-medium px-2 sm:px-3 py-2 rounded-lg transition-colors text-foreground/70 hover:text-foreground hover:bg-accent"
+                className="text-2xs sm:text-xs font-medium px-2 sm:px-3 py-2 rounded-lg transition-colors text-foreground/70 hover:text-foreground hover:bg-accent"
               >
                 History
               </Link>
               <Link
                 href="/feedback"
-                className="text-[11px] sm:text-xs font-medium px-2 sm:px-3 py-2 rounded-lg transition-colors text-foreground/70 hover:text-foreground hover:bg-accent"
+                className="text-2xs sm:text-xs font-medium px-2 sm:px-3 py-2 rounded-lg transition-colors text-foreground/70 hover:text-foreground hover:bg-accent"
               >
                 Feedback
               </Link>
@@ -57,7 +57,7 @@ export function Navbar() {
                     src={session.user?.image || undefined}
                     alt={session.user?.name || 'User'}
                   />
-                  <AvatarFallback className="text-[10px] font-semibold bg-muted/50 text-foreground/70">
+                  <AvatarFallback className="text-2xs font-semibold bg-muted/50 text-foreground/70">
                     {initialsFrom(session.user?.name || session.user?.email || '')}
                   </AvatarFallback>
                 </Avatar>
@@ -65,7 +65,7 @@ export function Navbar() {
                   variant="outline"
                   size="sm"
                   onClick={() => signOut({ callbackUrl: '/' })}
-                  className="text-[11px] sm:text-xs h-8 px-2.5 sm:px-3"
+                  className="text-2xs sm:text-xs h-8 px-2.5 sm:px-3"
                 >
                   Sign Out
                 </Button>

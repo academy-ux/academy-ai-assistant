@@ -183,7 +183,7 @@ export function LogoEditorDialog({ team, open, onOpenChange, cfg, onSaved }: Log
                                     )}
                                     <div>
                                         <div className="text-xs font-medium text-foreground">{opt.label}</div>
-                                        <div className="text-[10px] text-muted-foreground truncate max-w-[110px]">{opt.hint}</div>
+                                        <div className="text-2xs text-muted-foreground truncate max-w-[110px]">{opt.hint}</div>
                                     </div>
                                 </button>
                             )

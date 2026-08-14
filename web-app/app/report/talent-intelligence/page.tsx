@@ -11,10 +11,10 @@ import { cn } from '@/lib/utils'
 function CoverSlide({ slide }: { slide: typeof slides[0] }) {
   return (
     <div className="report-slide slide-height flex flex-col justify-end px-8 md:px-16 lg:px-24 pb-16 md:pb-24 relative">
-      <div className="absolute top-8 left-8 md:left-16 lg:left-24 text-[13px] text-foreground/30 font-medium italic tracking-wide">
+      <div className="absolute top-8 left-8 md:left-16 lg:left-24 text-sm text-foreground/30 font-medium italic tracking-wide">
         {reportMeta.confidential}
       </div>
-      <div className="absolute top-8 right-8 md:right-16 lg:right-24 text-[13px] text-foreground/30 font-medium">
+      <div className="absolute top-8 right-8 md:right-16 lg:right-24 text-sm text-foreground/30 font-medium">
         {reportMeta.date}
       </div>
       <h1 className="text-[clamp(3.5rem,9vw,8rem)] font-bold leading-[0.92] tracking-[-0.03em] text-black whitespace-pre-line">
@@ -28,8 +28,8 @@ function CoverSlide({ slide }: { slide: typeof slides[0] }) {
       <div className="mt-16 flex flex-col md:flex-row gap-4 md:gap-0">
         <div className="md:flex-1" />
         <div className="flex flex-col md:flex-row gap-4 md:gap-16">
-          <p className="text-[15px] text-foreground/40 font-medium max-w-xs">{slide.content.leftText}</p>
-          <p className="text-[15px] text-foreground/40 font-medium max-w-xs">{slide.content.rightText}</p>
+          <p className="text-base text-foreground/40 font-medium max-w-xs">{slide.content.leftText}</p>
+          <p className="text-base text-foreground/40 font-medium max-w-xs">{slide.content.rightText}</p>
         </div>
       </div>
     </div>
@@ -52,9 +52,9 @@ function SectionDividerSlide({ slide }: { slide: typeof slides[0] }) {
         </span>
         <div className="flex gap-12">
           {slide.subtitle && (
-            <span className="text-[13px] text-white/50 font-medium">{slide.subtitle}</span>
+            <span className="text-sm text-white/50 font-medium">{slide.subtitle}</span>
           )}
-          <span className="text-[13px] text-white/50 font-medium">{reportMeta.title}</span>
+          <span className="text-sm text-white/50 font-medium">{reportMeta.title}</span>
         </div>
       </div>
     </div>
@@ -66,7 +66,7 @@ function TwoColumnSlide({ slide }: { slide: typeof slides[0] }) {
   return (
     <div className="report-slide slide-height flex flex-col justify-center px-8 md:px-16 lg:px-24 py-20">
       {slide.subtitle && (
-        <p className="text-[13px] font-medium text-foreground/35 tracking-wide mb-3">{slide.subtitle}</p>
+        <p className="text-sm font-medium text-foreground/35 tracking-wide mb-3">{slide.subtitle}</p>
       )}
       <div className="flex flex-col md:flex-row gap-12 md:gap-20">
         {/* Left: title */}
@@ -80,7 +80,7 @@ function TwoColumnSlide({ slide }: { slide: typeof slides[0] }) {
             </span>
           )}
           {content.bodyText && !content.bigNumber && (
-            <p className="text-[14px] text-foreground/45 font-medium mt-6 max-w-md leading-[1.7]">{content.bodyText}</p>
+            <p className="text-sm text-foreground/45 font-medium mt-6 max-w-md leading-[1.7]">{content.bodyText}</p>
           )}
         </div>
 
@@ -91,17 +91,17 @@ function TwoColumnSlide({ slide }: { slide: typeof slides[0] }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
               <div className="space-y-4">
                 {content.leftText.split('\n\n').map((p, i) => (
-                  <p key={i} className="text-[14px] text-foreground/55 font-medium leading-[1.7]">{p}</p>
+                  <p key={i} className="text-sm text-foreground/55 font-medium leading-[1.7]">{p}</p>
                 ))}
               </div>
               <div className="space-y-4">
                 {content.rightText.split('\n\n').map((p, i) => (
-                  <p key={i} className="text-[14px] text-foreground/55 font-medium leading-[1.7]">{p}</p>
+                  <p key={i} className="text-sm text-foreground/55 font-medium leading-[1.7]">{p}</p>
                 ))}
                 {content.rightList && (
                   <ol className="mt-3 space-y-2">
                     {content.rightList.map((item, i) => (
-                      <li key={i} className="text-[14px] text-foreground/55 font-medium leading-[1.7]">
+                      <li key={i} className="text-sm text-foreground/55 font-medium leading-[1.7]">
                         <span className="font-semibold text-black/70">{i + 1}.</span> {item}
                       </li>
                     ))}
@@ -116,11 +116,11 @@ function TwoColumnSlide({ slide }: { slide: typeof slides[0] }) {
             <div className="space-y-10">
               <div>
                 {content.leftText && (
-                  <h3 className="text-[16px] font-semibold text-black/70 mb-4">{content.leftText}</h3>
+                  <h3 className="text-base font-semibold text-black/70 mb-4">{content.leftText}</h3>
                 )}
                 <ul className="space-y-3">
                   {content.bullets.map((b, i) => (
-                    <li key={i} className="flex gap-2.5 text-[14px] text-foreground/50 font-medium leading-[1.7]">
+                    <li key={i} className="flex gap-2.5 text-sm text-foreground/50 font-medium leading-[1.7]">
                       <span className="text-foreground/25 mt-0.5 shrink-0">•</span>
                       {b}
                     </li>
@@ -129,11 +129,11 @@ function TwoColumnSlide({ slide }: { slide: typeof slides[0] }) {
               </div>
               {content.rightText && (
                 <div className="border-t border-black/[0.08] pt-8">
-                  <h3 className="text-[16px] font-semibold text-black/70 mb-4">{content.rightText}</h3>
+                  <h3 className="text-base font-semibold text-black/70 mb-4">{content.rightText}</h3>
                   {content.rightList && (
                     <ul className="space-y-3">
                       {content.rightList.map((item, i) => (
-                        <li key={i} className="flex gap-2.5 text-[14px] text-foreground/50 font-medium leading-[1.7]">
+                        <li key={i} className="flex gap-2.5 text-sm text-foreground/50 font-medium leading-[1.7]">
                           <span className="text-foreground/25 mt-0.5 shrink-0">•</span>
                           {item}
                         </li>
@@ -155,7 +155,7 @@ function MarketStatsSlide({ slide }: { slide: typeof slides[0] }) {
   return (
     <div className="report-slide slide-height flex flex-col justify-center px-8 md:px-16 lg:px-24 py-20">
       {slide.subtitle && (
-        <p className="text-[13px] font-medium text-foreground/35 tracking-wide mb-3">{slide.subtitle}</p>
+        <p className="text-sm font-medium text-foreground/35 tracking-wide mb-3">{slide.subtitle}</p>
       )}
       <div className="flex flex-col md:flex-row gap-12 md:gap-20">
         {/* Left: title + body */}
@@ -164,7 +164,7 @@ function MarketStatsSlide({ slide }: { slide: typeof slides[0] }) {
             {slide.title}
           </h2>
           {content.bodyText && (
-            <p className="text-[13px] text-foreground/40 font-medium mt-8 max-w-sm leading-[1.7]">{content.bodyText}</p>
+            <p className="text-sm text-foreground/40 font-medium mt-8 max-w-sm leading-[1.7]">{content.bodyText}</p>
           )}
         </div>
 
@@ -175,7 +175,7 @@ function MarketStatsSlide({ slide }: { slide: typeof slides[0] }) {
               <p className="text-[clamp(2rem,4vw,3.5rem)] font-bold text-black tracking-[-0.02em] leading-none mb-3">
                 {stat.value}
               </p>
-              <p className="text-[13px] text-foreground/40 font-medium leading-[1.7] max-w-md">{stat.description}</p>
+              <p className="text-sm text-foreground/40 font-medium leading-[1.7] max-w-md">{stat.description}</p>
             </div>
           ))}
         </div>
@@ -198,8 +198,8 @@ function StatsGridSlide({ slide }: { slide: typeof slides[0] }) {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {slide.content.stats?.map((stat, i) => (
           <div key={i} className="bg-[#f5f5f3] rounded-2xl p-6">
-            <p className="text-[14px] font-semibold text-black/70 mb-2">{stat.label}</p>
-            <p className="text-[13px] text-foreground/40 font-medium leading-[1.7]">{stat.description}</p>
+            <p className="text-sm font-semibold text-black/70 mb-2">{stat.label}</p>
+            <p className="text-sm text-foreground/40 font-medium leading-[1.7]">{stat.description}</p>
           </div>
         ))}
       </div>
@@ -216,7 +216,7 @@ function TableSlide({ slide }: { slide: typeof slides[0] }) {
           <h2 className="text-[clamp(2rem,4.5vw,3.5rem)] font-bold leading-[1.05] tracking-[-0.02em] text-black whitespace-pre-line mb-8">
             {slide.title}
           </h2>
-          <div className="text-[13px] text-foreground/35 font-medium leading-[1.7] space-y-3 max-w-xs">
+          <div className="text-sm text-foreground/35 font-medium leading-[1.7] space-y-3 max-w-xs">
             <p>{slide.subtitle}</p>
             <p><strong className="text-foreground/60">Anthropic sets the ceiling.</strong> Some senior candidates won't engage below $1M+ base.</p>
           </div>
@@ -227,17 +227,17 @@ function TableSlide({ slide }: { slide: typeof slides[0] }) {
           <table className="w-full">
             <thead>
               <tr className="border-b border-black/10">
-                <th className="text-left pb-3 text-[12px] font-medium text-foreground/35">Company</th>
-                <th className="text-left pb-3 text-[12px] font-medium text-foreground/35">Role</th>
-                <th className="text-right pb-3 text-[12px] font-medium text-foreground/35">Base Salary</th>
+                <th className="text-left pb-3 text-xs font-medium text-foreground/35">Company</th>
+                <th className="text-left pb-3 text-xs font-medium text-foreground/35">Role</th>
+                <th className="text-right pb-3 text-xs font-medium text-foreground/35">Base Salary</th>
               </tr>
             </thead>
             <tbody>
               {slide.content.companies?.map((row, i) => (
                 <tr key={i} className="border-b border-black/[0.06]">
-                  <td className="py-3.5 text-[14px] font-medium text-black/70">{row.company}</td>
-                  <td className="py-3.5 text-[14px] font-medium text-foreground/45">{row.role}</td>
-                  <td className="py-3.5 text-[14px] font-medium text-black/70 text-right tabular-nums">{row.salary}</td>
+                  <td className="py-3.5 text-sm font-medium text-black/70">{row.company}</td>
+                  <td className="py-3.5 text-sm font-medium text-foreground/45">{row.role}</td>
+                  <td className="py-3.5 text-sm font-medium text-black/70 text-right tabular-nums">{row.salary}</td>
                 </tr>
               ))}
             </tbody>
@@ -256,7 +256,7 @@ function QuoteSlide({ slide }: { slide: typeof slides[0] }) {
         {slide.title}
       </h2>
       {slide.subtitle && (
-        <p className="text-[14px] text-foreground/40 font-medium mb-10">{slide.subtitle}</p>
+        <p className="text-sm text-foreground/40 font-medium mb-10">{slide.subtitle}</p>
       )}
       <div className="flex flex-col md:flex-row gap-12 md:gap-0">
         {/* Left: body text */}
@@ -264,7 +264,7 @@ function QuoteSlide({ slide }: { slide: typeof slides[0] }) {
           {content.bodyText && (
             <div className="space-y-4">
               {content.bodyText.split('\n\n').map((p, i) => (
-                <p key={i} className="text-[14px] text-foreground/50 font-medium leading-[1.7]">{p}</p>
+                <p key={i} className="text-sm text-foreground/50 font-medium leading-[1.7]">{p}</p>
               ))}
             </div>
           )}
@@ -281,7 +281,7 @@ function QuoteSlide({ slide }: { slide: typeof slides[0] }) {
                 &ldquo;{content.quote}&rdquo;
               </p>
               <footer className="mt-6 text-center">
-                <p className="text-[13px] font-medium text-foreground/50">{content.attribution}, <span className="text-foreground/35 font-medium">{content.attributionTitle}</span></p>
+                <p className="text-sm font-medium text-foreground/50">{content.attribution}, <span className="text-foreground/35 font-medium">{content.attributionTitle}</span></p>
               </footer>
             </blockquote>
           )}
@@ -303,14 +303,14 @@ function CardsGridSlide({ slide }: { slide: typeof slides[0] }) {
         </span>
       )}
       {slide.subtitle && (
-        <p className="text-[14px] text-foreground/35 font-medium mt-2 mb-10">{slide.subtitle}</p>
+        <p className="text-sm text-foreground/35 font-medium mt-2 mb-10">{slide.subtitle}</p>
       )}
       {!slide.subtitle && <div className="mb-10" />}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {slide.content.cards?.map((card, i) => (
           <div key={i} className="bg-[#f5f5f3] rounded-2xl p-6">
-            <h3 className="text-[14px] font-semibold text-black/70 mb-2">{card.title}</h3>
-            <p className="text-[13px] text-foreground/40 font-medium leading-[1.7]">{card.description}</p>
+            <h3 className="text-sm font-semibold text-black/70 mb-2">{card.title}</h3>
+            <p className="text-sm text-foreground/40 font-medium leading-[1.7]">{card.description}</p>
           </div>
         ))}
       </div>
@@ -322,7 +322,7 @@ function ThreeTierSlide({ slide }: { slide: typeof slides[0] }) {
   return (
     <div className="report-slide slide-height flex flex-col justify-center px-8 md:px-16 lg:px-24 py-20">
       {slide.subtitle && (
-        <p className="text-[13px] text-foreground/35 font-medium mb-3 max-w-2xl">{slide.subtitle}</p>
+        <p className="text-sm text-foreground/35 font-medium mb-3 max-w-2xl">{slide.subtitle}</p>
       )}
       <h2 className="text-[clamp(2rem,4.5vw,3.5rem)] font-bold leading-[1.05] tracking-[-0.02em] text-black whitespace-pre-line mb-14">
         {slide.title}
@@ -336,9 +336,9 @@ function ThreeTierSlide({ slide }: { slide: typeof slides[0] }) {
               i === 2 ? "bg-black/[0.04] ring-1 ring-black/[0.06]" : "bg-[#f5f5f3]"
             )}
           >
-            <span className="text-[11px] font-semibold text-foreground/25 uppercase tracking-[0.15em]">{tier.tier}</span>
-            <h3 className="text-[18px] font-bold text-black/75 mt-1.5 mb-3">{tier.label}</h3>
-            <p className="text-[13px] text-foreground/40 font-medium leading-[1.7]">{tier.description}</p>
+            <span className="text-2xs font-semibold text-foreground/25 uppercase tracking-[0.15em]">{tier.tier}</span>
+            <h3 className="text-lg font-bold text-black/75 mt-1.5 mb-3">{tier.label}</h3>
+            <p className="text-sm text-foreground/40 font-medium leading-[1.7]">{tier.description}</p>
           </div>
         ))}
       </div>
@@ -353,19 +353,19 @@ function CompanyProfilesSlide({ slide }: { slide: typeof slides[0] }) {
         {slide.title}
       </h2>
       {slide.subtitle && (
-        <p className="text-[14px] text-foreground/35 font-medium mb-10 max-w-2xl">{slide.subtitle}</p>
+        <p className="text-sm text-foreground/35 font-medium mb-10 max-w-2xl">{slide.subtitle}</p>
       )}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {slide.content.profiles?.map((profile, i) => (
           <div key={i} className="bg-[#f5f5f3] rounded-2xl p-5">
             {/* Company label pill */}
-            <span className="inline-block text-[10px] font-medium text-foreground/40 bg-black/[0.05] rounded px-2 py-0.5 mb-3 tracking-wide">
+            <span className="inline-block text-2xs font-medium text-foreground/40 bg-black/[0.05] rounded px-2 py-0.5 mb-3 tracking-wide">
               {profile.name}
             </span>
-            <p className="text-[14px] font-semibold text-black/70 mb-3 leading-snug">{profile.headline}</p>
+            <p className="text-sm font-semibold text-black/70 mb-3 leading-snug">{profile.headline}</p>
             <ul className="space-y-1.5">
               {profile.details.map((d, j) => (
-                <li key={j} className="text-[12px] text-foreground/40 font-medium leading-[1.6]">{d}</li>
+                <li key={j} className="text-xs text-foreground/40 font-medium leading-[1.6]">{d}</li>
               ))}
             </ul>
           </div>
@@ -385,10 +385,10 @@ function RecommendationsSlide({ slide }: { slide: typeof slides[0] }) {
         {slide.content.recommendations?.map((rec, i) => (
           <div key={i} className="bg-[#f5f5f3] rounded-2xl p-6 flex flex-col md:flex-row md:items-start gap-4 md:gap-8">
             <div className="flex-1">
-              <h3 className="text-[15px] font-semibold text-black/70 mb-1.5">{rec.title}</h3>
-              <p className="text-[13px] text-foreground/40 font-medium leading-[1.7]">{rec.description}</p>
+              <h3 className="text-base font-semibold text-black/70 mb-1.5">{rec.title}</h3>
+              <p className="text-sm text-foreground/40 font-medium leading-[1.7]">{rec.description}</p>
             </div>
-            <span className="text-[11px] font-medium text-foreground/30 bg-black/[0.04] px-3 py-1.5 rounded-lg whitespace-nowrap self-start">
+            <span className="text-2xs font-medium text-foreground/30 bg-black/[0.04] px-3 py-1.5 rounded-lg whitespace-nowrap self-start">
               {rec.timing}
             </span>
           </div>
@@ -402,25 +402,25 @@ function ClosingSlide({ slide }: { slide: typeof slides[0] }) {
   return (
     <div className="report-slide slide-height flex flex-col justify-center px-8 md:px-16 lg:px-24 py-20">
       {slide.subtitle && (
-        <p className="text-[13px] text-foreground/30 font-medium mb-3">{slide.subtitle}</p>
+        <p className="text-sm text-foreground/30 font-medium mb-3">{slide.subtitle}</p>
       )}
       <h2 className="text-[clamp(2.5rem,5vw,4rem)] font-bold leading-[1.05] tracking-[-0.02em] text-black whitespace-pre-line mb-10">
         {slide.title}
       </h2>
-      <p className="text-[12px] font-semibold text-foreground/25 uppercase tracking-[0.15em] mb-6">Three deep dives planned</p>
+      <p className="text-xs font-semibold text-foreground/25 uppercase tracking-[0.15em] mb-6">Three deep dives planned</p>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-16">
         {slide.content.nextSteps?.map((step, i) => (
           <div key={i} className="bg-[#f5f5f3] rounded-2xl p-6">
             <span className="text-[2rem] font-bold text-black/10 tabular-nums">{i + 1}</span>
-            <h3 className="text-[14px] font-semibold text-black/65 mt-2 mb-1.5">{step.title}</h3>
-            <p className="text-[13px] text-foreground/40 font-medium leading-[1.7]">{step.description}</p>
+            <h3 className="text-sm font-semibold text-black/65 mt-2 mb-1.5">{step.title}</h3>
+            <p className="text-sm text-foreground/40 font-medium leading-[1.7]">{step.description}</p>
           </div>
         ))}
       </div>
       {slide.content.bodyText && (
         <div className="text-center border-t border-black/[0.06] pt-8">
           {slide.content.bodyText.split('\n').map((line, i) => (
-            <p key={i} className="text-[14px] text-foreground/30 font-medium">{line}</p>
+            <p key={i} className="text-sm text-foreground/30 font-medium">{line}</p>
           ))}
         </div>
       )}
@@ -617,13 +617,13 @@ export default function TalentIntelligenceReport() {
               "flex items-center gap-2 rounded-lg px-3 py-1",
               isDarkSlide ? "bg-white/[0.06]" : "bg-black/[0.05]"
             )}>
-              <span className={cn("text-[12px] font-medium hidden sm:inline", isDarkSlide ? "text-white/50" : "text-foreground/45")}>
+              <span className={cn("text-xs font-medium hidden sm:inline", isDarkSlide ? "text-white/50" : "text-foreground/45")}>
                 {reportMeta.title}
               </span>
               {activeSlide > 0 && (
                 <>
-                  <span className={cn("text-[12px] hidden sm:inline", isDarkSlide ? "text-white/20" : "text-black/15")}>/</span>
-                  <span className={cn("text-[12px] hidden sm:inline", isDarkSlide ? "text-white/30" : "text-foreground/25")}>
+                  <span className={cn("text-xs hidden sm:inline", isDarkSlide ? "text-white/20" : "text-black/15")}>/</span>
+                  <span className={cn("text-xs hidden sm:inline", isDarkSlide ? "text-white/30" : "text-foreground/25")}>
                     Chapter {chapterIndex.findIndex(c => slides[activeSlide].chapter === c.chapter) + 1} of {chapterIndex.length}
                   </span>
                 </>
@@ -641,7 +641,7 @@ export default function TalentIntelligenceReport() {
                 key={label}
                 onClick={onClick}
                 className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors",
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
                   isDarkSlide
                     ? "text-white/50 hover:bg-white/[0.06]"
                     : "text-foreground/45 hover:bg-black/[0.04]"
@@ -702,14 +702,14 @@ export default function TalentIntelligenceReport() {
         <div className="fixed inset-0 z-30 md:hidden print:hidden">
           <div className="absolute inset-0 bg-black/20" onClick={() => setSidebarOpen(false)} />
           <div className="absolute left-0 top-0 bottom-0 w-72 bg-[#f0eeeb] border-r border-black/10 p-6 pt-16 overflow-y-auto">
-            <p className="text-[11px] font-semibold text-foreground/25 uppercase tracking-[0.15em] mb-4">Chapters</p>
+            <p className="text-2xs font-semibold text-foreground/25 uppercase tracking-[0.15em] mb-4">Chapters</p>
             <div className="space-y-0.5">
               {chapterIndex.map((ch) => (
                 <button
                   key={ch.chapter}
                   onClick={() => scrollToSlide(ch.slideIdx)}
                   className={cn(
-                    "w-full text-left px-3 py-2 rounded-lg text-[13px] font-medium transition-colors",
+                    "w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors",
                     slides[activeSlide].chapter === ch.chapter
                       ? "bg-black/[0.06] text-black/70"
                       : "text-foreground/35 hover:text-foreground/55 hover:bg-black/[0.03]"

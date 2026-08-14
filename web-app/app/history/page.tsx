@@ -1298,7 +1298,7 @@ function HistoryContent() {
                       </div>
                       <div className="flex flex-col items-start">
                         <span className="text-xs font-medium text-foreground">Importing in background</span>
-                        <span className="text-[10px] text-muted-foreground">
+                        <span className="text-2xs text-muted-foreground">
                           {importProgress.current} / {importProgress.total}
                         </span>
                       </div>
@@ -1407,7 +1407,7 @@ function HistoryContent() {
                                               <div className="flex items-center gap-2">
                                                 <span className="font-medium text-sm">{folder.name}</span>
                                                 {folder.shared && (
-                                                  <Badge variant="outline" className="text-[10px] h-5 px-1.5">Shared</Badge>
+                                                  <Badge variant="outline" className="text-2xs h-5 px-1.5">Shared</Badge>
                                                 )}
                                               </div>
                                               <div className="flex items-center gap-3 text-xs text-muted-foreground">
@@ -1485,7 +1485,7 @@ function HistoryContent() {
                                         </div>
                                         <div className="flex items-center gap-2 shrink-0">
                                           {file.alreadyImported && (
-                                            <Badge variant="secondary" className="text-[10px] h-5 px-1.5">Imported</Badge>
+                                            <Badge variant="secondary" className="text-2xs h-5 px-1.5">Imported</Badge>
                                           )}
                                           <span className="text-xs text-muted-foreground whitespace-nowrap">
                                             {file.modifiedTime ? new Date(file.modifiedTime).toLocaleDateString('en-US', {
@@ -1736,7 +1736,7 @@ function HistoryContent() {
                                                   <div className="flex items-center gap-2">
                                                     <span className="font-medium text-sm">{folder.name}</span>
                                                     {folder.shared && (
-                                                      <Badge variant="outline" className="text-[10px] h-5 px-1.5">Shared</Badge>
+                                                      <Badge variant="outline" className="text-2xs h-5 px-1.5">Shared</Badge>
                                                     )}
                                                   </div>
                                                   {folder.owners && folder.owners.length > 0 && (
@@ -2221,7 +2221,7 @@ function HistoryContent() {
                                     }
                                   }}
                                   placeholder={messages.length > 0 ? "Ask follow-up..." : "Ask about your meetings..."}
-                                  className="min-h-[44px] max-h-[160px] py-2.5 px-4 bg-input focus-visible:ring-0 focus-visible:ring-offset-0 resize-none overflow-y-auto text-[15px] placeholder:text-muted-foreground/50"
+                                  className="min-h-[44px] max-h-[160px] py-2.5 px-4 bg-input focus-visible:ring-0 focus-visible:ring-offset-0 resize-none overflow-y-auto text-base placeholder:text-muted-foreground/50"
                                   rows={1}
                                 />
                               </div>
@@ -2412,7 +2412,7 @@ function HistoryContent() {
                     >
                       <span>All</span>
                       <span className={cn(
-                        "h-5 min-w-5 px-1.5 rounded-full flex items-center justify-center text-[10px] font-semibold transition-all",
+                        "h-5 min-w-5 px-1.5 rounded-full flex items-center justify-center text-2xs font-semibold transition-all",
                         selectedMeetingType === 'all'
                           ? "bg-foreground/15 text-foreground"
                           : "bg-muted/60 text-muted-foreground"
@@ -2461,7 +2461,7 @@ function HistoryContent() {
                         >
                           <span>{type}</span>
                           <span className={cn(
-                            "h-5 min-w-5 px-1.5 rounded-full flex items-center justify-center text-[10px] font-semibold transition-all",
+                            "h-5 min-w-5 px-1.5 rounded-full flex items-center justify-center text-2xs font-semibold transition-all",
                             selectedMeetingType === type
                               ? "bg-foreground/15 text-foreground"
                               : "bg-muted/60 text-muted-foreground"
