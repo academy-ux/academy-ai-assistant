@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  turbopack: {
+    root: __dirname,
+  },
   env: {
     ADMIN_EMAILS: process.env.ADMIN_EMAILS,
   },

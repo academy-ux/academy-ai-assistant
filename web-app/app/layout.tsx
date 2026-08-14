@@ -41,7 +41,9 @@ export default function RootLayout({
               <div className="md:hidden shrink-0">
                 <Navbar />
               </div>
-              <main className="flex-1 overflow-auto relative flex flex-col w-full min-h-0">
+              {/* scrollbar-gutter:stable — content width stays identical whether or
+                  not a scrollbar is present, so pages never reflow as they grow */}
+              <main className="flex-1 overflow-auto relative flex flex-col w-full min-h-0 [scrollbar-gutter:stable]">
                 {children}
               </main>
             </div>

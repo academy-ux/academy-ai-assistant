@@ -4,7 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
-import { LayoutDashboard, History, MessageSquare, LogOut, Sparkles, FileText, CalendarRange } from 'lucide-react'
+import { LayoutDashboard, History, MessageSquare, LogOut, Sparkles, FileText, CalendarRange, Calculator } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -75,6 +75,14 @@ export function Sidebar() {
                             <Button variant="ghost" className={cn("w-full justify-start gap-3 font-medium", pathname === '/resourcing' && "bg-primary/10 text-primary")}>
                                 <CalendarRange size={18} className={cn(pathname === '/resourcing' ? "text-primary" : "text-muted-foreground")} />
                                 Resourcing
+                            </Button>
+                        </Link>
+                    )}
+                    {(session.user as any)?.isAdmin && (
+                        <Link href="/calculator">
+                            <Button variant="ghost" className={cn("w-full justify-start gap-3 font-medium", pathname === '/calculator' && "bg-primary/10 text-primary")}>
+                                <Calculator size={18} className={cn(pathname === '/calculator' ? "text-primary" : "text-muted-foreground")} />
+                                Calculator
                             </Button>
                         </Link>
                     )}
