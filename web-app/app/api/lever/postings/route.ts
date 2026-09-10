@@ -4,12 +4,12 @@ import { errorResponse } from '@/lib/validation'
 // Always reflect the current Lever state — don't serve a build-time cached list.
 export const dynamic = 'force-dynamic'
 
-// Evergreen "catch-all" postings live in Lever as published roles but aren't
-// actual openings (e.g. "General Application", "Talent Network", "Invites").
-// Exclude them by title so the report only lists real, active roles.
-function isEvergreenBucket(text: string): boolean {
-  return /general application|talent network|\binvites?\b/i.test(text || '')
-}
+// Lever posting states we surface as selectable jobs. `published` is the set of
+// publicly-live roles; `internal` is where evergreen "catch-all" postings live
+// (General Application, Talent Network, Invites). We intentionally include the
+// internal buckets so a general opportunity can be selected, and do NOT filter
+// any of them out by title.
+const SELECTABLE_STATES = ['published', 'internal']
 
 export async function GET() {
   try {
@@ -19,25 +19,28 @@ export async function GET() {
       return NextResponse.json({ error: 'Lever API key not configured' }, { status: 500 })
     }
 
-    // Fetch only published (publicly live) job postings. Lever's `internal`
-    // state also holds parked/evergreen buckets (general applications, Academy
-    // internal hires), so it's excluded to keep this list to truly active roles.
     const headers = {
       'Authorization': `Basic ${Buffer.from(leverKey + ':').toString('base64')}`,
       'Content-Type': 'application/json',
     }
 
-    const publishedRes = await fetch(
-      'https://api.lever.co/v1/postings?state=published&limit=100',
-      { headers }
+    // Lever's `state` param takes a single value, so fetch each state in
+    // parallel and merge. Dedupe by id in case of any overlap.
+    const responses = await Promise.all(
+      SELECTABLE_STATES.map((state) =>
+        fetch(`https://api.lever.co/v1/postings?state=${state}&limit=100`, { headers })
+      )
     )
 
     const postings: any[] = []
+    const seen = new Set<string>()
 
-    if (publishedRes.ok) {
-      const data = await publishedRes.json()
+    for (const res of responses) {
+      if (!res.ok) continue
+      const data = await res.json()
       for (const posting of data.data || []) {
-        if (isEvergreenBucket(posting.text)) continue
+        if (seen.has(posting.id)) continue
+        seen.add(posting.id)
         postings.push({
           id: posting.id,
           text: posting.text,
@@ -80,8 +83,8 @@ export async function GET() {
     }
 
     // Fallback: No postings found, return empty with message
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       postings: [],
       message: 'No job postings found. Create postings in Lever first.'
     })
