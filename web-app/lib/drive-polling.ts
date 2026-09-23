@@ -42,6 +42,114 @@ async function getSubfolderIds(
 }
 
 /**
+ * Import a single Drive doc as an interview. Used by pollFolder for each file,
+ * and directly by one-off backfills that target specific file IDs.
+ */
+export async function importDriveFile(
+  drive: drive_v3.Drive,
+  file: drive_v3.Schema$File,
+  userEmail: string
+): Promise<'imported' | 'skipped' | 'error'> {
+  try {
+    const existing = await findExistingImport(drive, file, userEmail)
+
+    if (existing) {
+      console.log(`[Poll] Skipping already imported: ${file.name}`)
+      return 'skipped'
+    }
+
+    console.log(`[Poll] Processing new file: ${file.name}`)
+    
+    // Download and process
+    const exportRes = await drive.files.export({
+      fileId: file.id!,
+      mimeType: 'text/plain',
+    })
+    const text = exportRes.data as string
+
+    if (!text || text.length < 50) {
+      console.log(`[Poll] Skipping (too short): ${file.name}`)
+      return 'skipped'
+    }
+
+    const metadata = await parseTranscriptMetadata(text, file.name || '')
+    const embedding = await generateEmbedding(text)
+
+    // Generate a descriptive meeting title
+    const meetingDate = file.createdTime 
+      ? new Date(file.createdTime).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
+      : new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
+    
+    let generatedTitle = metadata.meetingType || 'Meeting'
+    
+    // Format: "Candidate <> Interviewer — Type MM/DD/YYYY"
+    if (metadata.candidateName && metadata.candidateName !== 'Unknown Candidate' && metadata.candidateName !== 'Team') {
+      if (metadata.interviewer && metadata.interviewer !== 'Unknown') {
+        generatedTitle = `${metadata.candidateName} <> ${metadata.interviewer} — ${metadata.meetingCategory} ${meetingDate}`
+      } else {
+        generatedTitle = `${metadata.candidateName} — ${metadata.meetingCategory} ${meetingDate}`
+      }
+    } else if (metadata.meetingCategory && metadata.meetingCategory !== 'Other') {
+      generatedTitle = `${metadata.meetingCategory} ${meetingDate}`
+    }
+
+    // Final dedup check: same generated title + owner = Tactiq vs Google native duplicate
+    if (await titleAlreadyImported(generatedTitle, userEmail)) {
+      console.log(`[Poll] Skipping duplicate title: ${generatedTitle}`)
+      return 'skipped'
+    }
+
+    const { error } = await supabase.from('interviews').insert({
+      meeting_title: generatedTitle,
+      meeting_type: metadata.meetingCategory,
+      meeting_date: file.createdTime || new Date().toISOString(),
+      transcript: text,
+      transcript_file_name: file.name,
+      drive_file_id: file.id,
+      embedding: embedding,
+      summary: metadata.summary,
+      rating: 'Not Analyzed',
+      candidate_name: metadata.candidateName,
+      interviewer: metadata.interviewer,
+      position: metadata.position || '',
+      owner_email: userEmail
+    })
+
+    if (error?.code === UNIQUE_VIOLATION) {
+      // Another poll/import inserted this file first — not an error
+      console.log(`[Poll] Skipping (imported concurrently): ${file.name}`)
+      return 'skipped'
+    }
+    if (error) {
+      console.error(`[Poll] ❌ Insert error for "${file.name}":`, error)
+      console.error(`[Poll] Failed data: meetingType="${metadata.meetingCategory}", candidateName="${metadata.candidateName}"`)
+      return 'error'
+    } else {
+      console.log(`[Poll] ✅ Successfully imported: ${generatedTitle}`)
+      
+      // Rename the file in Google Drive to use the intelligent title
+      try {
+        await drive.files.update({
+          fileId: file.id!,
+          requestBody: {
+            name: generatedTitle
+          }
+        })
+        console.log(`[Poll] Renamed Drive file: "${file.name}" -> "${generatedTitle}"`)
+      } catch (renameError: any) {
+        // Log but don't fail the import if rename fails
+        console.error('[Poll] Failed to rename Drive file:', file.name, renameError.message || renameError)
+      }
+      
+      return 'imported'
+    }
+  } catch (fileError) {
+    console.error('File processing error:', fileError)
+    return 'error'
+  }
+}
+
+/**
  * Helper function to poll a single Drive folder for new transcripts
  * Used by both the cron job and manual polling endpoints
  * 
@@ -165,105 +273,7 @@ export async function pollFolder(
     }
     
     const batch = allFiles.slice(i, i + BATCH_SIZE)
-    const batchResults = await Promise.all(batch.map(async (file) => {
-      try {
-        const existing = await findExistingImport(drive, file, userEmail)
-
-        if (existing) {
-          console.log(`[Poll] Skipping already imported: ${file.name}`)
-          return 'skipped'
-        }
-
-        console.log(`[Poll] Processing new file: ${file.name}`)
-        
-        // Download and process
-        const exportRes = await drive.files.export({
-          fileId: file.id!,
-          mimeType: 'text/plain',
-        })
-        const text = exportRes.data as string
-
-        if (!text || text.length < 50) {
-          console.log(`[Poll] Skipping (too short): ${file.name}`)
-          return 'skipped'
-        }
-
-        const metadata = await parseTranscriptMetadata(text, file.name || '')
-        const embedding = await generateEmbedding(text)
-
-        // Generate a descriptive meeting title
-        const meetingDate = file.createdTime 
-          ? new Date(file.createdTime).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
-          : new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
-        
-        let generatedTitle = metadata.meetingType || 'Meeting'
-        
-        // Format: "Candidate <> Interviewer — Type MM/DD/YYYY"
-        if (metadata.candidateName && metadata.candidateName !== 'Unknown Candidate' && metadata.candidateName !== 'Team') {
-          if (metadata.interviewer && metadata.interviewer !== 'Unknown') {
-            generatedTitle = `${metadata.candidateName} <> ${metadata.interviewer} — ${metadata.meetingCategory} ${meetingDate}`
-          } else {
-            generatedTitle = `${metadata.candidateName} — ${metadata.meetingCategory} ${meetingDate}`
-          }
-        } else if (metadata.meetingCategory && metadata.meetingCategory !== 'Other') {
-          generatedTitle = `${metadata.meetingCategory} ${meetingDate}`
-        }
-
-        // Final dedup check: same generated title + owner = Tactiq vs Google native duplicate
-        if (await titleAlreadyImported(generatedTitle, userEmail)) {
-          console.log(`[Poll] Skipping duplicate title: ${generatedTitle}`)
-          return 'skipped'
-        }
-
-        const { error } = await supabase.from('interviews').insert({
-          meeting_title: generatedTitle,
-          meeting_type: metadata.meetingCategory,
-          meeting_date: file.createdTime || new Date().toISOString(),
-          transcript: text,
-          transcript_file_name: file.name,
-          drive_file_id: file.id,
-          embedding: embedding,
-          summary: metadata.summary,
-          rating: 'Not Analyzed',
-          candidate_name: metadata.candidateName,
-          interviewer: metadata.interviewer,
-          position: metadata.position || '',
-          owner_email: userEmail
-        })
-
-        if (error?.code === UNIQUE_VIOLATION) {
-          // Another poll/import inserted this file first — not an error
-          console.log(`[Poll] Skipping (imported concurrently): ${file.name}`)
-          return 'skipped'
-        }
-        if (error) {
-          console.error(`[Poll] ❌ Insert error for "${file.name}":`, error)
-          console.error(`[Poll] Failed data: meetingType="${metadata.meetingCategory}", candidateName="${metadata.candidateName}"`)
-          return 'error'
-        } else {
-          console.log(`[Poll] ✅ Successfully imported: ${generatedTitle}`)
-          
-          // Rename the file in Google Drive to use the intelligent title
-          try {
-            await drive.files.update({
-              fileId: file.id!,
-              requestBody: {
-                name: generatedTitle
-              }
-            })
-            console.log(`[Poll] Renamed Drive file: "${file.name}" -> "${generatedTitle}"`)
-          } catch (renameError: any) {
-            // Log but don't fail the import if rename fails
-            console.error('[Poll] Failed to rename Drive file:', file.name, renameError.message || renameError)
-          }
-          
-          return 'imported'
-        }
-      } catch (fileError) {
-        console.error('File processing error:', fileError)
-        return 'error'
-      }
-    }))
+    const batchResults = await Promise.all(batch.map((file) => importDriveFile(drive, file, userEmail)))
     
     // Process batch results and update counters
     let batchHasImported = false
