@@ -33,11 +33,12 @@ export async function POST(req: NextRequest) {
         const fileName = `[Realtime] ${title || 'Meeting'}`
 
         // 1. Check if we already have this interview (by code)
-        const { data: existing } = await supabase
+        const { data: existingRows } = await supabase
             .from('interviews')
             .select('id, transcript, meeting_title')
             .eq('drive_file_id', uniqueId)
-            .maybeSingle()
+            .limit(1)
+        const existing = existingRows?.[0] ?? null
 
         if (existing) {
             console.log(`[Realtime Upload] Duplicate detected (ID: ${existing.id}). Updating...`)

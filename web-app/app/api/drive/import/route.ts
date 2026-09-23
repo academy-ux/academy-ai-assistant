@@ -6,6 +6,7 @@ import { google, drive_v3 } from 'googleapis'
 import { supabase } from '@/lib/supabase'
 import { generateEmbedding } from '@/lib/embeddings'
 import { parseTranscriptMetadata } from '@/lib/transcript-parser'
+import { findExistingImport, UNIQUE_VIOLATION } from '@/lib/import-dedup'
 import { z } from 'zod'
 import { validateBody, errorResponse } from '@/lib/validation'
 import { checkRateLimit } from '@/lib/rate-limit'
@@ -76,69 +77,7 @@ export async function POST(req: NextRequest) {
     for (let i = 0; i < allFiles.length; i++) {
       const file = allFiles[i]
 
-      // Check if already imported (by Drive file ID first, then by file name)
-      let existing = null
-
-      // First check by Drive file ID (most reliable)
-      if (file.id) {
-        const { data: existingById } = await supabase
-          .from('interviews')
-          .select('id')
-          .eq('drive_file_id', file.id)
-          .maybeSingle()
-        existing = existingById
-      }
-
-      // If not found by ID, check by file name (for backwards compatibility)
-      if (!existing && file.name) {
-        const { data: existingByName } = await supabase
-          .from('interviews')
-          .select('id')
-          .eq('transcript_file_name', file.name)
-          .maybeSingle()
-        existing = existingByName
-      }
-
-      // Cross-pathway check: match against Chrome extension uploads (meet-*) on the same day
-      // so we don't end up with one row from the extension + another from Drive for the same meeting.
-      if (!existing && file.createdTime) {
-        const fileDate = new Date(file.createdTime)
-        const startOfDay = new Date(fileDate); startOfDay.setHours(0, 0, 0, 0)
-        const endOfDay = new Date(fileDate); endOfDay.setHours(23, 59, 59, 999)
-
-        const { data: extensionCandidates } = await supabase
-          .from('interviews')
-          .select('id, transcript')
-          .eq('owner_email', userEmail)
-          .like('drive_file_id', 'meet-%')
-          .gte('meeting_date', startOfDay.toISOString())
-          .lte('meeting_date', endOfDay.toISOString())
-
-        if (extensionCandidates && extensionCandidates.length > 0) {
-          try {
-            const previewRes = await drive.files.export({ fileId: file.id!, mimeType: 'text/plain' })
-            const previewText = (previewRes.data as string)?.substring(0, 500) || ''
-            const previewWords = previewText.split(/\s+/).filter(Boolean)
-
-            for (const candidate of extensionCandidates) {
-              const existingSnippet = (candidate.transcript || '').substring(0, 500)
-              if (!existingSnippet || previewWords.length === 0) continue
-              const overlap = previewWords.filter((w: string) => existingSnippet.includes(w)).length
-              if (overlap / previewWords.length > 0.6) {
-                // Same transcript — re-link the existing extension row to this Drive file
-                await supabase
-                  .from('interviews')
-                  .update({ drive_file_id: file.id })
-                  .eq('id', candidate.id)
-                existing = { id: candidate.id }
-                break
-              }
-            }
-          } catch (previewError) {
-            console.error('[Import] Preview comparison failed:', previewError)
-          }
-        }
-      }
+      const existing = await findExistingImport(drive, file, userEmail)
 
       if (existing) {
         results.push({
@@ -207,7 +146,15 @@ export async function POST(req: NextRequest) {
           owner_email: userEmail
         })
 
-        if (error) {
+        if (error?.code === UNIQUE_VIOLATION) {
+          // Imported concurrently by the cron poller — not an error
+          results.push({
+            name: file.name,
+            status: 'skipped',
+            reason: 'already_imported',
+            progress: { current: i + 1, total: totalFiles }
+          })
+        } else if (error) {
           console.error('Supabase error:', error)
           results.push({
             name: file.name,

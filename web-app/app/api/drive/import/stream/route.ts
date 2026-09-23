@@ -6,6 +6,7 @@ import { google, drive_v3 } from 'googleapis'
 import { supabase } from '@/lib/supabase'
 import { generateEmbedding } from '@/lib/embeddings'
 import { parseTranscriptMetadata } from '@/lib/transcript-parser'
+import { findExistingImport, titleAlreadyImported, UNIQUE_VIOLATION } from '@/lib/import-dedup'
 import { z } from 'zod'
 
 const importSchema = z.object({
@@ -124,88 +125,7 @@ export async function POST(req: NextRequest) {
               })}\n\n`)
             )
 
-            // Check if already imported (by Drive file ID, file name, or extension upload match)
-            let existing = null
-
-            // First check by Drive file ID (most reliable)
-            if (file.id) {
-              const { data: existingById } = await supabase
-                .from('interviews')
-                .select('id')
-                .eq('drive_file_id', file.id)
-                .maybeSingle()
-              existing = existingById
-            }
-
-            // If not found by ID, check by file name (for backwards compatibility)
-            if (!existing && file.name) {
-              const { data: existingByName } = await supabase
-                .from('interviews')
-                .select('id')
-                .eq('transcript_file_name', file.name)
-                .maybeSingle()
-              existing = existingByName
-            }
-
-            // If still not found, check for Chrome extension uploads (drive_file_id starts with "meet-")
-            // that match on the same date and owner — prevents duplicates across ingestion pathways
-            if (!existing && file.createdTime && token.email) {
-              const fileDate = new Date(file.createdTime)
-              const startOfDay = new Date(fileDate)
-              startOfDay.setHours(0, 0, 0, 0)
-              const endOfDay = new Date(fileDate)
-              endOfDay.setHours(23, 59, 59, 999)
-
-              const { data: existingByDateOwner } = await supabase
-                .from('interviews')
-                .select('id')
-                .eq('owner_email', token.email)
-                .like('drive_file_id', 'meet-%')
-                .gte('meeting_date', startOfDay.toISOString())
-                .lte('meeting_date', endOfDay.toISOString())
-
-              // If there are matches, download the transcript and compare content similarity
-              if (existingByDateOwner && existingByDateOwner.length > 0) {
-                // Download the Drive file text to compare
-                try {
-                  const previewRes = await drive.files.export({
-                    fileId: file.id!,
-                    mimeType: 'text/plain',
-                  })
-                  const previewText = (previewRes.data as string)?.substring(0, 500) || ''
-
-                  for (const candidate of existingByDateOwner) {
-                    const { data: candidateRecord } = await supabase
-                      .from('interviews')
-                      .select('id, transcript')
-                      .eq('id', candidate.id)
-                      .single()
-
-                    if (candidateRecord?.transcript) {
-                      const existingSnippet = candidateRecord.transcript.substring(0, 500)
-                      // Compare first 500 chars — same transcript will have high overlap
-                      const overlap = previewText.split(/\s+/).filter((word: string) =>
-                        existingSnippet.includes(word)
-                      ).length
-                      const totalWords = previewText.split(/\s+/).length
-                      if (totalWords > 0 && overlap / totalWords > 0.6) {
-                        existing = { id: candidateRecord.id }
-                        // Update the existing record with the real Drive file ID for future dedup
-                        await supabase
-                          .from('interviews')
-                          .update({ drive_file_id: file.id })
-                          .eq('id', candidateRecord.id)
-                        console.log(`[Import] Linked extension upload ${candidateRecord.id} to Drive file ${file.id}`)
-                        break
-                      }
-                    }
-                  }
-                } catch (previewError) {
-                  // If we can't preview, skip this check rather than blocking import
-                  console.error('[Import] Preview comparison failed:', previewError)
-                }
-              }
-            }
+            const existing = await findExistingImport(drive, file, token.email)
 
             if (existing) {
               skippedCount++
@@ -298,13 +218,7 @@ export async function POST(req: NextRequest) {
 
               // Final dedup check: same generated title + owner = Tactiq vs Google native duplicate
               if (token.email) {
-                const { data: existingByTitle } = await supabase
-                  .from('interviews')
-                  .select('id')
-                  .eq('meeting_title', generatedTitle)
-                  .eq('owner_email', token.email)
-                  .maybeSingle()
-                if (existingByTitle) {
+                if (await titleAlreadyImported(generatedTitle, token.email)) {
                   skippedCount++
                   safeEnqueue(
                     encoder.encode(`data: ${JSON.stringify({
@@ -335,7 +249,18 @@ export async function POST(req: NextRequest) {
                 position: metadata.position || ''
               })
 
-              if (error) {
+              if (error?.code === UNIQUE_VIOLATION) {
+                // Imported concurrently by the cron poller — not an error
+                skippedCount++
+                safeEnqueue(
+                  encoder.encode(`data: ${JSON.stringify({
+                    type: 'result',
+                    name: file.name,
+                    status: 'skipped',
+                    reason: 'already_imported'
+                  })}\n\n`)
+                )
+              } else if (error) {
                 console.error('Supabase error for', file.name, ':', error)
                 errorCount++
                 safeEnqueue(
